@@ -9,6 +9,8 @@ from gestion_mantenimiento.data.repositories import (
     EquipoRepository,
     OrdenTrabajoRepository,
     ProgramaMantenimientoRepository,
+    RepuestoOrdenRepository,
+    RepuestoRepository,
     TecnicoRepository,
     TipoEquipoRepository,
 )
@@ -116,3 +118,108 @@ def test_programa_create_and_list(db_path: Path) -> None:
     prog_id = prog_repo.create(equipo.id, "Lubricación mensual", 30, "2026-04-01", "2026-05-01")
     programas = prog_repo.list_all()
     assert any(p.id == prog_id for p in programas)
+
+
+def test_repuesto_create_and_list(db_path: Path) -> None:
+    repo = RepuestoRepository(db_path)
+    rid = repo.create("Junta tórica", "Para bomba", 15.0, 5.0)
+    repuestos = repo.list_all()
+    assert any(r.id == rid for r in repuestos)
+    rep = repo.get_by_id(rid)
+    assert rep is not None
+    assert rep.nombre == "Junta tórica"
+    assert rep.stock_actual == 15.0
+    assert rep.stock_minimo == 5.0
+    assert not rep.bajo_stock
+
+
+def test_repuesto_bajo_stock(db_path: Path) -> None:
+    repo = RepuestoRepository(db_path)
+    rid = repo.create("Tornillo M8", "", 2.0, 5.0)
+    rep = repo.get_by_id(rid)
+    assert rep is not None
+    assert rep.bajo_stock
+
+
+def test_repuesto_ajustar_stock(db_path: Path) -> None:
+    repo = RepuestoRepository(db_path)
+    rid = repo.create("Arandela", "", 10.0, 2.0)
+    repo.ajustar_stock(rid, -3.0)
+    rep = repo.get_by_id(rid)
+    assert rep is not None
+    assert rep.stock_actual == 7.0
+
+
+def test_repuesto_orden_descuenta_stock(db_path: Path) -> None:
+    equipo_repo = EquipoRepository(db_path)
+    orden_repo = OrdenTrabajoRepository(db_path)
+    rep_repo = RepuestoRepository(db_path)
+    rep_orden_repo = RepuestoOrdenRepository(db_path)
+
+    equipo = equipo_repo.list_all()[0]
+    rid = rep_repo.create("Filtro extra", "", 20.0, 3.0)
+
+    orden_data = OrdenTrabajoCreate(
+        equipo_id=equipo.id, tipo="CORRECTIVO", descripcion="Test",
+        fecha_apertura="2026-05-01", fecha_cierre="", estado="PENDIENTE",
+        tecnico_id=None, costo_mano_obra=0.0, observaciones="",
+    )
+    orden_id = orden_repo.create(orden_data)
+
+    rep_orden_repo.create(orden_id, rid, "Filtro extra", 4.0, 500.0)
+
+    rep = rep_repo.get_by_id(rid)
+    assert rep is not None
+    assert rep.stock_actual == 16.0  # 20 - 4
+
+
+def test_repuesto_orden_delete_restaura_stock(db_path: Path) -> None:
+    equipo_repo = EquipoRepository(db_path)
+    orden_repo = OrdenTrabajoRepository(db_path)
+    rep_repo = RepuestoRepository(db_path)
+    rep_orden_repo = RepuestoOrdenRepository(db_path)
+
+    equipo = equipo_repo.list_all()[0]
+    rid = rep_repo.create("Correa B", "", 8.0, 2.0)
+
+    orden_data = OrdenTrabajoCreate(
+        equipo_id=equipo.id, tipo="PREVENTIVO", descripcion="Test restauración",
+        fecha_apertura="2026-05-01", fecha_cierre="", estado="PENDIENTE",
+        tecnico_id=None, costo_mano_obra=0.0, observaciones="",
+    )
+    orden_id = orden_repo.create(orden_data)
+    rep_orden_id = rep_orden_repo.create(orden_id, rid, "Correa B", 3.0, 200.0)
+
+    # Stock should be 8 - 3 = 5
+    rep = rep_repo.get_by_id(rid)
+    assert rep is not None and rep.stock_actual == 5.0
+
+    # Delete repuesto from order → stock should be restored to 8
+    rep_orden_repo.delete(rep_orden_id)
+    rep = rep_repo.get_by_id(rid)
+    assert rep is not None and rep.stock_actual == 8.0
+
+
+def test_orden_delete_restaura_stock(db_path: Path) -> None:
+    equipo_repo = EquipoRepository(db_path)
+    orden_repo = OrdenTrabajoRepository(db_path)
+    rep_repo = RepuestoRepository(db_path)
+    rep_orden_repo = RepuestoOrdenRepository(db_path)
+
+    equipo = equipo_repo.list_all()[0]
+    rid = rep_repo.create("Rodillo X", "", 12.0, 2.0)
+
+    orden_data = OrdenTrabajoCreate(
+        equipo_id=equipo.id, tipo="MEJORA", descripcion="Test delete orden",
+        fecha_apertura="2026-05-01", fecha_cierre="", estado="PENDIENTE",
+        tecnico_id=None, costo_mano_obra=0.0, observaciones="",
+    )
+    orden_id = orden_repo.create(orden_data)
+    rep_orden_repo.create(orden_id, rid, "Rodillo X", 5.0, 300.0)
+
+    # Stock: 12 - 5 = 7
+    assert rep_repo.get_by_id(rid).stock_actual == 7.0  # type: ignore[union-attr]
+
+    # Delete entire orden → stock should be restored to 12
+    orden_repo.delete(orden_id)
+    assert rep_repo.get_by_id(rid).stock_actual == 12.0  # type: ignore[union-attr]

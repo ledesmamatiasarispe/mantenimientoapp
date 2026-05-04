@@ -44,6 +44,7 @@ from gestion_mantenimiento.data.repositories import (
     OrdenTrabajoRepository,
     ProgramaMantenimientoRepository,
     RepuestoOrdenRepository,
+    RepuestoRepository,
     TecnicoRepository,
     TipoEquipoRepository,
 )
@@ -53,6 +54,7 @@ from gestion_mantenimiento.ui.theme import build_app_palette, build_app_styles, 
 _NAV_ITEMS = [
     ("Dashboard", "dashboard"),
     ("Equipos", "equipos"),
+    ("Repuestos", "repuestos"),
     ("Órdenes de Trabajo", "ordenes"),
     ("Programa Mantenimiento", "programa"),
     ("Técnicos", "tecnicos"),
@@ -134,6 +136,7 @@ class MainWindow(QMainWindow):
         self._tipo_repo = TipoEquipoRepository(database_path)
         self._orden_repo = OrdenTrabajoRepository(database_path)
         self._repuesto_repo = RepuestoOrdenRepository(database_path)
+        self._repuesto_catalog_repo = RepuestoRepository(database_path)
         self._programa_repo = ProgramaMantenimientoRepository(database_path)
 
         self.setWindowTitle(f"Gestión Mantenimiento v{__version__}")
@@ -210,6 +213,7 @@ class MainWindow(QMainWindow):
         builders = {
             "dashboard": self._build_dashboard_page,
             "equipos": self._build_equipos_page,
+            "repuestos": self._build_repuestos_page,
             "ordenes": self._build_ordenes_page,
             "programa": self._build_programa_page,
             "tecnicos": self._build_tecnicos_page,
@@ -404,6 +408,108 @@ class MainWindow(QMainWindow):
             try:
                 self._equipo_repo.delete(equipo_id)
                 self._refresh_equipos()
+            except Exception as exc:
+                QMessageBox.critical(self, "Error", str(exc))
+
+    # ── Repuestos ─────────────────────────────────────────────────────────────
+
+    def _build_repuestos_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        layout.addWidget(_page_title("Repuestos"))
+
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb_layout = QHBoxLayout(topbar)
+        tb_layout.setContentsMargins(12, 8, 12, 8)
+
+        self._rep_search = QLineEdit()
+        self._rep_search.setPlaceholderText("Buscar repuesto...")
+        self._rep_search.textChanged.connect(lambda: self._refresh_repuestos())
+
+        self._rep_show_inactive = QCheckBox("Mostrar inactivos")
+        self._rep_show_inactive.stateChanged.connect(lambda: self._refresh_repuestos())
+
+        btn_nuevo = _primary_button("+ Nuevo repuesto")
+        btn_nuevo.clicked.connect(self._open_repuesto_dialog)
+
+        tb_layout.addWidget(self._rep_search, 1)
+        tb_layout.addWidget(self._rep_show_inactive)
+        tb_layout.addWidget(btn_nuevo)
+        layout.addWidget(topbar)
+
+        self._rep_catalog_table = _make_table(
+            ["ID", "Nombre", "Stock actual", "Stock mínimo", "Estado stock", "Observaciones", "Activo"]
+        )
+        self._rep_catalog_table.doubleClicked.connect(self._edit_selected_repuesto)
+        layout.addWidget(self._rep_catalog_table)
+
+        actions = QWidget()
+        actions.setObjectName("actionButtons")
+        act_layout = QHBoxLayout(actions)
+        act_layout.setContentsMargins(0, 0, 0, 0)
+        btn_edit = QPushButton("Editar")
+        btn_edit.clicked.connect(self._edit_selected_repuesto)
+        btn_delete = _danger_button("Eliminar")
+        btn_delete.clicked.connect(self._delete_selected_repuesto)
+        act_layout.addStretch()
+        act_layout.addWidget(btn_edit)
+        act_layout.addWidget(btn_delete)
+        layout.addWidget(actions)
+
+        def refresh() -> None:
+            self._refresh_repuestos()
+
+        page._refresh = refresh  # type: ignore[attr-defined]
+        return page
+
+    def _refresh_repuestos(self) -> None:
+        search = self._rep_search.text()
+        solo_activos = not self._rep_show_inactive.isChecked()
+        repuestos = self._repuesto_catalog_repo.list_all(search=search, solo_activos=solo_activos)
+        tabla = self._rep_catalog_table
+        tabla.setRowCount(0)
+        for r in repuestos:
+            row = tabla.rowCount()
+            tabla.insertRow(row)
+            tabla.setItem(row, 0, QTableWidgetItem(str(r.id)))
+            tabla.setItem(row, 1, QTableWidgetItem(r.nombre))
+            tabla.setItem(row, 2, QTableWidgetItem(f"{r.stock_actual:g}"))
+            tabla.setItem(row, 3, QTableWidgetItem(f"{r.stock_minimo:g}"))
+            estado_stock = "BAJO STOCK" if r.bajo_stock else "OK"
+            tabla.setItem(row, 4, QTableWidgetItem(estado_stock))
+            tabla.setItem(row, 5, QTableWidgetItem(r.observaciones))
+            tabla.setItem(row, 6, QTableWidgetItem("Activo" if r.activo else "Inactivo"))
+            item_id = tabla.item(row, 0)
+            if item_id:
+                item_id.setData(Qt.ItemDataRole.UserRole, r.id)
+
+    def _open_repuesto_dialog(self, repuesto_id: int | None = None) -> None:
+        dlg = RepuestoCatalogDialog(self._db, repuesto_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_repuestos()
+
+    def _edit_selected_repuesto(self) -> None:
+        repuesto_id = self._selected_id(self._rep_catalog_table)
+        if repuesto_id is None:
+            return
+        self._open_repuesto_dialog(repuesto_id)
+
+    def _delete_selected_repuesto(self) -> None:
+        repuesto_id = self._selected_id(self._rep_catalog_table)
+        if repuesto_id is None:
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar el repuesto seleccionado?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                self._repuesto_catalog_repo.delete(repuesto_id)
+                self._refresh_repuestos()
             except Exception as exc:
                 QMessageBox.critical(self, "Error", str(exc))
 
@@ -920,6 +1026,7 @@ class OrdenTrabajoDialog(QDialog):
         self._orden_id = orden_id
         self._repo = OrdenTrabajoRepository(database_path)
         self._repuesto_repo = RepuestoOrdenRepository(database_path)
+        self._repuesto_catalog_repo = RepuestoRepository(database_path)
         self._equipo_repo = EquipoRepository(database_path)
         self._tecnico_repo = TecnicoRepository(database_path)
         self.setWindowTitle("Orden de Trabajo")
@@ -985,8 +1092,10 @@ class OrdenTrabajoDialog(QDialog):
         # Repuestos section
         layout.addWidget(_section_title("Repuestos utilizados"))
 
-        self._rep_table = _make_table(["Descripción", "Cantidad", "Costo unit.", "Subtotal"])
-        self._rep_table.setFixedHeight(150)
+        self._rep_table = _make_table(
+            ["Repuesto", "Stock disp.", "Cantidad", "Costo unit.", "Subtotal"]
+        )
+        self._rep_table.setFixedHeight(160)
         layout.addWidget(self._rep_table)
 
         rep_actions = QHBoxLayout()
@@ -1048,30 +1157,48 @@ class OrdenTrabajoDialog(QDialog):
 
         for rep in self._repuesto_repo.list_by_orden(orden_id):
             self._add_rep_row(
-                rep.descripcion, rep.cantidad, rep.costo_unitario, rep.id
+                rep.descripcion, rep.cantidad, rep.costo_unitario,
+                rep_orden_id=rep.id, repuesto_id=rep.repuesto_id,
             )
 
     def _add_repuesto(self) -> None:
-        dlg = RepuestoDialog(parent=self)
+        dlg = AgregarRepuestoOrdenDialog(self._db, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            desc, qty, costo = dlg.result_data()
-            self._add_rep_row(desc, qty, costo, None)
+            repuesto_id, nombre, stock_disp, qty, costo = dlg.result_data()
+            self._add_rep_row(
+                nombre, qty, costo,
+                rep_orden_id=None, repuesto_id=repuesto_id, stock_disp=stock_disp,
+            )
 
     def _add_rep_row(
         self,
         descripcion: str,
         cantidad: float,
         costo_unitario: float,
-        rep_id: int | None,
+        *,
+        rep_orden_id: int | None,
+        repuesto_id: int | None,
+        stock_disp: float | None = None,
     ) -> None:
+        # When loading existing rows, look up current stock if not supplied
+        if stock_disp is None and repuesto_id is not None:
+            rep = self._repuesto_catalog_repo.get_by_id(repuesto_id)
+            stock_disp = rep.stock_actual if rep else 0.0
+
         row = self._rep_table.rowCount()
         self._rep_table.insertRow(row)
+
         item_desc = QTableWidgetItem(descripcion)
-        item_desc.setData(Qt.ItemDataRole.UserRole, rep_id)
+        # UserRole = rep_orden_id, UserRole+1 = repuesto_id
+        item_desc.setData(Qt.ItemDataRole.UserRole, rep_orden_id)
+        item_desc.setData(Qt.ItemDataRole.UserRole + 1, repuesto_id)
         self._rep_table.setItem(row, 0, item_desc)
-        self._rep_table.setItem(row, 1, QTableWidgetItem(f"{cantidad:g}"))
-        self._rep_table.setItem(row, 2, QTableWidgetItem(f"{costo_unitario:,.2f}"))
-        self._rep_table.setItem(row, 3, QTableWidgetItem(f"{cantidad * costo_unitario:,.2f}"))
+        self._rep_table.setItem(
+            row, 1, QTableWidgetItem(f"{stock_disp:g}" if stock_disp is not None else "-")
+        )
+        self._rep_table.setItem(row, 2, QTableWidgetItem(f"{cantidad:g}"))
+        self._rep_table.setItem(row, 3, QTableWidgetItem(f"{costo_unitario:,.2f}"))
+        self._rep_table.setItem(row, 4, QTableWidgetItem(f"{cantidad * costo_unitario:,.2f}"))
 
     def _del_repuesto(self) -> None:
         selected = self._rep_table.selectedItems()
@@ -1079,9 +1206,10 @@ class OrdenTrabajoDialog(QDialog):
             return
         row = self._rep_table.row(selected[0])
         item = self._rep_table.item(row, 0)
-        rep_id = item.data(Qt.ItemDataRole.UserRole) if item else None
-        if rep_id is not None and self._orden_id is not None:
-            self._repuesto_repo.delete(rep_id)
+        rep_orden_id = item.data(Qt.ItemDataRole.UserRole) if item else None
+        # If already saved to DB, delete it and restore stock
+        if rep_orden_id is not None:
+            self._repuesto_repo.delete(rep_orden_id)
         self._rep_table.removeRow(row)
 
     def _save(self) -> None:
@@ -1109,44 +1237,56 @@ class OrdenTrabajoDialog(QDialog):
                 self._repo.update(self._orden_id, data)
                 orden_id = self._orden_id
 
-            # Save repuestos that don't have an ID yet
+            # Save repuestos that don't have a rep_orden_id yet (new rows added in this session)
             for row in range(self._rep_table.rowCount()):
                 item = self._rep_table.item(row, 0)
                 if item is None:
                     continue
-                rep_id = item.data(Qt.ItemDataRole.UserRole)
-                if rep_id is None:
+                rep_orden_id = item.data(Qt.ItemDataRole.UserRole)
+                repuesto_id = item.data(Qt.ItemDataRole.UserRole + 1)
+                if rep_orden_id is None and repuesto_id is not None:
                     desc = item.text()
                     try:
                         qty = float(
-                            (self._rep_table.item(row, 1) or QTableWidgetItem("1")).text()
+                            (self._rep_table.item(row, 2) or QTableWidgetItem("1")).text()
                         )
                         costo = float(
-                            (self._rep_table.item(row, 2) or QTableWidgetItem("0"))
+                            (self._rep_table.item(row, 3) or QTableWidgetItem("0"))
                             .text()
                             .replace(",", "")
                         )
                     except ValueError:
                         qty, costo = 1.0, 0.0
-                    self._repuesto_repo.create(orden_id, desc, qty, costo)
+                    self._repuesto_repo.create(orden_id, repuesto_id, desc, qty, costo)
 
             self.accept()
         except Exception as exc:
             QMessageBox.critical(self, "Error", str(exc))
 
 
-class RepuestoDialog(QDialog):
-    def __init__(self, parent: QWidget | None = None) -> None:
+class AgregarRepuestoOrdenDialog(QDialog):
+    """Selector de repuesto del catálogo para agregar a una orden de trabajo."""
+
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Agregar repuesto")
-        self.setMinimumWidth(340)
+        self._repo = RepuestoRepository(database_path)
+        self.setWindowTitle("Agregar repuesto a la orden")
+        self.setMinimumWidth(420)
         self._build()
 
     def _build(self) -> None:
         layout = QVBoxLayout(self)
         form = QFormLayout()
 
-        self._descripcion = QLineEdit()
+        self._repuesto_combo = QComboBox()
+        self._stock_label = QLabel("-")
+        self._stock_label.setObjectName("muted")
+
+        for r in self._repo.list_all(solo_activos=True):
+            self._repuesto_combo.addItem(f"{r.nombre}  (stock: {r.stock_actual:g})", r.id)
+
+        self._repuesto_combo.currentIndexChanged.connect(self._on_repuesto_changed)
+
         self._cantidad = QDoubleSpinBox()
         self._cantidad.setRange(0.001, 99999)
         self._cantidad.setDecimals(3)
@@ -1159,8 +1299,9 @@ class RepuestoDialog(QDialog):
         self._costo_unitario.setSuffix(" $")
         self._costo_unitario.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
-        form.addRow("Descripción *", self._descripcion)
-        form.addRow("Cantidad", self._cantidad)
+        form.addRow("Repuesto *", self._repuesto_combo)
+        form.addRow("Stock disponible", self._stock_label)
+        form.addRow("Cantidad a usar *", self._cantidad)
         form.addRow("Costo unitario", self._costo_unitario)
 
         layout.addLayout(form)
@@ -1172,18 +1313,122 @@ class RepuestoDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+        self._on_repuesto_changed()
+
+    def _on_repuesto_changed(self) -> None:
+        repuesto_id = self._repuesto_combo.currentData()
+        if repuesto_id is None:
+            self._stock_label.setText("-")
+            return
+        rep = self._repo.get_by_id(repuesto_id)
+        if rep:
+            self._stock_label.setText(f"{rep.stock_actual:g}")
+
     def _validate_and_accept(self) -> None:
-        if not self._descripcion.text().strip():
-            QMessageBox.warning(self, "Validación", "La descripción es requerida.")
+        if self._repuesto_combo.currentData() is None:
+            QMessageBox.warning(self, "Validación", "Seleccione un repuesto.")
+            return
+        if self._cantidad.value() <= 0:
+            QMessageBox.warning(self, "Validación", "La cantidad debe ser mayor a 0.")
             return
         self.accept()
 
-    def result_data(self) -> tuple[str, float, float]:
-        return (
-            self._descripcion.text().strip(),
-            self._cantidad.value(),
-            self._costo_unitario.value(),
+    def result_data(self) -> tuple[int, str, float, float, float]:
+        """Returns (repuesto_id, nombre, stock_disp, cantidad, costo_unitario)."""
+        repuesto_id = self._repuesto_combo.currentData()
+        nombre = self._repuesto_combo.currentText().split("  (stock:")[0].strip()
+        rep = self._repo.get_by_id(repuesto_id)
+        stock_disp = rep.stock_actual if rep else 0.0
+        return (repuesto_id, nombre, stock_disp, self._cantidad.value(), self._costo_unitario.value())
+
+
+class RepuestoCatalogDialog(QDialog):
+    """CRUD dialog para el catálogo de repuestos."""
+
+    def __init__(
+        self, database_path: Path, repuesto_id: int | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self._repo = RepuestoRepository(database_path)
+        self._repuesto_id = repuesto_id
+        self.setWindowTitle("Repuesto")
+        self.setMinimumWidth(400)
+        self._build()
+        if repuesto_id is not None:
+            self._load(repuesto_id)
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        self._nombre = QLineEdit()
+
+        self._observaciones = QTextEdit()
+        self._observaciones.setFixedHeight(70)
+
+        self._stock_actual = QDoubleSpinBox()
+        self._stock_actual.setRange(0, 999_999)
+        self._stock_actual.setDecimals(3)
+        self._stock_actual.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+
+        self._stock_minimo = QDoubleSpinBox()
+        self._stock_minimo.setRange(0, 999_999)
+        self._stock_minimo.setDecimals(3)
+        self._stock_minimo.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+
+        self._activo = QCheckBox("Activo")
+        self._activo.setChecked(True)
+
+        form.addRow("Nombre *", self._nombre)
+        form.addRow("Observaciones", self._observaciones)
+        form.addRow("Cantidad en stock", self._stock_actual)
+        form.addRow("Stock mínimo", self._stock_minimo)
+        form.addRow("", self._activo)
+
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _load(self, repuesto_id: int) -> None:
+        rep = self._repo.get_by_id(repuesto_id)
+        if rep is None:
+            return
+        self._nombre.setText(rep.nombre)
+        self._observaciones.setPlainText(rep.observaciones)
+        self._stock_actual.setValue(rep.stock_actual)
+        self._stock_minimo.setValue(rep.stock_minimo)
+        self._activo.setChecked(rep.activo)
+
+    def _save(self) -> None:
+        nombre = self._nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Validación", "El nombre es requerido.")
+            return
+        try:
+            if self._repuesto_id is None:
+                self._repo.create(
+                    nombre,
+                    self._observaciones.toPlainText().strip(),
+                    self._stock_actual.value(),
+                    self._stock_minimo.value(),
+                )
+            else:
+                self._repo.update(
+                    self._repuesto_id,
+                    nombre,
+                    self._observaciones.toPlainText().strip(),
+                    self._stock_actual.value(),
+                    self._stock_minimo.value(),
+                    self._activo.isChecked(),
+                )
+            self.accept()
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
 
 
 class ProgramaDialog(QDialog):

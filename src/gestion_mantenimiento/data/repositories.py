@@ -10,10 +10,104 @@ from gestion_mantenimiento.data.models import (
     OrdenTrabajo,
     OrdenTrabajoCreate,
     ProgramaMantenimiento,
+    Repuesto,
     RepuestoOrden,
     Tecnico,
     TipoEquipo,
 )
+
+
+class RepuestoRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def list_all(self, search: str = "", *, solo_activos: bool = False) -> list[Repuesto]:
+        query = """
+            SELECT id, nombre, COALESCE(observaciones, ''), stock_actual, stock_minimo, activo
+            FROM repuestos
+        """
+        conditions: list[str] = []
+        params: list[object] = []
+        if solo_activos:
+            conditions.append("activo = 1")
+        if search.strip():
+            term = f"%{search.strip()}%"
+            conditions.append("(nombre LIKE ? OR observaciones LIKE ?)")
+            params.extend([term, term])
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY nombre"
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            Repuesto(
+                id=r[0], nombre=r[1], observaciones=r[2],
+                stock_actual=float(r[3]), stock_minimo=float(r[4]), activo=bool(r[5]),
+            )
+            for r in rows
+        ]
+
+    def get_by_id(self, repuesto_id: int) -> Repuesto | None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(
+                "SELECT id, nombre, COALESCE(observaciones,''), stock_actual, stock_minimo, activo"
+                " FROM repuestos WHERE id = ?",
+                (repuesto_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return Repuesto(
+            id=row[0], nombre=row[1], observaciones=row[2],
+            stock_actual=float(row[3]), stock_minimo=float(row[4]), activo=bool(row[5]),
+        )
+
+    def create(
+        self, nombre: str, observaciones: str, stock_actual: float, stock_minimo: float
+    ) -> int:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            cur = conn.execute(
+                "INSERT INTO repuestos (nombre, observaciones, stock_actual, stock_minimo)"
+                " VALUES (?, ?, ?, ?)",
+                (nombre.strip(), observaciones.strip(), stock_actual, stock_minimo),
+            )
+            conn.commit()
+            return cur.lastrowid or 0
+
+    def update(
+        self,
+        repuesto_id: int,
+        nombre: str,
+        observaciones: str,
+        stock_actual: float,
+        stock_minimo: float,
+        activo: bool,
+    ) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                """
+                UPDATE repuestos SET
+                    nombre = ?, observaciones = ?, stock_actual = ?, stock_minimo = ?,
+                    activo = ?, actualizado_en = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (nombre.strip(), observaciones.strip(), stock_actual, stock_minimo,
+                 int(activo), repuesto_id),
+            )
+            conn.commit()
+
+    def delete(self, repuesto_id: int) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute("DELETE FROM repuestos WHERE id = ?", (repuesto_id,))
+            conn.commit()
+
+    def ajustar_stock(self, repuesto_id: int, delta: float) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                "UPDATE repuestos SET stock_actual = stock_actual + ?,"
+                " actualizado_en = CURRENT_TIMESTAMP WHERE id = ?",
+                (delta, repuesto_id),
+            )
+            conn.commit()
 
 
 class TipoEquipoRepository:
@@ -421,6 +515,18 @@ class OrdenTrabajoRepository:
     def delete(self, orden_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
+            # Restore stock for each linked repuesto before deleting
+            rows = conn.execute(
+                "SELECT repuesto_id, cantidad FROM repuestos_orden WHERE orden_id = ?",
+                (orden_id,),
+            ).fetchall()
+            for repuesto_id, cantidad in rows:
+                if repuesto_id is not None:
+                    conn.execute(
+                        "UPDATE repuestos SET stock_actual = stock_actual + ?,"
+                        " actualizado_en = CURRENT_TIMESTAMP WHERE id = ?",
+                        (cantidad, repuesto_id),
+                    )
             conn.execute("DELETE FROM repuestos_orden WHERE orden_id = ?", (orden_id,))
             conn.execute("DELETE FROM ordenes_trabajo WHERE id = ?", (orden_id,))
             conn.commit()
@@ -441,38 +547,65 @@ class RepuestoOrdenRepository:
         with closing(sqlite3.connect(self.database_path)) as conn:
             rows = conn.execute(
                 """
-                SELECT id, orden_id, descripcion, cantidad, costo_unitario
-                FROM repuestos_orden
-                WHERE orden_id = ?
-                ORDER BY id
+                SELECT
+                    ro.id, ro.orden_id, ro.repuesto_id,
+                    COALESCE(r.nombre, ro.descripcion) AS descripcion,
+                    ro.cantidad, ro.costo_unitario
+                FROM repuestos_orden ro
+                LEFT JOIN repuestos r ON r.id = ro.repuesto_id
+                WHERE ro.orden_id = ?
+                ORDER BY ro.id
                 """,
                 (orden_id,),
             ).fetchall()
         return [
             RepuestoOrden(
-                id=r[0], orden_id=r[1], descripcion=r[2],
-                cantidad=float(r[3]), costo_unitario=float(r[4]),
+                id=r[0], orden_id=r[1], repuesto_id=r[2], descripcion=r[3],
+                cantidad=float(r[4]), costo_unitario=float(r[5]),
             )
             for r in rows
         ]
 
     def create(
-        self, orden_id: int, descripcion: str, cantidad: float, costo_unitario: float
+        self,
+        orden_id: int,
+        repuesto_id: int,
+        descripcion: str,
+        cantidad: float,
+        costo_unitario: float,
     ) -> int:
         with closing(sqlite3.connect(self.database_path)) as conn:
             cur = conn.execute(
                 """
-                INSERT INTO repuestos_orden (orden_id, descripcion, cantidad, costo_unitario)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO repuestos_orden
+                    (orden_id, repuesto_id, descripcion, cantidad, costo_unitario)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (orden_id, descripcion.strip(), cantidad, costo_unitario),
+                (orden_id, repuesto_id, descripcion.strip(), cantidad, costo_unitario),
+            )
+            # Deduct from stock
+            conn.execute(
+                "UPDATE repuestos SET stock_actual = stock_actual - ?,"
+                " actualizado_en = CURRENT_TIMESTAMP WHERE id = ?",
+                (cantidad, repuesto_id),
             )
             conn.commit()
             return cur.lastrowid or 0
 
-    def delete(self, repuesto_id: int) -> None:
+    def delete(self, rep_orden_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
-            conn.execute("DELETE FROM repuestos_orden WHERE id = ?", (repuesto_id,))
+            row = conn.execute(
+                "SELECT repuesto_id, cantidad FROM repuestos_orden WHERE id = ?",
+                (rep_orden_id,),
+            ).fetchone()
+            conn.execute("DELETE FROM repuestos_orden WHERE id = ?", (rep_orden_id,))
+            # Restore stock
+            if row and row[0] is not None:
+                conn.execute(
+                    "UPDATE repuestos SET stock_actual = stock_actual + ?,"
+                    " actualizado_en = CURRENT_TIMESTAMP WHERE id = ?",
+                    (row[1], row[0]),
+                )
             conn.commit()
 
 

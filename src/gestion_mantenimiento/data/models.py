@@ -84,9 +84,24 @@ class OrdenTrabajoCreate:
 
 
 @dataclass(frozen=True)
+class Repuesto:
+    id: int
+    nombre: str
+    observaciones: str
+    stock_actual: float
+    stock_minimo: float
+    activo: bool
+
+    @property
+    def bajo_stock(self) -> bool:
+        return self.stock_actual <= self.stock_minimo
+
+
+@dataclass(frozen=True)
 class RepuestoOrden:
     id: int
     orden_id: int
+    repuesto_id: int | None
     descripcion: str
     cantidad: float
     costo_unitario: float

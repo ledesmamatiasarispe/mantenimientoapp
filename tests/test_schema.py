@@ -28,6 +28,7 @@ def test_initialize_creates_tables(db_path: Path) -> None:
             ).fetchall()
         }
     expected = {
+        "repuestos",
         "tipos_equipo",
         "equipos",
         "tecnicos",

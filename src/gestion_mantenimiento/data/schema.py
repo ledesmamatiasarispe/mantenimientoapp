@@ -7,6 +7,17 @@ from pathlib import Path
 SCHEMA_SQL = """
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS repuestos (
+    id INTEGER PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    observaciones TEXT NOT NULL DEFAULT '',
+    stock_actual NUMERIC NOT NULL DEFAULT 0,
+    stock_minimo NUMERIC NOT NULL DEFAULT 0,
+    activo INTEGER NOT NULL DEFAULT 1,
+    creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS tipos_equipo (
     id INTEGER PRIMARY KEY,
     nombre TEXT NOT NULL UNIQUE,
@@ -63,11 +74,13 @@ CREATE TABLE IF NOT EXISTS ordenes_trabajo (
 CREATE TABLE IF NOT EXISTS repuestos_orden (
     id INTEGER PRIMARY KEY,
     orden_id INTEGER NOT NULL,
+    repuesto_id INTEGER,
     descripcion TEXT NOT NULL DEFAULT '',
     cantidad NUMERIC NOT NULL DEFAULT 1,
     costo_unitario NUMERIC NOT NULL DEFAULT 0,
     creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (orden_id) REFERENCES ordenes_trabajo(id)
+    FOREIGN KEY (orden_id) REFERENCES ordenes_trabajo(id),
+    FOREIGN KEY (repuesto_id) REFERENCES repuestos(id)
 );
 
 CREATE TABLE IF NOT EXISTS programas_mantenimiento (
@@ -89,6 +102,7 @@ CREATE TABLE IF NOT EXISTS alertas_app (
     actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_repuestos_nombre ON repuestos(nombre);
 CREATE INDEX IF NOT EXISTS idx_equipos_tipo_id ON equipos(tipo_id);
 CREATE INDEX IF NOT EXISTS idx_equipos_nombre ON equipos(nombre);
 CREATE INDEX IF NOT EXISTS idx_ordenes_equipo_id ON ordenes_trabajo(equipo_id);
@@ -96,11 +110,19 @@ CREATE INDEX IF NOT EXISTS idx_ordenes_tecnico_id ON ordenes_trabajo(tecnico_id)
 CREATE INDEX IF NOT EXISTS idx_ordenes_estado ON ordenes_trabajo(estado);
 CREATE INDEX IF NOT EXISTS idx_ordenes_fecha_apertura ON ordenes_trabajo(fecha_apertura);
 CREATE INDEX IF NOT EXISTS idx_repuestos_orden_id ON repuestos_orden(orden_id);
+CREATE INDEX IF NOT EXISTS idx_repuestos_orden_repuesto_id ON repuestos_orden(repuesto_id);
 CREATE INDEX IF NOT EXISTS idx_programas_equipo_id ON programas_mantenimiento(equipo_id);
 CREATE INDEX IF NOT EXISTS idx_programas_proxima ON programas_mantenimiento(proxima_ejecucion);
 """
 
 SEED_SQL = """
+INSERT OR IGNORE INTO repuestos (id, nombre, observaciones, stock_actual, stock_minimo) VALUES
+    (1, 'Filtro de aceite', '', 10, 3),
+    (2, 'Correa dentada', '', 5, 2),
+    (3, 'Aceite hidráulico 10L', '', 20, 5),
+    (4, 'Rodamiento 6205', '', 8, 3),
+    (5, 'Fusible 10A', '', 50, 10);
+
 INSERT OR IGNORE INTO tipos_equipo (id, nombre) VALUES
     (1, 'Maquinaria pesada'),
     (2, 'Vehículo'),
@@ -125,6 +147,7 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
 
     with closing(sqlite3.connect(database_path)) as connection:
         connection.executescript(SCHEMA_SQL)
+        _migrate_repuestos_orden_repuesto_id(connection)
         if seed:
             connection.executescript(SEED_SQL)
         connection.commit()
@@ -141,9 +164,19 @@ def clear_database(database_path: Path) -> None:
             "equipos",
             "tipos_equipo",
             "tecnicos",
+            "repuestos",
         ):
             connection.execute(f"DELETE FROM {table_name}")
         connection.commit()
+
+
+def _migrate_repuestos_orden_repuesto_id(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "repuestos_orden"):
+        return
+    if "repuesto_id" not in _table_columns(connection, "repuestos_orden"):
+        connection.execute(
+            "ALTER TABLE repuestos_orden ADD COLUMN repuesto_id INTEGER REFERENCES repuestos(id)"
+        )
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
