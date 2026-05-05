@@ -30,6 +30,8 @@ DEFAULT_THEME: dict[str, str | int] = {
     "table_header_background": "#eef3f5",
     "table_header_text": "#63707a",
     "disabled_text": "#a0aab2",
+    "color_vence_mes": "#FFF3CD",
+    "color_vencido":   "#FFD6D6",
     "font_family": "Segoe UI",
     "base_font_size": 14,
 }
@@ -59,6 +61,8 @@ DARK_THEME: dict[str, str | int] = {
     "table_header_background": "#1c2130",
     "table_header_text": "#7a8799",
     "disabled_text": "#3d4d63",
+    "color_vence_mes": "#2d2600",
+    "color_vencido":   "#2d0a0a",
     "font_family": "Segoe UI",
     "base_font_size": 14,
 }

@@ -75,8 +75,9 @@ _MESES = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]
 
-_COLOR_VENCE_MES = QColor("#FFF3CD")   # amarillo suave
-_COLOR_VENCIDO   = QColor("#FFD6D6")   # rojo suave (vencidos)
+# Colores de fila usados en tablas — se leen desde self._current_theme en runtime
+_COLOR_VENCE_MES_DEFAULT = "#FFF3CD"
+_COLOR_VENCIDO_DEFAULT   = "#FFD6D6"
 
 _COLOR_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
     ("General", [
@@ -114,6 +115,10 @@ _COLOR_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
         ("page_title_text",     "Título de página"),
         ("section_title_text",  "Título de sección"),
         ("metric_value_text",   "Valor de métricas"),
+    ]),
+    ("Programa de mantenimiento", [
+        ("color_vence_mes", "Vence este mes (resaltado)"),
+        ("color_vencido",   "Vencido (resaltado)"),
     ]),
 ]
 
@@ -1027,9 +1032,9 @@ class MainWindow(QMainWindow):
             if proximas:
                 nearest = min(proximas)
                 if nearest < hoy:
-                    color = _COLOR_VENCIDO
+                    color = QColor(str(self._current_theme.get("color_vencido", _COLOR_VENCIDO_DEFAULT)))
                 elif nearest.year == anio_sel and nearest.month == mes_sel:
-                    color = _COLOR_VENCE_MES
+                    color = QColor(str(self._current_theme.get("color_vence_mes", _COLOR_VENCE_MES_DEFAULT)))
 
             if color is not None:
                 brush = QBrush(color)
@@ -1051,7 +1056,11 @@ class MainWindow(QMainWindow):
         equipo_nombre = item.text()
         if equipo_id is None:
             return
-        dlg = MantenimientosEquipoDialog(self._db, equipo_id, equipo_nombre, parent=self)
+        dlg = MantenimientosEquipoDialog(
+            self._db, equipo_id, equipo_nombre,
+            color_vencido=str(self._current_theme.get("color_vencido", _COLOR_VENCIDO_DEFAULT)),
+            parent=self,
+        )
         dlg.exec()
         self._refresh_programas()
 
@@ -2385,11 +2394,13 @@ class MantenimientosEquipoDialog(QDialog):
         database_path: Path,
         equipo_id: int,
         equipo_nombre: str,
+        color_vencido: str = _COLOR_VENCIDO_DEFAULT,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._db = database_path
         self._equipo_id = equipo_id
+        self._color_vencido = QColor(color_vencido)
         self._repo = ProgramaMantenimientoRepository(database_path)
         self.setWindowTitle(f"Mantenimientos — {equipo_nombre}")
         self.setMinimumWidth(750)
@@ -2454,7 +2465,7 @@ class MantenimientosEquipoDialog(QDialog):
             try:
                 proxima = date.fromisoformat(p.proxima_ejecucion)
                 if proxima < hoy:
-                    brush = QBrush(_COLOR_VENCIDO)
+                    brush = QBrush(self._color_vencido)
                     for col in range(tabla.columnCount()):
                         it = tabla.item(row, col)
                         if it:
