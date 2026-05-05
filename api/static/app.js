@@ -159,7 +159,7 @@ function programaMarkup(programa) {
 async function renderOrdenDetalle(ordenId) {
   renderLoading("Cargando orden...");
   const orden = await apiFetch(`/api/ordenes/${ordenId}`);
-  const yaColabora = orden.colaboradores.some((c) => c.id === state.tecnico.id);
+  const yaColabora = (orden.colaboradores ?? []).some((c) => c.id === state.tecnico.id);
   const ordenAbierta = ["PENDIENTE", "EN_PROGRESO"].includes(orden.estado);
   const puedeAceptar = ordenAbierta && !yaColabora;
   const asignadaAMi = orden.tecnico_id === state.tecnico.id || yaColabora;
@@ -180,10 +180,10 @@ async function renderOrdenDetalle(ordenId) {
       </div>
       <div class="prewrap">${escapeHtml(orden.descripcion)}</div>
     </div>
-    ${orden.colaboradores.length ? `
+    ${(orden.colaboradores ?? []).length ? `
     <div class="panel">
       <div class="section-title">Técnicos que trabajaron en esta orden</div>
-      ${orden.colaboradores.map((c, i) => `
+      ${(orden.colaboradores ?? []).map((c, i) => `
         <div class="colaborador-row">
           ${i === 0 ? '<span class="badge pendiente">Principal</span>' : '<span class="badge en-progreso">Colaborador</span>'}
           <span>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido)}</span>
