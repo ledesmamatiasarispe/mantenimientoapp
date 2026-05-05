@@ -33,6 +33,34 @@ DEFAULT_THEME: dict[str, str | int] = {
     "base_font_size": 14,
 }
 
+DARK_THEME: dict[str, str | int] = {
+    "app_background": "#0f1117",
+    "text_color": "#e2e8f0",
+    "menu_background": "#1a1f2e",
+    "panel_background": "#1a1f2e",
+    "panel_header_background": "#1a1f2e",
+    "input_background": "#252d3d",
+    "border_color": "#2d3748",
+    "muted_text": "#8892a4",
+    "sidebar_background": "#080c14",
+    "brand_text": "#ffffff",
+    "sidebar_subtitle_text": "#4b5563",
+    "nav_text": "#9ca3af",
+    "nav_active_text": "#ffffff",
+    "nav_active_background": "#2d3748",
+    "page_title_text": "#e2e8f0",
+    "section_title_text": "#e2e8f0",
+    "metric_value_text": "#e2e8f0",
+    "accent_color": "#10b981",
+    "primary_button_text": "#ffffff",
+    "danger_color": "#f87171",
+    "table_alt_background": "#1e2535",
+    "table_header_background": "#1a1f2e",
+    "table_header_text": "#8892a4",
+    "font_family": "Segoe UI",
+    "base_font_size": 14,
+}
+
 STYLE_TEMPLATE = """
 QWidget {{
     background: __APP_BACKGROUND__;
@@ -187,9 +215,9 @@ QCheckBox {{
 QCheckBox::indicator {{
     width: 18px;
     height: 18px;
-    border: 2px solid #52616b;
+    border: 2px solid __BORDER_COLOR__;
     border-radius: 4px;
-    background: #ffffff;
+    background: __INPUT_BACKGROUND__;
 }}
 
 QCheckBox::indicator:checked {{
@@ -233,6 +261,39 @@ QHeaderView::section {{
 
 def default_theme() -> dict[str, str | int]:
     return DEFAULT_THEME.copy()
+
+
+def dark_theme() -> dict[str, str | int]:
+    return DARK_THEME.copy()
+
+
+def get_theme(mode: str) -> dict[str, str | int]:
+    return dark_theme() if mode == "dark" else default_theme()
+
+
+def load_theme_mode(theme_path: Path) -> str:
+    """Devuelve 'dark' o 'light' guardado en theme.json."""
+    if not theme_path.exists():
+        return "light"
+    try:
+        data = json.loads(theme_path.read_text(encoding="utf-8"))
+        mode = data.get("_mode", "light")
+        return "dark" if mode == "dark" else "light"
+    except (json.JSONDecodeError, OSError):
+        return "light"
+
+
+def save_theme_mode(theme_path: Path, mode: str) -> None:
+    """Guarda el modo ('dark'/'light') en theme.json preservando otros valores."""
+    data: dict[str, object] = {}
+    if theme_path.exists():
+        try:
+            data = json.loads(theme_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = {}
+    data["_mode"] = mode
+    theme_path.parent.mkdir(parents=True, exist_ok=True)
+    theme_path.write_text(json.dumps(data, indent=2, ensure_ascii=True), encoding="utf-8")
 
 
 def load_theme_settings(theme_path: Path) -> dict[str, str | int]:

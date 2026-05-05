@@ -31,7 +31,12 @@ def main() -> int:
     from gestion_mantenimiento.data.paths import get_database_path, get_theme_path
     from gestion_mantenimiento.data.schema import initialize_database
     from gestion_mantenimiento.ui.main_window import MainWindow
-    from gestion_mantenimiento.ui.theme import build_app_palette, build_app_styles, load_theme_settings
+    from gestion_mantenimiento.ui.theme import (
+        build_app_palette,
+        build_app_styles,
+        get_theme,
+        load_theme_mode,
+    )
 
     app = QApplication(sys.argv)
     app.setApplicationName("Gestion Mantenimiento")
@@ -41,11 +46,13 @@ def main() -> int:
     database_path = get_database_path()
     initialize_database(database_path, seed=False)
 
-    theme = load_theme_settings(get_theme_path())
+    theme_path = get_theme_path()
+    mode = load_theme_mode(theme_path)
+    theme = get_theme(mode)
     app.setStyleSheet(build_app_styles(theme))
     app.setPalette(build_app_palette(theme))
 
-    window = MainWindow(database_path)
+    window = MainWindow(database_path, theme_mode=mode)
     window.show()
 
     return app.exec()

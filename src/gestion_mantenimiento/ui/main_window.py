@@ -50,7 +50,12 @@ from gestion_mantenimiento.data.repositories import (
     TipoEquipoRepository,
 )
 from gestion_mantenimiento.data.schema import initialize_database
-from gestion_mantenimiento.ui.theme import build_app_palette, build_app_styles, load_theme_settings
+from gestion_mantenimiento.ui.theme import (
+    build_app_palette,
+    build_app_styles,
+    get_theme,
+    save_theme_mode,
+)
 
 _MESES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -138,9 +143,10 @@ def _make_table(headers: list[str], parent: QWidget | None = None) -> QTableWidg
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, database_path: Path) -> None:
+    def __init__(self, database_path: Path, theme_mode: str = "light") -> None:
         super().__init__()
         self._db = database_path
+        self._theme_mode = theme_mode
         self._equipo_repo = EquipoRepository(database_path)
         self._tecnico_repo = TecnicoRepository(database_path)
         self._tipo_repo = TipoEquipoRepository(database_path)
@@ -201,12 +207,39 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
+        self._theme_btn = QPushButton(sidebar)
+        self._theme_btn.setObjectName("navButton")
+        self._theme_btn.clicked.connect(self._toggle_theme)
+        self._update_theme_btn_label()
+        layout.addWidget(self._theme_btn)
+
         version_label = QLabel(f"v{__version__}", sidebar)
         version_label.setObjectName("muted")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version_label)
 
         return sidebar
+
+    def _update_theme_btn_label(self) -> None:
+        if self._theme_mode == "dark":
+            self._theme_btn.setText("Modo diurno")
+        else:
+            self._theme_btn.setText("Modo nocturno")
+
+    def _toggle_theme(self) -> None:
+        self._theme_mode = "dark" if self._theme_mode == "light" else "light"
+        self._apply_theme(self._theme_mode)
+        self._update_theme_btn_label()
+
+    def _apply_theme(self, mode: str) -> None:
+        from PySide6.QtWidgets import QApplication
+        from gestion_mantenimiento.data.paths import get_theme_path
+        theme = get_theme(mode)
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(build_app_styles(theme))
+            app.setPalette(build_app_palette(theme))
+        save_theme_mode(get_theme_path(), mode)
 
     def _navigate(self, key: str) -> None:
         for k, btn in self._nav_buttons.items():
