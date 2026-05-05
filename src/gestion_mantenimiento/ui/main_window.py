@@ -753,7 +753,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(topbar)
 
         self._prog_table = _make_table(
-            ["#", "Equipo", "Descripción", "Frecuencia (días)",
+            ["#", "Equipo", "Descripción", "Frecuencia (meses)",
              "Última ejecución", "Próxima ejecución", "Estado"]
         )
         self._prog_table.doubleClicked.connect(self._edit_selected_programa)
@@ -789,7 +789,7 @@ class MainWindow(QMainWindow):
             tabla.setItem(row, 0, QTableWidgetItem(str(p.id)))
             tabla.setItem(row, 1, QTableWidgetItem(p.equipo_nombre))
             tabla.setItem(row, 2, QTableWidgetItem(p.descripcion))
-            tabla.setItem(row, 3, QTableWidgetItem(str(p.frecuencia_dias)))
+            tabla.setItem(row, 3, QTableWidgetItem(str(p.frecuencia_meses)))
             tabla.setItem(row, 4, QTableWidgetItem(p.ultima_ejecucion))
             tabla.setItem(row, 5, QTableWidgetItem(p.proxima_ejecucion))
             tabla.setItem(row, 6, QTableWidgetItem("Activo" if p.activo else "Inactivo"))
@@ -1622,9 +1622,9 @@ class ProgramaDialog(QDialog):
         self._descripcion = QLineEdit()
 
         self._frecuencia = QSpinBox()
-        self._frecuencia.setRange(1, 3650)
-        self._frecuencia.setValue(30)
-        self._frecuencia.setSuffix(" días")
+        self._frecuencia.setRange(1, 120)
+        self._frecuencia.setValue(1)
+        self._frecuencia.setSuffix(" meses")
         self._frecuencia.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
         self._ultima = QDateEdit()
@@ -1667,7 +1667,7 @@ class ProgramaDialog(QDialog):
             self._equipo.setCurrentIndex(idx)
 
         self._descripcion.setText(prog.descripcion)
-        self._frecuencia.setValue(prog.frecuencia_dias)
+        self._frecuencia.setValue(prog.frecuencia_meses)
 
         if prog.ultima_ejecucion:
             try:

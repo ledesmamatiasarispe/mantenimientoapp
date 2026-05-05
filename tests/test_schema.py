@@ -107,7 +107,7 @@ def test_migrate_legacy_db_sin_repuestos(tmp_path: Path) -> None:
     );
     CREATE TABLE programas_mantenimiento (
         id INTEGER PRIMARY KEY, equipo_id INTEGER NOT NULL,
-        descripcion TEXT NOT NULL DEFAULT '', frecuencia_dias INTEGER NOT NULL DEFAULT 30,
+        descripcion TEXT NOT NULL DEFAULT '', frecuencia_dias INTEGER NOT NULL DEFAULT 1,
         ultima_ejecucion TEXT NOT NULL DEFAULT '', proxima_ejecucion TEXT NOT NULL DEFAULT '',
         activo INTEGER NOT NULL DEFAULT 1, creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );

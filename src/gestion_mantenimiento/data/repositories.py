@@ -620,7 +620,7 @@ class ProgramaMantenimientoRepository:
                 p.equipo_id,
                 e.nombre AS equipo_nombre,
                 COALESCE(p.descripcion, '') AS descripcion,
-                p.frecuencia_dias,
+                p.frecuencia_meses,
                 COALESCE(p.ultima_ejecucion, '') AS ultima_ejecucion,
                 COALESCE(p.proxima_ejecucion, '') AS proxima_ejecucion,
                 p.activo
@@ -637,7 +637,7 @@ class ProgramaMantenimientoRepository:
         return [
             ProgramaMantenimiento(
                 id=r[0], equipo_id=r[1], equipo_nombre=r[2], descripcion=r[3],
-                frecuencia_dias=r[4], ultima_ejecucion=r[5], proxima_ejecucion=r[6],
+                frecuencia_meses=r[4], ultima_ejecucion=r[5], proxima_ejecucion=r[6],
                 activo=bool(r[7]),
             )
             for r in rows
@@ -647,7 +647,7 @@ class ProgramaMantenimientoRepository:
         self,
         equipo_id: int,
         descripcion: str,
-        frecuencia_dias: int,
+        frecuencia_meses: int,
         ultima_ejecucion: str,
         proxima_ejecucion: str,
     ) -> int:
@@ -655,11 +655,11 @@ class ProgramaMantenimientoRepository:
             cur = conn.execute(
                 """
                 INSERT INTO programas_mantenimiento
-                    (equipo_id, descripcion, frecuencia_dias,
+                    (equipo_id, descripcion, frecuencia_meses,
                      ultima_ejecucion, proxima_ejecucion)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (equipo_id, descripcion.strip(), frecuencia_dias,
+                (equipo_id, descripcion.strip(), frecuencia_meses,
                  ultima_ejecucion, proxima_ejecucion),
             )
             conn.commit()
@@ -670,7 +670,7 @@ class ProgramaMantenimientoRepository:
         programa_id: int,
         equipo_id: int,
         descripcion: str,
-        frecuencia_dias: int,
+        frecuencia_meses: int,
         ultima_ejecucion: str,
         proxima_ejecucion: str,
         activo: bool,
@@ -679,13 +679,13 @@ class ProgramaMantenimientoRepository:
             conn.execute(
                 """
                 UPDATE programas_mantenimiento SET
-                    equipo_id = ?, descripcion = ?, frecuencia_dias = ?,
+                    equipo_id = ?, descripcion = ?, frecuencia_meses = ?,
                     ultima_ejecucion = ?, proxima_ejecucion = ?, activo = ?,
                     actualizado_en = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (
-                    equipo_id, descripcion.strip(), frecuencia_dias,
+                    equipo_id, descripcion.strip(), frecuencia_meses,
                     ultima_ejecucion, proxima_ejecucion, int(activo), programa_id,
                 ),
             )

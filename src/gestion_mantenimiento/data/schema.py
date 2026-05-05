@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS programas_mantenimiento (
     id INTEGER PRIMARY KEY,
     equipo_id INTEGER NOT NULL,
     descripcion TEXT NOT NULL DEFAULT '',
-    frecuencia_dias INTEGER NOT NULL DEFAULT 30,
+    frecuencia_meses INTEGER NOT NULL DEFAULT 1,
     ultima_ejecucion TEXT NOT NULL DEFAULT '',
     proxima_ejecucion TEXT NOT NULL DEFAULT '',
     activo INTEGER NOT NULL DEFAULT 1,
@@ -147,6 +147,7 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         connection.execute("PRAGMA foreign_keys = OFF")
         connection.executescript(SCHEMA_SQL)
         # Run all migrations explicitly outside executescript so errors surface clearly
+        _migrate_frecuencia_meses(connection)
         _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
         connection.execute("PRAGMA foreign_keys = ON")
@@ -170,6 +171,18 @@ def clear_database(database_path: Path) -> None:
         ):
             connection.execute(f"DELETE FROM {table_name}")
         connection.commit()
+
+
+def _migrate_frecuencia_meses(connection: sqlite3.Connection) -> None:
+    """Renombra frecuencia_dias → frecuencia_meses en programas_mantenimiento."""
+    if not _table_exists(connection, "programas_mantenimiento"):
+        return
+    cols = _table_columns(connection, "programas_mantenimiento")
+    if "frecuencia_dias" in cols and "frecuencia_meses" not in cols:
+        connection.execute(
+            "ALTER TABLE programas_mantenimiento"
+            " RENAME COLUMN frecuencia_dias TO frecuencia_meses"
+        )
 
 
 def _migrate_repuestos(connection: sqlite3.Connection) -> None:

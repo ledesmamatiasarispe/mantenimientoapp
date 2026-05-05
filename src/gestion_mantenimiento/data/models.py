@@ -117,7 +117,7 @@ class ProgramaMantenimiento:
     equipo_id: int
     equipo_nombre: str
     descripcion: str
-    frecuencia_dias: int
+    frecuencia_meses: int
     ultima_ejecucion: str
     proxima_ejecucion: str
     activo: bool
