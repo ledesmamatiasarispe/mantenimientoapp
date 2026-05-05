@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from api.auth import CurrentTecnicoDep
 from api.database import get_db
 from api.models import (
+    ColaboradorItem,
     CompletarOrdenRequest,
     ObservacionRequest,
     OrdenCard,
@@ -67,6 +68,25 @@ def _base_query() -> str:
         LEFT JOIN tipos_equipo te ON te.id = e.tipo_id
         LEFT JOIN tecnicos t ON t.id = o.tecnico_id
     """
+
+
+def _colaboradores_for_orden(
+    connection: sqlite3.Connection, orden_id: int
+) -> list[ColaboradorItem]:
+    rows = connection.execute(
+        """
+        SELECT t.id, t.nombre, t.apellido
+        FROM orden_colaboradores oc
+        JOIN tecnicos t ON t.id = oc.tecnico_id
+        WHERE oc.orden_id = ?
+        ORDER BY oc.creado_en
+        """,
+        (orden_id,),
+    ).fetchall()
+    return [
+        ColaboradorItem(id=int(r["id"]), nombre=str(r["nombre"]), apellido=str(r["apellido"]))
+        for r in rows
+    ]
 
 
 def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[ProgramaResumen]:
@@ -148,6 +168,7 @@ def _get_orden_detail(connection: sqlite3.Connection, orden_id: int) -> OrdenDet
             for item in repuestos
         ],
         programas=_programas_for_orden(connection, orden_id),
+        colaboradores=_colaboradores_for_orden(connection, orden_id),
     )
 
 
@@ -207,20 +228,34 @@ def aceptar_orden(
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Orden no encontrada.")
-    if str(row["estado"]) != "PENDIENTE":
-        raise HTTPException(status_code=409, detail="La orden ya no está en PENDIENTE.")
+    if str(row["estado"]) in ("COMPLETADA", "CANCELADA"):
+        raise HTTPException(status_code=409, detail="La orden ya está cerrada.")
 
+    # Verificar si ya es colaborador
+    ya_colabora = connection.execute(
+        "SELECT 1 FROM orden_colaboradores WHERE orden_id = ? AND tecnico_id = ?",
+        (orden_id, current_tecnico.id),
+    ).fetchone()
+    if ya_colabora:
+        raise HTTPException(status_code=409, detail="Ya sos colaborador de esta orden.")
+
+    # Registrar como colaborador
     connection.execute(
-        """
-        UPDATE ordenes_trabajo
-        SET
-            estado = 'EN_PROGRESO',
-            tecnico_id = ?,
-            actualizado_en = CURRENT_TIMESTAMP
-        WHERE id = ? AND estado = 'PENDIENTE'
-        """,
-        (current_tecnico.id, orden_id),
+        "INSERT OR IGNORE INTO orden_colaboradores (orden_id, tecnico_id) VALUES (?, ?)",
+        (orden_id, current_tecnico.id),
     )
+
+    # Si estaba PENDIENTE → cambiar estado y asignar técnico principal
+    if str(row["estado"]) == "PENDIENTE":
+        connection.execute(
+            """
+            UPDATE ordenes_trabajo
+            SET estado = 'EN_PROGRESO', tecnico_id = ?, actualizado_en = CURRENT_TIMESTAMP
+            WHERE id = ? AND estado = 'PENDIENTE'
+            """,
+            (current_tecnico.id, orden_id),
+        )
+
     connection.commit()
     orden = _get_orden_detail(connection, orden_id)
     if orden is None:

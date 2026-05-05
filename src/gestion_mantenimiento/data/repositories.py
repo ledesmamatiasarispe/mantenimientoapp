@@ -531,6 +531,7 @@ class OrdenTrabajoRepository:
                         (cantidad, repuesto_id),
                     )
             conn.execute("DELETE FROM repuestos_orden WHERE orden_id = ?", (orden_id,))
+            conn.execute("DELETE FROM orden_colaboradores WHERE orden_id = ?", (orden_id,))
             conn.execute("DELETE FROM orden_programas WHERE orden_id = ?", (orden_id,))
             conn.execute("DELETE FROM ordenes_trabajo WHERE id = ?", (orden_id,))
             conn.commit()

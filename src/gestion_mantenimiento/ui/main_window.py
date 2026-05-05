@@ -1676,6 +1676,19 @@ class OrdenTrabajoDialog(QDialog):
 
         layout.addLayout(form)
 
+        # ── Técnicos colaboradores ────────────────────────────────────────────
+        self._colab_section = QFrame()
+        self._colab_section.setObjectName("panel")
+        colab_layout = QVBoxLayout(self._colab_section)
+        colab_layout.setContentsMargins(12, 8, 12, 8)
+        colab_layout.setSpacing(4)
+        colab_layout.addWidget(_section_title("Técnicos que trabajaron en esta orden"))
+        self._colab_list = QLabel()
+        self._colab_list.setWordWrap(True)
+        colab_layout.addWidget(self._colab_list)
+        self._colab_section.setVisible(False)
+        layout.addWidget(self._colab_section)
+
         # ── Mantenimientos que activaron esta orden ──────────────────────────
         self._vinc_section = QFrame()
         self._vinc_section.setObjectName("panel")
@@ -1767,6 +1780,30 @@ class OrdenTrabajoDialog(QDialog):
 
         self._costo_mano_obra.setValue(orden.costo_mano_obra)
         self._observaciones.setPlainText(orden.observaciones)
+
+        # Colaboradores (técnicos que aceptaron la orden)
+        import sqlite3 as _sqlite3
+        from contextlib import closing as _closing
+        with _closing(_sqlite3.connect(self._db)) as _conn:
+            _conn.row_factory = _sqlite3.Row
+            colab_rows = _conn.execute(
+                """
+                SELECT trim(t.nombre || ' ' || t.apellido) AS nombre_completo,
+                       oc.creado_en
+                FROM orden_colaboradores oc
+                JOIN tecnicos t ON t.id = oc.tecnico_id
+                WHERE oc.orden_id = ?
+                ORDER BY oc.creado_en
+                """,
+                (orden_id,),
+            ).fetchall()
+        if colab_rows:
+            lineas = []
+            for i, c in enumerate(colab_rows):
+                rol = "Principal" if i == 0 else "Colaborador"
+                lineas.append(f"  {rol}: {c['nombre_completo']}")
+            self._colab_list.setText("\n".join(lineas))
+            self._colab_section.setVisible(True)
 
         # Poblar tabla de mantenimientos vinculados
         vinculados = self._orden_programa_repo.list_by_orden(orden_id)

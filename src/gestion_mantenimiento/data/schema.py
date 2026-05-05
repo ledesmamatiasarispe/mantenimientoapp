@@ -100,6 +100,16 @@ CREATE TABLE IF NOT EXISTS alertas_app (
     actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS orden_colaboradores (
+    id INTEGER PRIMARY KEY,
+    orden_id INTEGER NOT NULL,
+    tecnico_id INTEGER NOT NULL,
+    creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (orden_id, tecnico_id),
+    FOREIGN KEY (orden_id) REFERENCES ordenes_trabajo(id),
+    FOREIGN KEY (tecnico_id) REFERENCES tecnicos(id)
+);
+
 CREATE TABLE IF NOT EXISTS orden_programas (
     id INTEGER PRIMARY KEY,
     orden_id INTEGER NOT NULL,
@@ -171,6 +181,7 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
         _migrate_tecnicos_password_hash(connection)
+        _migrate_orden_colaboradores(connection)
         _migrate_orden_programas(connection)
         _migrate_programa_adjuntos(connection)
         connection.execute("PRAGMA foreign_keys = ON")
@@ -184,6 +195,7 @@ def clear_database(database_path: Path) -> None:
         connection.execute("PRAGMA foreign_keys = ON")
         for table_name in (
             "programa_adjuntos",
+            "orden_colaboradores",
             "orden_programas",
             "repuestos_orden",
             "ordenes_trabajo",
@@ -254,6 +266,26 @@ def _migrate_tecnicos_password_hash(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE tecnicos ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''"
         )
+
+
+def _migrate_orden_colaboradores(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS orden_colaboradores (
+            id INTEGER PRIMARY KEY,
+            orden_id INTEGER NOT NULL,
+            tecnico_id INTEGER NOT NULL,
+            creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (orden_id, tecnico_id),
+            FOREIGN KEY (orden_id) REFERENCES ordenes_trabajo(id),
+            FOREIGN KEY (tecnico_id) REFERENCES tecnicos(id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_orden_colaboradores_orden_id"
+        " ON orden_colaboradores(orden_id)"
+    )
 
 
 def _migrate_orden_programas(connection: sqlite3.Connection) -> None:

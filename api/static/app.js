@@ -87,10 +87,13 @@ function renderLoading(text = "Cargando...") {
 }
 
 function ordenCard(orden) {
+  const tecnico = orden.tecnico_nombre ? ` · ${escapeHtml(orden.tecnico_nombre)}` : "";
   return `
     <a class="card" href="#orden/${orden.id}">
-      <div class="badge ${badgeClass(orden.estado)}">${escapeHtml(orden.estado)}</div>
-      <h3>${escapeHtml(orden.equipo_nombre)}</h3>
+      <div class="card-header-row">
+        <div class="badge ${badgeClass(orden.estado)}">${escapeHtml(orden.estado)}</div>
+        <span class="tecnico-tag">${escapeHtml(orden.equipo_nombre)}${tecnico}</span>
+      </div>
       <div>${escapeHtml(orden.tipo)} · ${escapeHtml(orden.equipo_tipo_nombre)}</div>
       <div class="meta">
         <span>${escapeHtml(orden.fecha_apertura)}</span>
@@ -156,8 +159,10 @@ function programaMarkup(programa) {
 async function renderOrdenDetalle(ordenId) {
   renderLoading("Cargando orden...");
   const orden = await apiFetch(`/api/ordenes/${ordenId}`);
-  const asignadaAMi = orden.tecnico_id === state.tecnico.id;
-  const puedeAceptar = orden.estado === "PENDIENTE";
+  const yaColabora = orden.colaboradores.some((c) => c.id === state.tecnico.id);
+  const ordenAbierta = ["PENDIENTE", "EN_PROGRESO"].includes(orden.estado);
+  const puedeAceptar = ordenAbierta && !yaColabora;
+  const asignadaAMi = orden.tecnico_id === state.tecnico.id || yaColabora;
   const puedeTrabajar = orden.estado === "EN_PROGRESO" && asignadaAMi;
   document.querySelector("#app").innerHTML = layout(`
     <div class="topbar">
@@ -175,6 +180,16 @@ async function renderOrdenDetalle(ordenId) {
       </div>
       <div class="prewrap">${escapeHtml(orden.descripcion)}</div>
     </div>
+    ${orden.colaboradores.length ? `
+    <div class="panel">
+      <div class="section-title">Técnicos que trabajaron en esta orden</div>
+      ${orden.colaboradores.map((c, i) => `
+        <div class="colaborador-row">
+          ${i === 0 ? '<span class="badge pendiente">Principal</span>' : '<span class="badge en-progreso">Colaborador</span>'}
+          <span>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido)}</span>
+        </div>
+      `).join("")}
+    </div>` : ""}
     <div class="panel">
       <div class="section-title">Observaciones</div>
       <div class="prewrap">${escapeHtml(orden.observaciones || "Sin observaciones.")}</div>
@@ -197,7 +212,9 @@ async function renderOrdenDetalle(ordenId) {
     </div>
     ${puedeAceptar ? `
       <div class="panel">
-        <button class="button success" id="accept-button">Aceptar orden</button>
+        <button class="button success" id="accept-button">
+          ${orden.estado === "PENDIENTE" ? "Aceptar orden" : "Unirme como colaborador"}
+        </button>
       </div>
     ` : ""}
     ${puedeTrabajar ? `

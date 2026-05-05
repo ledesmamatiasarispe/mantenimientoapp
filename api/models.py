@@ -69,9 +69,20 @@ class OrdenCard(BaseModel):
     observaciones: str
 
 
+class ColaboradorItem(BaseModel):
+    id: int
+    nombre: str
+    apellido: str
+
+    @property
+    def nombre_completo(self) -> str:
+        return f"{self.nombre} {self.apellido}".strip()
+
+
 class OrdenDetail(OrdenCard):
     repuestos: list[RepuestoOrdenItem]
     programas: list[ProgramaResumen]
+    colaboradores: list[ColaboradorItem] = []
 
 
 class ObservacionRequest(BaseModel):
