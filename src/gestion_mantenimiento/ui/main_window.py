@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -42,7 +41,6 @@ from gestion_mantenimiento.data.models import (
     OrdenTrabajoCreate,
 )
 from gestion_mantenimiento.data.paths import get_database_path, get_theme_path
-from gestion_mantenimiento.data.paths import get_adjuntos_dir
 from gestion_mantenimiento.data.repositories import (
     AdjuntoRepository,
     EquipoRepository,
@@ -1881,28 +1879,12 @@ class AdjuntosDialog(QDialog):
         else:
             filtro = "PDF (*.pdf)"
 
-        ruta_origen, _ = QFileDialog.getOpenFileName(self, f"Seleccionar {tipo}", "", filtro)
-        if not ruta_origen:
+        ruta, _ = QFileDialog.getOpenFileName(self, f"Seleccionar {tipo}", "", filtro)
+        if not ruta:
             return
 
-        origen = Path(ruta_origen)
-        destino_dir = get_adjuntos_dir() / str(self._programa_id)
-        destino_dir.mkdir(parents=True, exist_ok=True)
-        destino = destino_dir / origen.name
-
-        # Si ya existe, agregar sufijo numérico
-        contador = 1
-        while destino.exists():
-            destino = destino_dir / f"{origen.stem}_{contador}{origen.suffix}"
-            contador += 1
-
-        try:
-            shutil.copy2(ruta_origen, destino)
-        except OSError as exc:
-            QMessageBox.critical(self, "Error al copiar", str(exc))
-            return
-
-        self._repo.create(self._programa_id, tipo, origen.name, str(destino))
+        nombre = Path(ruta).name
+        self._repo.create(self._programa_id, tipo, nombre, ruta)
         self._refresh()
 
     def _selected_adjunto_id(self) -> int | None:
@@ -1934,17 +1916,12 @@ class AdjuntosDialog(QDialog):
             QMessageBox.information(self, "Sin selección", "Seleccione un adjunto.")
             return
         reply = QMessageBox.question(
-            self, "Confirmar", "¿Eliminar el adjunto? (El archivo también será borrado.)",
+            self, "Confirmar", "¿Quitar el acceso directo? (El archivo original no se toca.)",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        ruta_str = self._repo.delete(adj_id)
-        if ruta_str:
-            try:
-                Path(ruta_str).unlink(missing_ok=True)
-            except OSError:
-                pass
+        self._repo.delete(adj_id)
         self._refresh()
 
 

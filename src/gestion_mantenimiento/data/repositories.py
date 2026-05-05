@@ -809,12 +809,7 @@ class AdjuntoRepository:
             conn.commit()
             return cur.lastrowid or 0
 
-    def delete(self, adjunto_id: int) -> str:
-        """Elimina el registro y devuelve la ruta del archivo para borrarlo si se desea."""
+    def delete(self, adjunto_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
-            row = conn.execute(
-                "SELECT ruta FROM programa_adjuntos WHERE id = ?", (adjunto_id,)
-            ).fetchone()
             conn.execute("DELETE FROM programa_adjuntos WHERE id = ?", (adjunto_id,))
             conn.commit()
-        return row[0] if row else ""
