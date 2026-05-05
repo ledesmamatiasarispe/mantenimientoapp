@@ -5,8 +5,6 @@ from contextlib import closing
 from pathlib import Path
 
 SCHEMA_SQL = """
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS repuestos (
     id INTEGER PRIMARY KEY,
     nombre TEXT NOT NULL,
@@ -110,7 +108,6 @@ CREATE INDEX IF NOT EXISTS idx_ordenes_tecnico_id ON ordenes_trabajo(tecnico_id)
 CREATE INDEX IF NOT EXISTS idx_ordenes_estado ON ordenes_trabajo(estado);
 CREATE INDEX IF NOT EXISTS idx_ordenes_fecha_apertura ON ordenes_trabajo(fecha_apertura);
 CREATE INDEX IF NOT EXISTS idx_repuestos_orden_id ON repuestos_orden(orden_id);
-CREATE INDEX IF NOT EXISTS idx_repuestos_orden_repuesto_id ON repuestos_orden(repuesto_id);
 CREATE INDEX IF NOT EXISTS idx_programas_equipo_id ON programas_mantenimiento(equipo_id);
 CREATE INDEX IF NOT EXISTS idx_programas_proxima ON programas_mantenimiento(proxima_ejecucion);
 """
@@ -146,8 +143,13 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
     with closing(sqlite3.connect(database_path)) as connection:
+        # Disable FK enforcement during schema setup to avoid ordering issues
+        connection.execute("PRAGMA foreign_keys = OFF")
         connection.executescript(SCHEMA_SQL)
+        # Run all migrations explicitly outside executescript so errors surface clearly
+        _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
+        connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
         connection.commit()
@@ -170,12 +172,40 @@ def clear_database(database_path: Path) -> None:
         connection.commit()
 
 
+def _migrate_repuestos(connection: sqlite3.Connection) -> None:
+    """Garantiza que la tabla repuestos exista (DB creadas antes del commit de repuestos)."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS repuestos (
+            id INTEGER PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            observaciones TEXT NOT NULL DEFAULT '',
+            stock_actual NUMERIC NOT NULL DEFAULT 0,
+            stock_minimo NUMERIC NOT NULL DEFAULT 0,
+            activo INTEGER NOT NULL DEFAULT 1,
+            creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_repuestos_nombre ON repuestos(nombre)"
+    )
+
+
 def _migrate_repuestos_orden_repuesto_id(connection: sqlite3.Connection) -> None:
+    """Agrega repuesto_id a repuestos_orden si no existe (DB sin esta columna)."""
     if not _table_exists(connection, "repuestos_orden"):
         return
     if "repuesto_id" not in _table_columns(connection, "repuestos_orden"):
+        # DEFAULT NULL es obligatorio cuando foreign_keys=ON + REFERENCES en ADD COLUMN.
+        # Usamos sólo DEFAULT NULL sin REFERENCES para evitar la restricción de FK.
         connection.execute(
-            "ALTER TABLE repuestos_orden ADD COLUMN repuesto_id INTEGER REFERENCES repuestos(id)"
+            "ALTER TABLE repuestos_orden ADD COLUMN repuesto_id INTEGER DEFAULT NULL"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_repuestos_orden_repuesto_id"
+            " ON repuestos_orden(repuesto_id)"
         )
 
 
