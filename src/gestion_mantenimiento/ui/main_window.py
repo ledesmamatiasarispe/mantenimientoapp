@@ -1397,12 +1397,31 @@ class OrdenTrabajoDialog(QDialog):
 
         layout.addLayout(form)
 
-        # Programas vinculados (visible solo si la orden fue auto-generada)
-        self._prog_vinculados_label = QLabel()
-        self._prog_vinculados_label.setObjectName("muted")
-        self._prog_vinculados_label.setWordWrap(True)
-        self._prog_vinculados_label.setVisible(False)
-        layout.addWidget(self._prog_vinculados_label)
+        # ── Mantenimientos que activaron esta orden ──────────────────────────
+        self._vinc_section = QFrame()
+        self._vinc_section.setObjectName("panel")
+        vinc_layout = QVBoxLayout(self._vinc_section)
+        vinc_layout.setContentsMargins(12, 8, 12, 8)
+        vinc_layout.setSpacing(6)
+
+        vinc_title = _section_title("Mantenimientos que activaron esta orden")
+        vinc_layout.addWidget(vinc_title)
+
+        self._vinc_table = _make_table(
+            ["Descripción", "Frecuencia", "Última ejecución", "Próxima ejecución"]
+        )
+        self._vinc_table.setFixedHeight(120)
+        vinc_layout.addWidget(self._vinc_table)
+
+        btn_ver_mant = QPushButton("Ver mantenimiento")
+        btn_ver_mant.clicked.connect(self._ver_mantenimiento_vinculado)
+        vinc_btn_row = QHBoxLayout()
+        vinc_btn_row.addStretch()
+        vinc_btn_row.addWidget(btn_ver_mant)
+        vinc_layout.addLayout(vinc_btn_row)
+
+        self._vinc_section.setVisible(False)
+        layout.addWidget(self._vinc_section)
 
         # Repuestos section
         layout.addWidget(_section_title("Repuestos utilizados"))
@@ -1470,20 +1489,52 @@ class OrdenTrabajoDialog(QDialog):
         self._costo_mano_obra.setValue(orden.costo_mano_obra)
         self._observaciones.setPlainText(orden.observaciones)
 
-        # Mostrar programas vinculados (órdenes auto-generadas)
+        # Poblar tabla de mantenimientos vinculados
         vinculados = self._orden_programa_repo.list_by_orden(orden_id)
         if vinculados:
-            self._prog_vinculados_label.setText(
-                "Programas que originaron esta orden:\n"
-                + "\n".join(f"  • {v.programa_descripcion}" for v in vinculados)
-            )
-            self._prog_vinculados_label.setVisible(True)
+            prog_repo = ProgramaMantenimientoRepository(self._db)
+            todos_progs = {p.id: p for p in prog_repo.list_all()}
+            self._vinc_table.setRowCount(0)
+            for v in vinculados:
+                prog = todos_progs.get(v.programa_id)
+                row = self._vinc_table.rowCount()
+                self._vinc_table.insertRow(row)
+                self._vinc_table.setItem(row, 0, QTableWidgetItem(v.programa_descripcion))
+                self._vinc_table.setItem(
+                    row, 1,
+                    QTableWidgetItem(f"{prog.frecuencia_meses} mes(es)" if prog else "—")
+                )
+                self._vinc_table.setItem(
+                    row, 2, QTableWidgetItem(prog.ultima_ejecucion if prog else "—")
+                )
+                self._vinc_table.setItem(
+                    row, 3, QTableWidgetItem(prog.proxima_ejecucion if prog else "—")
+                )
+                item = self._vinc_table.item(row, 0)
+                if item:
+                    item.setData(Qt.ItemDataRole.UserRole, v.programa_id)
+            self._vinc_section.setVisible(True)
 
         for rep in self._repuesto_repo.list_by_orden(orden_id):
             self._add_rep_row(
                 rep.descripcion, rep.cantidad, rep.costo_unitario,
                 rep_orden_id=rep.id, repuesto_id=rep.repuesto_id,
             )
+
+    def _ver_mantenimiento_vinculado(self) -> None:
+        selected = self._vinc_table.selectedItems()
+        if not selected:
+            QMessageBox.information(self, "Sin selección", "Seleccione un mantenimiento de la lista.")
+            return
+        row = self._vinc_table.row(selected[0])
+        item = self._vinc_table.item(row, 0)
+        if item is None:
+            return
+        programa_id = item.data(Qt.ItemDataRole.UserRole)
+        if programa_id is None:
+            return
+        dlg = VerMantenimientoDialog(self._db, programa_id, parent=self)
+        dlg.exec()
 
     def _add_repuesto(self) -> None:
         dlg = AgregarRepuestoOrdenDialog(self._db, parent=self)
@@ -1809,6 +1860,111 @@ class TipoEquipoDialog(QDialog):
             self.accept()
         except Exception as exc:
             QMessageBox.critical(self, "Error", str(exc))
+
+
+class VerMantenimientoDialog(QDialog):
+    """Vista de solo lectura de un programa de mantenimiento con sus adjuntos."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        programa_id: int,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._programa_id = programa_id
+        self._prog_repo   = ProgramaMantenimientoRepository(database_path)
+        self._adjunto_repo = AdjuntoRepository(database_path)
+        self.setWindowTitle("Detalle de mantenimiento")
+        self.setMinimumWidth(580)
+        self.resize(620, 460)
+        self._build()
+        self._load()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # ── Datos del programa ───────────────────────────────────────────────
+        self._form = QFormLayout()
+
+        self._lbl_equipo   = QLabel()
+        self._lbl_desc     = QLabel()
+        self._lbl_desc.setWordWrap(True)
+        self._lbl_frec     = QLabel()
+        self._lbl_ultima   = QLabel()
+        self._lbl_proxima  = QLabel()
+
+        for lbl in (self._lbl_equipo, self._lbl_desc, self._lbl_frec,
+                    self._lbl_ultima, self._lbl_proxima):
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self._form.addRow("Equipo:", self._lbl_equipo)
+        self._form.addRow("Descripción:", self._lbl_desc)
+        self._form.addRow("Frecuencia:", self._lbl_frec)
+        self._form.addRow("Última ejecución:", self._lbl_ultima)
+        self._form.addRow("Próxima ejecución:", self._lbl_proxima)
+        layout.addLayout(self._form)
+
+        # ── Adjuntos ─────────────────────────────────────────────────────────
+        layout.addWidget(_section_title("Adjuntos"))
+
+        self._adj_table = _make_table(["Tipo", "Nombre", "Ruta"])
+        self._adj_table.setFixedHeight(140)
+        self._adj_table.doubleClicked.connect(self._ver_adjunto)
+        layout.addWidget(self._adj_table)
+
+        btn_row = QHBoxLayout()
+        btn_ver = _primary_button("Ver archivo")
+        btn_ver.clicked.connect(self._ver_adjunto)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_ver)
+        layout.addLayout(btn_row)
+
+        btn_cerrar = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        btn_cerrar.rejected.connect(self.reject)
+        layout.addWidget(btn_cerrar)
+
+    def _load(self) -> None:
+        todos = self._prog_repo.list_all()
+        prog  = next((p for p in todos if p.id == self._programa_id), None)
+        if prog is None:
+            return
+
+        self.setWindowTitle(f"Mantenimiento — {prog.descripcion}")
+        self._lbl_equipo.setText(prog.equipo_nombre)
+        self._lbl_desc.setText(prog.descripcion)
+        self._lbl_frec.setText(f"{prog.frecuencia_meses} mes(es)")
+        self._lbl_ultima.setText(prog.ultima_ejecucion or "—")
+        self._lbl_proxima.setText(prog.proxima_ejecucion or "—")
+
+        adjuntos = self._adjunto_repo.list_by_programa(self._programa_id)
+        self._adj_table.setRowCount(0)
+        for a in adjuntos:
+            row = self._adj_table.rowCount()
+            self._adj_table.insertRow(row)
+            self._adj_table.setItem(row, 0, QTableWidgetItem(a.tipo))
+            self._adj_table.setItem(row, 1, QTableWidgetItem(a.nombre))
+            self._adj_table.setItem(row, 2, QTableWidgetItem(a.ruta))
+            item = self._adj_table.item(row, 0)
+            if item:
+                item.setData(Qt.ItemDataRole.UserRole, a.ruta)
+
+    def _ver_adjunto(self) -> None:
+        selected = self._adj_table.selectedItems()
+        if not selected:
+            return
+        row = self._adj_table.row(selected[0])
+        item = self._adj_table.item(row, 0)
+        if item is None:
+            return
+        ruta = Path(item.data(Qt.ItemDataRole.UserRole) or "")
+        if not ruta.exists():
+            QMessageBox.warning(self, "Archivo no encontrado",
+                                f"El archivo ya no existe en:\n{ruta}")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(ruta)))
 
 
 class AdjuntosDialog(QDialog):
