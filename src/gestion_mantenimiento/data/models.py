@@ -124,6 +124,23 @@ class ProgramaMantenimiento:
 
 
 @dataclass(frozen=True)
+class OrdenPrograma:
+    id: int
+    orden_id: int
+    programa_id: int
+    programa_descripcion: str
+
+
+@dataclass(frozen=True)
+class ProgramaAdjunto:
+    id: int
+    programa_id: int
+    tipo: str
+    nombre: str
+    ruta: str
+
+
+@dataclass(frozen=True)
 class AppAlert:
     key: str
     source: str

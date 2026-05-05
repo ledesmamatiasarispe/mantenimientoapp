@@ -40,6 +40,12 @@ def get_theme_path() -> Path:
     return get_app_data_dir() / "theme.json"
 
 
+def get_adjuntos_dir() -> Path:
+    d = get_app_data_dir() / "adjuntos"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def get_settings_path() -> Path:
     return get_app_data_dir() / "settings.json"
 

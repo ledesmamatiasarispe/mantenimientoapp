@@ -100,6 +100,26 @@ CREATE TABLE IF NOT EXISTS alertas_app (
     actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS orden_programas (
+    id INTEGER PRIMARY KEY,
+    orden_id INTEGER NOT NULL,
+    programa_id INTEGER NOT NULL,
+    creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (orden_id, programa_id),
+    FOREIGN KEY (orden_id) REFERENCES ordenes_trabajo(id),
+    FOREIGN KEY (programa_id) REFERENCES programas_mantenimiento(id)
+);
+
+CREATE TABLE IF NOT EXISTS programa_adjuntos (
+    id INTEGER PRIMARY KEY,
+    programa_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('FOTO', 'PDF')),
+    nombre TEXT NOT NULL DEFAULT '',
+    ruta TEXT NOT NULL DEFAULT '',
+    creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (programa_id) REFERENCES programas_mantenimiento(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_repuestos_nombre ON repuestos(nombre);
 CREATE INDEX IF NOT EXISTS idx_equipos_tipo_id ON equipos(tipo_id);
 CREATE INDEX IF NOT EXISTS idx_equipos_nombre ON equipos(nombre);
@@ -150,6 +170,8 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_frecuencia_meses(connection)
         _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
+        _migrate_orden_programas(connection)
+        _migrate_programa_adjuntos(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
@@ -160,6 +182,8 @@ def clear_database(database_path: Path) -> None:
     with closing(sqlite3.connect(database_path)) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         for table_name in (
+            "programa_adjuntos",
+            "orden_programas",
             "repuestos_orden",
             "ordenes_trabajo",
             "programas_mantenimiento",
@@ -220,6 +244,49 @@ def _migrate_repuestos_orden_repuesto_id(connection: sqlite3.Connection) -> None
             "CREATE INDEX IF NOT EXISTS idx_repuestos_orden_repuesto_id"
             " ON repuestos_orden(repuesto_id)"
         )
+
+
+def _migrate_orden_programas(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS orden_programas (
+            id INTEGER PRIMARY KEY,
+            orden_id INTEGER NOT NULL,
+            programa_id INTEGER NOT NULL,
+            creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (orden_id, programa_id),
+            FOREIGN KEY (orden_id) REFERENCES ordenes_trabajo(id),
+            FOREIGN KEY (programa_id) REFERENCES programas_mantenimiento(id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_orden_programas_orden_id ON orden_programas(orden_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_orden_programas_programa_id"
+        " ON orden_programas(programa_id)"
+    )
+
+
+def _migrate_programa_adjuntos(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS programa_adjuntos (
+            id INTEGER PRIMARY KEY,
+            programa_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('FOTO', 'PDF')),
+            nombre TEXT NOT NULL DEFAULT '',
+            ruta TEXT NOT NULL DEFAULT '',
+            creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (programa_id) REFERENCES programas_mantenimiento(id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_programa_adjuntos_programa_id"
+        " ON programa_adjuntos(programa_id)"
+    )
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:

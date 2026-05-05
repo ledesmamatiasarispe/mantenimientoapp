@@ -7,8 +7,10 @@ from pathlib import Path
 from gestion_mantenimiento.data.models import (
     AppAlert,
     Equipo,
+    OrdenPrograma,
     OrdenTrabajo,
     OrdenTrabajoCreate,
+    ProgramaAdjunto,
     ProgramaMantenimiento,
     Repuesto,
     RepuestoOrden,
@@ -515,7 +517,6 @@ class OrdenTrabajoRepository:
     def delete(self, orden_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
-            # Restore stock for each linked repuesto before deleting
             rows = conn.execute(
                 "SELECT repuesto_id, cantidad FROM repuestos_orden WHERE orden_id = ?",
                 (orden_id,),
@@ -528,6 +529,7 @@ class OrdenTrabajoRepository:
                         (cantidad, repuesto_id),
                     )
             conn.execute("DELETE FROM repuestos_orden WHERE orden_id = ?", (orden_id,))
+            conn.execute("DELETE FROM orden_programas WHERE orden_id = ?", (orden_id,))
             conn.execute("DELETE FROM ordenes_trabajo WHERE id = ?", (orden_id,))
             conn.commit()
 
@@ -724,3 +726,95 @@ class AlertRepository:
                 (key, date_str),
             )
             conn.commit()
+
+
+class OrdenProgramaRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def list_by_orden(self, orden_id: int) -> list[OrdenPrograma]:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT op.id, op.orden_id, op.programa_id,
+                       COALESCE(p.descripcion, '') AS descripcion
+                FROM orden_programas op
+                LEFT JOIN programas_mantenimiento p ON p.id = op.programa_id
+                WHERE op.orden_id = ?
+                ORDER BY op.id
+                """,
+                (orden_id,),
+            ).fetchall()
+        return [
+            OrdenPrograma(id=r[0], orden_id=r[1], programa_id=r[2], programa_descripcion=r[3])
+            for r in rows
+        ]
+
+    def link(self, orden_id: int, programa_id: int) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO orden_programas (orden_id, programa_id) VALUES (?, ?)",
+                (orden_id, programa_id),
+            )
+            conn.commit()
+
+    def find_orden_pendiente(self, equipo_id: int, programa_ids: list[int]) -> int | None:
+        """Devuelve el id de una orden PENDIENTE/EN_PROGRESO ya vinculada a alguno de esos programas."""
+        if not programa_ids:
+            return None
+        placeholders = ",".join("?" * len(programa_ids))
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(
+                f"""
+                SELECT o.id
+                FROM ordenes_trabajo o
+                JOIN orden_programas op ON op.orden_id = o.id
+                WHERE o.equipo_id = ?
+                  AND o.estado IN ('PENDIENTE', 'EN_PROGRESO')
+                  AND op.programa_id IN ({placeholders})
+                LIMIT 1
+                """,
+                (equipo_id, *programa_ids),
+            ).fetchone()
+        return row[0] if row else None
+
+
+class AdjuntoRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def list_by_programa(self, programa_id: int) -> list[ProgramaAdjunto]:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, programa_id, tipo, nombre, ruta
+                FROM programa_adjuntos
+                WHERE programa_id = ?
+                ORDER BY tipo, nombre
+                """,
+                (programa_id,),
+            ).fetchall()
+        return [
+            ProgramaAdjunto(id=r[0], programa_id=r[1], tipo=r[2], nombre=r[3], ruta=r[4])
+            for r in rows
+        ]
+
+    def create(self, programa_id: int, tipo: str, nombre: str, ruta: str) -> int:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            cur = conn.execute(
+                "INSERT INTO programa_adjuntos (programa_id, tipo, nombre, ruta)"
+                " VALUES (?, ?, ?, ?)",
+                (programa_id, tipo, nombre, ruta),
+            )
+            conn.commit()
+            return cur.lastrowid or 0
+
+    def delete(self, adjunto_id: int) -> str:
+        """Elimina el registro y devuelve la ruta del archivo para borrarlo si se desea."""
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(
+                "SELECT ruta FROM programa_adjuntos WHERE id = ?", (adjunto_id,)
+            ).fetchone()
+            conn.execute("DELETE FROM programa_adjuntos WHERE id = ?", (adjunto_id,))
+            conn.commit()
+        return row[0] if row else ""

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import shutil
 from datetime import date, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtCore import QDate, Qt, QUrl
+from PySide6.QtGui import QBrush, QColor, QDesktopServices
+from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QApplication,
@@ -40,8 +42,11 @@ from gestion_mantenimiento.data.models import (
     OrdenTrabajoCreate,
 )
 from gestion_mantenimiento.data.paths import get_database_path, get_theme_path
+from gestion_mantenimiento.data.paths import get_adjuntos_dir
 from gestion_mantenimiento.data.repositories import (
+    AdjuntoRepository,
     EquipoRepository,
+    OrdenProgramaRepository,
     OrdenTrabajoRepository,
     ProgramaMantenimientoRepository,
     RepuestoOrdenRepository,
@@ -56,6 +61,14 @@ from gestion_mantenimiento.ui.theme import (
     get_theme,
     save_theme_mode,
 )
+
+def _es_fecha_en_mes(fecha_str: str, mes: int, anio: int) -> bool:
+    try:
+        d = date.fromisoformat(fecha_str)
+        return d.month == mes and d.year == anio
+    except ValueError:
+        return False
+
 
 _MESES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -154,6 +167,8 @@ class MainWindow(QMainWindow):
         self._repuesto_repo = RepuestoOrdenRepository(database_path)
         self._repuesto_catalog_repo = RepuestoRepository(database_path)
         self._programa_repo = ProgramaMantenimientoRepository(database_path)
+        self._orden_programa_repo = OrdenProgramaRepository(database_path)
+        self._adjunto_repo = AdjuntoRepository(database_path)
 
         self.setWindowTitle(f"Gestión Mantenimiento v{__version__}")
         self.resize(1280, 800)
@@ -832,8 +847,12 @@ class MainWindow(QMainWindow):
         self._prog_show_inactive = QCheckBox("Mostrar máquinas inactivas")
         self._prog_show_inactive.stateChanged.connect(lambda: self._refresh_programas())
 
+        btn_generar = _primary_button("Generar órdenes del mes")
+        btn_generar.clicked.connect(lambda: self._generar_ordenes_mes())
+
         tb_layout.addStretch()
         tb_layout.addWidget(self._prog_show_inactive)
+        tb_layout.addWidget(btn_generar)
         layout.addWidget(topbar)
 
         # ── Tabla (una fila por máquina) ─────────────────────────────────────
@@ -946,6 +965,62 @@ class MainWindow(QMainWindow):
             return
         dlg = MantenimientosEquipoDialog(self._db, equipo_id, equipo_nombre, parent=self)
         dlg.exec()
+        self._refresh_programas()
+
+    def _generar_ordenes_mes(self) -> None:
+        mes_sel  = self._prog_mes.currentIndex() + 1
+        anio_sel = self._prog_anio.value()
+        hoy      = date.today()
+
+        equipos = self._equipo_repo.list_all(solo_activos=True)
+        todos   = self._programa_repo.list_all()
+        por_equipo: dict[int, list] = {}
+        for p in todos:
+            por_equipo.setdefault(p.equipo_id, []).append(p)
+
+        creadas     = 0
+        ya_existian = 0
+
+        for eq in equipos:
+            progs_mes = [
+                p for p in por_equipo.get(eq.id, [])
+                if _es_fecha_en_mes(p.proxima_ejecucion, mes_sel, anio_sel)
+            ]
+            if not progs_mes:
+                continue
+
+            existing = self._orden_programa_repo.find_orden_pendiente(
+                eq.id, [p.id for p in progs_mes]
+            )
+            if existing is not None:
+                ya_existian += 1
+                continue
+
+            orden_data = OrdenTrabajoCreate(
+                equipo_id=eq.id,
+                tipo="PREVENTIVO",
+                descripcion=f"Mantenimiento preventivo — {_MESES[mes_sel - 1]} {anio_sel}",
+                fecha_apertura=hoy.isoformat(),
+                fecha_cierre="",
+                estado="PENDIENTE",
+                tecnico_id=None,
+                costo_mano_obra=0.0,
+                observaciones=(
+                    f"Generada automáticamente por {len(progs_mes)} "
+                    f"programa(s): {', '.join(p.descripcion for p in progs_mes)}"
+                ),
+            )
+            orden_id = self._orden_repo.create(orden_data)
+            for p in progs_mes:
+                self._orden_programa_repo.link(orden_id, p.id)
+            creadas += 1
+
+        partes = [f"Órdenes creadas: {creadas}"]
+        if ya_existian:
+            partes.append(f"Ya tenían orden pendiente: {ya_existian}")
+        if creadas == 0 and ya_existian == 0:
+            partes = ["No hay máquinas con mantenimientos que venzan este mes."]
+        QMessageBox.information(self, "Generar órdenes", "\n".join(partes))
         self._refresh_programas()
 
     # ── Técnicos ─────────────────────────────────────────────────────────────
@@ -1261,11 +1336,12 @@ class OrdenTrabajoDialog(QDialog):
         self._repo = OrdenTrabajoRepository(database_path)
         self._repuesto_repo = RepuestoOrdenRepository(database_path)
         self._repuesto_catalog_repo = RepuestoRepository(database_path)
+        self._orden_programa_repo = OrdenProgramaRepository(database_path)
         self._equipo_repo = EquipoRepository(database_path)
         self._tecnico_repo = TecnicoRepository(database_path)
         self.setWindowTitle("Orden de Trabajo")
-        self.setMinimumWidth(600)
-        self.resize(650, 700)
+        self.setMinimumWidth(620)
+        self.resize(660, 740)
         self._build()
         if orden_id is not None:
             self._load(orden_id)
@@ -1322,6 +1398,13 @@ class OrdenTrabajoDialog(QDialog):
         form.addRow("Observaciones", self._observaciones)
 
         layout.addLayout(form)
+
+        # Programas vinculados (visible solo si la orden fue auto-generada)
+        self._prog_vinculados_label = QLabel()
+        self._prog_vinculados_label.setObjectName("muted")
+        self._prog_vinculados_label.setWordWrap(True)
+        self._prog_vinculados_label.setVisible(False)
+        layout.addWidget(self._prog_vinculados_label)
 
         # Repuestos section
         layout.addWidget(_section_title("Repuestos utilizados"))
@@ -1388,6 +1471,15 @@ class OrdenTrabajoDialog(QDialog):
 
         self._costo_mano_obra.setValue(orden.costo_mano_obra)
         self._observaciones.setPlainText(orden.observaciones)
+
+        # Mostrar programas vinculados (órdenes auto-generadas)
+        vinculados = self._orden_programa_repo.list_by_orden(orden_id)
+        if vinculados:
+            self._prog_vinculados_label.setText(
+                "Programas que originaron esta orden:\n"
+                + "\n".join(f"  • {v.programa_descripcion}" for v in vinculados)
+            )
+            self._prog_vinculados_label.setVisible(True)
 
         for rep in self._repuesto_repo.list_by_orden(orden_id):
             self._add_rep_row(
@@ -1721,6 +1813,141 @@ class TipoEquipoDialog(QDialog):
             QMessageBox.critical(self, "Error", str(exc))
 
 
+class AdjuntosDialog(QDialog):
+    """Gestiona fotos y PDFs adjuntos a un programa de mantenimiento."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        programa_id: int,
+        programa_desc: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._programa_id = programa_id
+        self._repo = AdjuntoRepository(database_path)
+        self.setWindowTitle(f"Adjuntos — {programa_desc}")
+        self.setMinimumWidth(620)
+        self.resize(680, 380)
+        self._build()
+        self._refresh()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        self._tabla = _make_table(["Tipo", "Nombre", "Ruta"])
+        self._tabla.doubleClicked.connect(self._ver)
+        layout.addWidget(self._tabla)
+
+        btn_bar = QHBoxLayout()
+        btn_foto = _primary_button("+ Agregar foto")
+        btn_pdf  = _primary_button("+ Agregar PDF")
+        btn_ver  = QPushButton("Ver")
+        btn_elim = _danger_button("Eliminar")
+        btn_cerrar = QPushButton("Cerrar")
+
+        btn_foto.clicked.connect(lambda: self._agregar("FOTO"))
+        btn_pdf.clicked.connect(lambda: self._agregar("PDF"))
+        btn_ver.clicked.connect(self._ver)
+        btn_elim.clicked.connect(self._eliminar)
+        btn_cerrar.clicked.connect(self.accept)
+
+        btn_bar.addWidget(btn_foto)
+        btn_bar.addWidget(btn_pdf)
+        btn_bar.addWidget(btn_ver)
+        btn_bar.addWidget(btn_elim)
+        btn_bar.addStretch()
+        btn_bar.addWidget(btn_cerrar)
+        layout.addLayout(btn_bar)
+
+    def _refresh(self) -> None:
+        adjuntos = self._repo.list_by_programa(self._programa_id)
+        self._tabla.setRowCount(0)
+        for a in adjuntos:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+            self._tabla.setItem(row, 0, QTableWidgetItem(a.tipo))
+            self._tabla.setItem(row, 1, QTableWidgetItem(a.nombre))
+            self._tabla.setItem(row, 2, QTableWidgetItem(a.ruta))
+            item = self._tabla.item(row, 0)
+            if item:
+                item.setData(Qt.ItemDataRole.UserRole, a.id)
+
+    def _agregar(self, tipo: str) -> None:
+        if tipo == "FOTO":
+            filtro = "Imágenes (*.png *.jpg *.jpeg *.bmp *.gif *.webp)"
+        else:
+            filtro = "PDF (*.pdf)"
+
+        ruta_origen, _ = QFileDialog.getOpenFileName(self, f"Seleccionar {tipo}", "", filtro)
+        if not ruta_origen:
+            return
+
+        origen = Path(ruta_origen)
+        destino_dir = get_adjuntos_dir() / str(self._programa_id)
+        destino_dir.mkdir(parents=True, exist_ok=True)
+        destino = destino_dir / origen.name
+
+        # Si ya existe, agregar sufijo numérico
+        contador = 1
+        while destino.exists():
+            destino = destino_dir / f"{origen.stem}_{contador}{origen.suffix}"
+            contador += 1
+
+        try:
+            shutil.copy2(ruta_origen, destino)
+        except OSError as exc:
+            QMessageBox.critical(self, "Error al copiar", str(exc))
+            return
+
+        self._repo.create(self._programa_id, tipo, origen.name, str(destino))
+        self._refresh()
+
+    def _selected_adjunto_id(self) -> int | None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return None
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        return int(item.data(Qt.ItemDataRole.UserRole)) if item else None
+
+    def _ver(self) -> None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return
+        row = self._tabla.row(selected[0])
+        ruta_item = self._tabla.item(row, 2)
+        if ruta_item is None:
+            return
+        ruta = Path(ruta_item.text())
+        if not ruta.exists():
+            QMessageBox.warning(self, "Archivo no encontrado",
+                                f"El archivo ya no existe en:\n{ruta}")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(ruta)))
+
+    def _eliminar(self) -> None:
+        adj_id = self._selected_adjunto_id()
+        if adj_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un adjunto.")
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar el adjunto? (El archivo también será borrado.)",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        ruta_str = self._repo.delete(adj_id)
+        if ruta_str:
+            try:
+                Path(ruta_str).unlink(missing_ok=True)
+            except OSError:
+                pass
+        self._refresh()
+
+
 class MantenimientosEquipoDialog(QDialog):
     """Sub-ventana que lista y gestiona todos los programas de mantenimiento de un equipo."""
 
@@ -1761,11 +1988,17 @@ class MantenimientosEquipoDialog(QDialog):
         btn_crear.clicked.connect(lambda: self._crear())
         btn_editar.clicked.connect(self._editar)
         btn_elim.clicked.connect(self._eliminar)
+
+        btn_adjuntos = QPushButton("Adjuntos")
+        btn_adjuntos.clicked.connect(self._abrir_adjuntos)
+
+        btn_cerrar = QPushButton("Cerrar")
         btn_cerrar.clicked.connect(self.accept)
 
         btn_bar.addWidget(btn_crear)
         btn_bar.addWidget(btn_editar)
         btn_bar.addWidget(btn_elim)
+        btn_bar.addWidget(btn_adjuntos)
         btn_bar.addStretch()
         btn_bar.addWidget(btn_cerrar)
         layout.addLayout(btn_bar)
@@ -1810,6 +2043,18 @@ class MantenimientosEquipoDialog(QDialog):
             return None
         val = item.data(Qt.ItemDataRole.UserRole)
         return int(val) if val is not None else None
+
+    def _abrir_adjuntos(self) -> None:
+        prog_id = self._selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa primero.")
+            return
+        # Obtener descripción del programa seleccionado
+        selected = self._tabla.selectedItems()
+        row = self._tabla.row(selected[0])
+        desc = (self._tabla.item(row, 1) or QTableWidgetItem("")).text()
+        dlg = AdjuntosDialog(self._db, prog_id, desc, parent=self)
+        dlg.exec()
 
     def _crear(self) -> None:
         dlg = ProgramaDialog(self._db, None, equipo_id_fijo=self._equipo_id, parent=self)
