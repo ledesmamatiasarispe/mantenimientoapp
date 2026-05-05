@@ -85,6 +85,13 @@ class OrdenDetail(OrdenCard):
     colaboradores: list[ColaboradorItem] = []
 
 
+class CrearOrdenRequest(BaseModel):
+    equipo_id: int
+    tipo: str = "CORRECTIVO"
+    descripcion: str = ""
+    observaciones: str = ""
+
+
 class ObservacionRequest(BaseModel):
     texto: str = ""
 

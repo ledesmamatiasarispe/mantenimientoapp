@@ -122,7 +122,10 @@ async function renderOrdenes() {
         <h1>Órdenes</h1>
         <div class="muted">${escapeHtml(state.tecnico.nombre)} ${escapeHtml(state.tecnico.apellido)}</div>
       </div>
-      <button class="button secondary" id="logout-button">Salir</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a class="button primary" href="#nueva-orden">+ Nueva</a>
+        <button class="button secondary" id="logout-button">Salir</button>
+      </div>
     </div>
     <div class="tabs">
       <a class="tab ${state.tab === "mis" ? "active" : ""}" href="#ordenes?tab=mis">Mis órdenes</a>
@@ -159,10 +162,12 @@ function programaMarkup(programa) {
 async function renderOrdenDetalle(ordenId) {
   renderLoading("Cargando orden...");
   const orden = await apiFetch(`/api/ordenes/${ordenId}`);
-  const yaColabora = (orden.colaboradores ?? []).some((c) => c.id === state.tecnico.id);
+  const colaboradores = orden.colaboradores ?? [];
+  const miId = Number(state.tecnico.id);
+  const yaColabora = colaboradores.some((c) => Number(c.id) === miId);
   const ordenAbierta = ["PENDIENTE", "EN_PROGRESO"].includes(orden.estado);
   const puedeAceptar = ordenAbierta && !yaColabora;
-  const asignadaAMi = orden.tecnico_id === state.tecnico.id || yaColabora;
+  const asignadaAMi = Number(orden.tecnico_id) === miId || yaColabora;
   const puedeTrabajar = orden.estado === "EN_PROGRESO" && asignadaAMi;
   document.querySelector("#app").innerHTML = layout(`
     <div class="topbar">
@@ -180,15 +185,19 @@ async function renderOrdenDetalle(ordenId) {
       </div>
       <div class="prewrap">${escapeHtml(orden.descripcion)}</div>
     </div>
-    ${(orden.colaboradores ?? []).length ? `
+    ${orden.estado !== "PENDIENTE" ? `
     <div class="panel">
       <div class="section-title">Técnicos que trabajaron en esta orden</div>
-      ${(orden.colaboradores ?? []).map((c, i) => `
-        <div class="colaborador-row">
-          ${i === 0 ? '<span class="badge pendiente">Principal</span>' : '<span class="badge en-progreso">Colaborador</span>'}
-          <span>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido)}</span>
-        </div>
-      `).join("")}
+      ${colaboradores.length > 0
+        ? colaboradores.map((c, i) => `
+            <div class="colaborador-row">
+              ${i === 0 ? '<span class="badge pendiente">Principal</span>' : '<span class="badge en-progreso">Colaborador</span>'}
+              <span>${escapeHtml(c.nombre)} ${escapeHtml(c.apellido)}</span>
+            </div>`).join("")
+        : orden.tecnico_nombre
+          ? `<div class="colaborador-row"><span class="badge pendiente">Principal</span> <span>${escapeHtml(orden.tecnico_nombre)}</span></div>`
+          : '<div class="muted">Sin técnicos asignados.</div>'
+      }
     </div>` : ""}
     <div class="panel">
       <div class="section-title">Observaciones</div>
@@ -361,6 +370,78 @@ async function renderProgramaDetalle(programaId) {
   `, "biblioteca");
 }
 
+async function renderNuevaOrden() {
+  renderLoading("Cargando equipos...");
+  const equipos = await apiFetch("/api/equipos");
+  document.querySelector("#app").innerHTML = layout(`
+    <div class="topbar">
+      <div>
+        <a class="back-link" href="#ordenes">← Volver</a>
+        <h2>Nueva orden de trabajo</h2>
+      </div>
+    </div>
+    <div class="panel">
+      <form id="nueva-orden-form">
+        <div class="field">
+          <label for="equipo">Equipo *</label>
+          <select id="equipo" name="equipo_id" required>
+            <option value="">Seleccionar equipo...</option>
+            ${equipos.map((e) => `<option value="${e.id}">${escapeHtml(e.nombre)} — ${escapeHtml(e.ubicacion)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label for="tipo">Tipo *</label>
+          <select id="tipo" name="tipo" required>
+            <option value="CORRECTIVO">Correctivo</option>
+            <option value="PREVENTIVO">Preventivo</option>
+            <option value="MEJORA">Mejora</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="descripcion">Descripción</label>
+          <textarea id="descripcion" name="descripcion" rows="3" placeholder="Descripción del problema o tarea..."></textarea>
+        </div>
+        <div class="field">
+          <label for="observaciones">Observaciones</label>
+          <textarea id="observaciones" name="observaciones" rows="2" placeholder="Observaciones adicionales..."></textarea>
+        </div>
+        <div class="button-row">
+          <a class="button secondary" href="#ordenes">Cancelar</a>
+          <button class="button primary" type="submit">Crear orden</button>
+        </div>
+        <p id="form-error" class="error" style="display:none"></p>
+      </form>
+    </div>
+  `, "ordenes");
+
+  document.querySelector("#nueva-orden-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const errorEl = document.querySelector("#form-error");
+    errorEl.style.display = "none";
+    const submitBtn = form.querySelector("[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Creando...";
+    try {
+      const orden = await apiFetch("/api/ordenes", {
+        method: "POST",
+        body: JSON.stringify({
+          equipo_id: Number(form.equipo_id.value),
+          tipo: form.tipo.value,
+          descripcion: form.descripcion.value.trim(),
+          observaciones: form.observaciones.value.trim(),
+        }),
+      });
+      location.hash = `#orden/${orden.id}`;
+    } catch (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = "block";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Crear orden";
+    }
+  });
+}
+
 async function handleLoginSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -410,6 +491,10 @@ async function render() {
   }
   if (path.startsWith("programa/")) {
     await renderProgramaDetalle(path.split("/")[1]);
+    return;
+  }
+  if (path === "nueva-orden") {
+    await renderNuevaOrden();
     return;
   }
   location.hash = "#ordenes";

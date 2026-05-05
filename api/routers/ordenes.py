@@ -11,6 +11,7 @@ from api.database import get_db
 from api.models import (
     ColaboradorItem,
     CompletarOrdenRequest,
+    CrearOrdenRequest,
     ObservacionRequest,
     OrdenCard,
     OrdenDetail,
@@ -170,6 +171,40 @@ def _get_orden_detail(connection: sqlite3.Connection, orden_id: int) -> OrdenDet
         programas=_programas_for_orden(connection, orden_id),
         colaboradores=_colaboradores_for_orden(connection, orden_id),
     )
+
+
+@router.post("", response_model=OrdenDetail, status_code=201)
+def create_orden(
+    payload: CrearOrdenRequest,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    if payload.tipo not in ("PREVENTIVO", "CORRECTIVO", "MEJORA"):
+        raise HTTPException(status_code=400, detail="Tipo de orden inválido.")
+    equipo = connection.execute(
+        "SELECT id FROM equipos WHERE id = ? AND activo = 1", (payload.equipo_id,)
+    ).fetchone()
+    if equipo is None:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado.")
+    cursor = connection.execute(
+        """
+        INSERT INTO ordenes_trabajo
+            (equipo_id, tipo, descripcion, fecha_apertura, observaciones, estado)
+        VALUES (?, ?, ?, date('now'), ?, 'PENDIENTE')
+        """,
+        (
+            payload.equipo_id,
+            payload.tipo,
+            payload.descripcion.strip(),
+            payload.observaciones.strip(),
+        ),
+    )
+    orden_id = cursor.lastrowid
+    connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
 
 
 @router.get("", response_model=list[OrdenCard])
