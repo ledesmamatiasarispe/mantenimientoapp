@@ -35,6 +35,7 @@ def main() -> int:
         build_app_palette,
         build_app_styles,
         get_theme,
+        load_theme_colors,
         load_theme_mode,
     )
 
@@ -48,11 +49,11 @@ def main() -> int:
 
     theme_path = get_theme_path()
     mode = load_theme_mode(theme_path)
-    theme = get_theme(mode)
+    theme = load_theme_colors(theme_path, get_theme(mode))
     app.setStyleSheet(build_app_styles(theme))
     app.setPalette(build_app_palette(theme))
 
-    window = MainWindow(database_path, theme_mode=mode)
+    window = MainWindow(database_path, theme_mode=mode, initial_theme=theme)
     window.show()
 
     return app.exec()

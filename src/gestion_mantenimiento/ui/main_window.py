@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt, QTimer, QUrl
 from PySide6.QtGui import QBrush, QColor, QDesktopServices
-from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QColorDialog, QFileDialog
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QApplication,
@@ -58,6 +58,7 @@ from gestion_mantenimiento.ui.theme import (
     build_app_palette,
     build_app_styles,
     get_theme,
+    save_theme_colors,
     save_theme_mode,
 )
 
@@ -77,6 +78,45 @@ _MESES = [
 _COLOR_VENCE_MES = QColor("#FFF3CD")   # amarillo suave
 _COLOR_VENCIDO   = QColor("#FFD6D6")   # rojo suave (vencidos)
 
+_COLOR_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
+    ("General", [
+        ("app_background",        "Fondo general"),
+        ("text_color",            "Texto principal"),
+        ("muted_text",            "Texto secundario"),
+        ("disabled_text",         "Texto deshabilitado"),
+        ("menu_background",       "Fondo de menú"),
+    ]),
+    ("Paneles e inputs", [
+        ("panel_background",         "Paneles"),
+        ("panel_header_background",  "Cabecera de panel"),
+        ("input_background",         "Campos de texto"),
+        ("border_color",             "Bordes"),
+    ]),
+    ("Acento y acciones", [
+        ("accent_color",          "Color de acento"),
+        ("primary_button_text",   "Texto en botón primario"),
+        ("danger_color",          "Color de peligro"),
+    ]),
+    ("Sidebar", [
+        ("sidebar_background",    "Fondo del sidebar"),
+        ("brand_text",            "Texto de marca"),
+        ("sidebar_subtitle_text", "Subtítulo"),
+        ("nav_text",              "Ítems de navegación"),
+        ("nav_active_text",       "Ítem activo — texto"),
+        ("nav_active_background", "Ítem activo — fondo"),
+    ]),
+    ("Tabla", [
+        ("table_alt_background",    "Filas alternas"),
+        ("table_header_background", "Cabecera"),
+        ("table_header_text",       "Texto de cabecera"),
+    ]),
+    ("Títulos", [
+        ("page_title_text",     "Título de página"),
+        ("section_title_text",  "Título de sección"),
+        ("metric_value_text",   "Valor de métricas"),
+    ]),
+]
+
 _NAV_ITEMS = [
     ("Dashboard", "dashboard"),
     ("Tipos de Máquina", "tipos_equipo"),
@@ -85,6 +125,7 @@ _NAV_ITEMS = [
     ("Órdenes de Trabajo", "ordenes"),
     ("Programa Mantenimiento", "programa"),
     ("Técnicos", "tecnicos"),
+    ("Opciones", "opciones"),
 ]
 
 _TIPOS_ORDEN = ["PREVENTIVO", "CORRECTIVO", "MEJORA"]
@@ -155,10 +196,16 @@ def _make_table(headers: list[str], parent: QWidget | None = None) -> QTableWidg
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, database_path: Path, theme_mode: str = "light") -> None:
+    def __init__(
+        self, database_path: Path, theme_mode: str = "light",
+        initial_theme: dict | None = None,
+    ) -> None:
         super().__init__()
         self._db = database_path
         self._theme_mode = theme_mode
+        self._current_theme: dict = dict(initial_theme) if initial_theme else get_theme(theme_mode)
+        self._opciones_btns: dict[str, QPushButton] = {}
+        self._opciones_font_size: QSpinBox | None = None
         self._equipo_repo = EquipoRepository(database_path)
         self._tecnico_repo = TecnicoRepository(database_path)
         self._tipo_repo = TipoEquipoRepository(database_path)
@@ -276,23 +323,34 @@ class MainWindow(QMainWindow):
         self._update_theme_btn_label()
 
     def _apply_theme(self, mode: str) -> None:
-        from PySide6.QtWidgets import QApplication
         from gestion_mantenimiento.data.paths import get_theme_path
         theme = get_theme(mode)
+        self._apply_theme_dict(theme)
+        save_theme_mode(get_theme_path(), mode)
+
+    def _apply_theme_dict(self, theme: dict) -> None:
+        from PySide6.QtWidgets import QApplication
+        self._current_theme = dict(theme)
         app = QApplication.instance()
         if app is None:
             return
         palette = build_app_palette(theme)
-        stylesheet = build_app_styles(theme)
-        # Clear first so Qt re-evaluates all rules
         app.setStyleSheet("")
-        app.setStyleSheet(stylesheet)
+        app.setStyleSheet(build_app_styles(theme))
         app.setPalette(palette)
-        # Force every visible widget to repaint with new palette+stylesheet
         for widget in app.allWidgets():
             widget.setPalette(palette)
             widget.update()
-        save_theme_mode(get_theme_path(), mode)
+        self._update_opciones_colors()
+
+    def _update_opciones_colors(self) -> None:
+        for key, btn in self._opciones_btns.items():
+            color = str(self._current_theme.get(key, "#000000"))
+            _set_color_btn_style(btn, color)
+        if self._opciones_font_size is not None:
+            self._opciones_font_size.setValue(
+                int(self._current_theme.get("base_font_size", 14))
+            )
 
     def _navigate(self, key: str) -> None:
         for k, btn in self._nav_buttons.items():
@@ -314,6 +372,7 @@ class MainWindow(QMainWindow):
             "ordenes": self._build_ordenes_page,
             "programa": self._build_programa_page,
             "tecnicos": self._build_tecnicos_page,
+            "opciones": self._build_opciones_page,
         }
         return builders[key]()
 
@@ -1153,6 +1212,93 @@ class MainWindow(QMainWindow):
             except Exception as exc:
                 QMessageBox.critical(self, "Error", str(exc))
 
+    # ── Opciones ──────────────────────────────────────────────────────────────
+
+    def _build_opciones_page(self) -> QWidget:
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        from PySide6.QtWidgets import QScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setObjectName("scrollArea")
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(24, 24, 24, 32)
+        layout.setSpacing(16)
+
+        layout.addWidget(_page_title("Opciones de apariencia"))
+
+        # ── Tipografía ───────────────────────────────────────────────────────
+        layout.addWidget(_section_title("Tipografía"))
+        tipo_form = QFormLayout()
+        self._opciones_font_size = QSpinBox()
+        self._opciones_font_size.setRange(10, 22)
+        self._opciones_font_size.setValue(int(self._current_theme.get("base_font_size", 14)))
+        self._opciones_font_size.setSuffix(" px")
+        self._opciones_font_size.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._opciones_font_size.setFixedWidth(90)
+        self._opciones_font_size.valueChanged.connect(self._opciones_change_font_size)
+        tipo_form.addRow("Tamaño de fuente:", self._opciones_font_size)
+        layout.addLayout(tipo_form)
+
+        # ── Grupos de colores ────────────────────────────────────────────────
+        self._opciones_btns = {}
+        for group_name, keys in _COLOR_GROUPS:
+            layout.addWidget(_section_title(group_name))
+            form = QFormLayout()
+            for key, label in keys:
+                color = str(self._current_theme.get(key, "#000000"))
+                btn = QPushButton()
+                _set_color_btn_style(btn, color)
+                btn.clicked.connect(lambda checked, k=key: self._opciones_pick_color(k))
+                self._opciones_btns[key] = btn
+                form.addRow(label + ":", btn)
+            layout.addLayout(form)
+
+        layout.addStretch()
+
+        # ── Botones ──────────────────────────────────────────────────────────
+        btn_row = QHBoxLayout()
+        btn_restore = QPushButton("Restaurar predeterminados")
+        btn_save = _primary_button("Guardar colores")
+        btn_restore.clicked.connect(self._opciones_restore)
+        btn_save.clicked.connect(self._opciones_save)
+        btn_row.addWidget(btn_restore)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_save)
+        layout.addLayout(btn_row)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+        return page
+
+    def _opciones_pick_color(self, key: str) -> None:
+        current = QColor(str(self._current_theme.get(key, "#000000")))
+        color = QColorDialog.getColor(current, self, "Elegir color")
+        if not color.isValid():
+            return
+        self._current_theme[key] = color.name()
+        btn = self._opciones_btns.get(key)
+        if btn:
+            _set_color_btn_style(btn, color.name())
+        self._apply_theme_dict(self._current_theme)
+
+    def _opciones_change_font_size(self, value: int) -> None:
+        self._current_theme["base_font_size"] = value
+        self._apply_theme_dict(self._current_theme)
+
+    def _opciones_restore(self) -> None:
+        base = get_theme(self._theme_mode)
+        self._apply_theme_dict(base)
+
+    def _opciones_save(self) -> None:
+        from gestion_mantenimiento.data.paths import get_theme_path
+        save_theme_colors(get_theme_path(), self._current_theme)
+        QMessageBox.information(self, "Opciones", "Colores guardados correctamente.")
+
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _selected_id(self, table: QTableWidget) -> int | None:
@@ -1165,6 +1311,14 @@ class MainWindow(QMainWindow):
             return None
         val = item.data(Qt.ItemDataRole.UserRole)
         return int(val) if val is not None else None
+
+
+def _set_color_btn_style(btn: QPushButton, color: str) -> None:
+    btn.setStyleSheet(
+        f"QPushButton {{ background-color: {color}; border: 2px solid #666;"
+        f" border-radius: 4px; min-width: 60px; min-height: 28px; }}"
+        f"QPushButton:hover {{ border-color: #aaa; }}"
+    )
 
 
 # ── Dialogs ───────────────────────────────────────────────────────────────────

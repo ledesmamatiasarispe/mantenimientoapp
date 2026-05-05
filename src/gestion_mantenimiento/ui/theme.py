@@ -461,6 +461,42 @@ def get_theme(mode: str) -> dict[str, str | int]:
     return dark_theme() if mode == "dark" else default_theme()
 
 
+def load_theme_colors(theme_path: Path, base_theme: dict[str, str | int]) -> dict[str, str | int]:
+    """Aplica colores guardados desde theme.json sobre base_theme."""
+    result = base_theme.copy()
+    if not theme_path.exists():
+        return result
+    try:
+        data = json.loads(theme_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return result
+    for key, value in data.items():
+        if key.startswith("_") or key not in result:
+            continue
+        if key == "base_font_size":
+            try:
+                result[key] = int(value)
+            except (ValueError, TypeError):
+                pass
+        else:
+            result[key] = str(value)
+    return result
+
+
+def save_theme_colors(theme_path: Path, theme: dict[str, str | int]) -> None:
+    """Guarda todos los colores del tema en theme.json, preservando _mode."""
+    data: dict[str, object] = {}
+    if theme_path.exists():
+        try:
+            data = json.loads(theme_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = {}
+    for key, value in theme.items():
+        data[key] = value
+    theme_path.parent.mkdir(parents=True, exist_ok=True)
+    theme_path.write_text(json.dumps(data, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
 def load_theme_mode(theme_path: Path) -> str:
     if not theme_path.exists():
         return "light"
