@@ -36,6 +36,8 @@ def test_initialize_creates_tables(db_path: Path) -> None:
         "repuestos_orden",
         "programas_mantenimiento",
         "alertas_app",
+        "orden_programas",
+        "programa_adjuntos",
     }
     assert expected <= tables
 
@@ -158,3 +160,9 @@ def test_migrate_legacy_db_sin_repuestos(tmp_path: Path) -> None:
             " VALUES (1, 1, 'Test', 2)"
         )
         conn.commit()
+
+
+def test_tecnicos_include_password_hash_column(db_path: Path) -> None:
+    with closing(sqlite3.connect(db_path)) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tecnicos)").fetchall()}
+    assert "password_hash" in columns

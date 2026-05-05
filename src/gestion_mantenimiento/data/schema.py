@@ -170,6 +170,7 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_frecuencia_meses(connection)
         _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
+        _migrate_tecnicos_password_hash(connection)
         _migrate_orden_programas(connection)
         _migrate_programa_adjuntos(connection)
         connection.execute("PRAGMA foreign_keys = ON")
@@ -243,6 +244,15 @@ def _migrate_repuestos_orden_repuesto_id(connection: sqlite3.Connection) -> None
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_repuestos_orden_repuesto_id"
             " ON repuestos_orden(repuesto_id)"
+        )
+
+
+def _migrate_tecnicos_password_hash(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "tecnicos"):
+        return
+    if "password_hash" not in _table_columns(connection, "tecnicos"):
+        connection.execute(
+            "ALTER TABLE tecnicos ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''"
         )
 
 

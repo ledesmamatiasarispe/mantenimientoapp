@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import traceback
 from pathlib import Path
@@ -56,7 +58,32 @@ def main() -> int:
     window = MainWindow(database_path, theme_mode=mode, initial_theme=theme)
     window.show()
 
+    _start_api_server(database_path)
+
     return app.exec()
+
+
+def _start_api_server(database_path: Path) -> None:
+    """Arranca la API REST en background en el puerto 8000."""
+    repo_root = Path(__file__).resolve().parents[3]
+    uvicorn = repo_root / ".venv" / "Scripts" / "uvicorn.exe"
+    if not uvicorn.exists():
+        uvicorn = Path(sys.executable).parent / "uvicorn.exe"
+    if not uvicorn.exists():
+        return  # uvicorn no instalado, continúa sin API
+
+    env = {**os.environ, "DB_PATH": str(database_path)}
+    try:
+        subprocess.Popen(
+            [str(uvicorn), "api.main:app", "--host", "0.0.0.0", "--port", "8000"],
+            cwd=str(repo_root),
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+    except OSError:
+        pass  # Si falla el arranque, la app de escritorio sigue funcionando
 
 
 if __name__ == "__main__":
