@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QApplication,
@@ -50,6 +51,14 @@ from gestion_mantenimiento.data.repositories import (
 )
 from gestion_mantenimiento.data.schema import initialize_database
 from gestion_mantenimiento.ui.theme import build_app_palette, build_app_styles, load_theme_settings
+
+_MESES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+_COLOR_VENCE_MES = QColor("#FFF3CD")   # amarillo suave
+_COLOR_VENCIDO   = QColor("#FFD6D6")   # rojo suave (vencidos)
 
 _NAV_ITEMS = [
     ("Dashboard", "dashboard"),
@@ -736,6 +745,43 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(_page_title("Programa de Mantenimiento"))
 
+        # ── Selector de mes ──────────────────────────────────────────────────
+        mes_bar = QFrame()
+        mes_bar.setObjectName("panel")
+        mes_layout = QHBoxLayout(mes_bar)
+        mes_layout.setContentsMargins(16, 10, 16, 10)
+
+        mes_layout.addWidget(QLabel("Ver mes:"))
+
+        self._prog_mes = QComboBox()
+        for nombre in _MESES:
+            self._prog_mes.addItem(nombre)
+        self._prog_mes.setCurrentIndex(date.today().month - 1)
+        self._prog_mes.setFixedWidth(130)
+        self._prog_mes.currentIndexChanged.connect(lambda: self._refresh_programas())
+
+        self._prog_anio = QSpinBox()
+        self._prog_anio.setRange(2000, 2100)
+        self._prog_anio.setValue(date.today().year)
+        self._prog_anio.setFixedWidth(80)
+        self._prog_anio.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._prog_anio.valueChanged.connect(lambda: self._refresh_programas())
+
+        leyenda_amarilla = QLabel("■ vence este mes")
+        leyenda_amarilla.setStyleSheet("color: #b8860b; font-size: 12px;")
+        leyenda_roja = QLabel("■ vencido")
+        leyenda_roja.setStyleSheet("color: #b42318; font-size: 12px;")
+
+        mes_layout.addWidget(self._prog_mes)
+        mes_layout.addWidget(self._prog_anio)
+        mes_layout.addSpacing(24)
+        mes_layout.addWidget(leyenda_amarilla)
+        mes_layout.addSpacing(12)
+        mes_layout.addWidget(leyenda_roja)
+        mes_layout.addStretch()
+        layout.addWidget(mes_bar)
+
+        # ── Barra de acciones ────────────────────────────────────────────────
         topbar = QFrame()
         topbar.setObjectName("topbar")
         tb_layout = QHBoxLayout(topbar)
@@ -752,6 +798,7 @@ class MainWindow(QMainWindow):
         tb_layout.addWidget(btn_nuevo)
         layout.addWidget(topbar)
 
+        # ── Tabla ────────────────────────────────────────────────────────────
         self._prog_table = _make_table(
             ["#", "Equipo", "Descripción", "Frecuencia (meses)",
              "Última ejecución", "Próxima ejecución", "Estado"]
@@ -759,14 +806,21 @@ class MainWindow(QMainWindow):
         self._prog_table.doubleClicked.connect(self._edit_selected_programa)
         layout.addWidget(self._prog_table)
 
+        # ── Botones inferiores ───────────────────────────────────────────────
         actions = QWidget()
         actions.setObjectName("actionButtons")
         act_layout = QHBoxLayout(actions)
         act_layout.setContentsMargins(0, 0, 0, 0)
-        btn_edit = QPushButton("Editar")
+
+        self._btn_editar_mantenimientos = QPushButton("Editar mantenimientos")
+        self._btn_editar_mantenimientos.clicked.connect(self._open_mantenimientos_equipo)
+
+        btn_edit = QPushButton("Editar programa")
         btn_edit.clicked.connect(self._edit_selected_programa)
         btn_delete = _danger_button("Eliminar")
         btn_delete.clicked.connect(self._delete_selected_programa)
+
+        act_layout.addWidget(self._btn_editar_mantenimientos)
         act_layout.addStretch()
         act_layout.addWidget(btn_edit)
         act_layout.addWidget(btn_delete)
@@ -779,13 +833,19 @@ class MainWindow(QMainWindow):
         return page
 
     def _refresh_programas(self) -> None:
+        mes_sel  = self._prog_mes.currentIndex() + 1   # 1-12
+        anio_sel = self._prog_anio.value()
+        hoy = date.today()
+
         solo_activos = not self._prog_show_inactive.isChecked()
         programas = self._programa_repo.list_all(solo_activos=solo_activos)
         tabla = self._prog_table
         tabla.setRowCount(0)
+
         for p in programas:
             row = tabla.rowCount()
             tabla.insertRow(row)
+
             tabla.setItem(row, 0, QTableWidgetItem(str(p.id)))
             tabla.setItem(row, 1, QTableWidgetItem(p.equipo_nombre))
             tabla.setItem(row, 2, QTableWidgetItem(p.descripcion))
@@ -793,9 +853,46 @@ class MainWindow(QMainWindow):
             tabla.setItem(row, 4, QTableWidgetItem(p.ultima_ejecucion))
             tabla.setItem(row, 5, QTableWidgetItem(p.proxima_ejecucion))
             tabla.setItem(row, 6, QTableWidgetItem("Activo" if p.activo else "Inactivo"))
+
             item_id = tabla.item(row, 0)
             if item_id:
                 item_id.setData(Qt.ItemDataRole.UserRole, p.id)
+                item_id.setData(Qt.ItemDataRole.UserRole + 1, p.equipo_id)
+
+            # Determinar color de la fila
+            color: QColor | None = None
+            try:
+                proxima = date.fromisoformat(p.proxima_ejecucion)
+                if proxima < hoy:
+                    color = _COLOR_VENCIDO
+                elif proxima.year == anio_sel and proxima.month == mes_sel:
+                    color = _COLOR_VENCE_MES
+            except ValueError:
+                pass
+
+            if color is not None:
+                brush = QBrush(color)
+                for col in range(tabla.columnCount()):
+                    item = tabla.item(row, col)
+                    if item:
+                        item.setBackground(brush)
+
+    def _open_mantenimientos_equipo(self) -> None:
+        selected = self._prog_table.selectedItems()
+        if not selected:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa de la lista.")
+            return
+        row = self._prog_table.row(selected[0])
+        item = self._prog_table.item(row, 0)
+        if item is None:
+            return
+        equipo_id = item.data(Qt.ItemDataRole.UserRole + 1)
+        equipo_nombre = (self._prog_table.item(row, 1) or QTableWidgetItem("")).text()
+        if equipo_id is None:
+            return
+        dlg = MantenimientosEquipoDialog(self._db, equipo_id, equipo_nombre, parent=self)
+        dlg.exec()
+        self._refresh_programas()
 
     def _open_programa_dialog(self, programa_id: int | None = None) -> None:
         dlg = ProgramaDialog(self._db, programa_id, parent=self)
@@ -1593,16 +1690,137 @@ class TipoEquipoDialog(QDialog):
             QMessageBox.critical(self, "Error", str(exc))
 
 
+class MantenimientosEquipoDialog(QDialog):
+    """Sub-ventana que lista y gestiona todos los programas de mantenimiento de un equipo."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        equipo_id: int,
+        equipo_nombre: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._equipo_id = equipo_id
+        self._repo = ProgramaMantenimientoRepository(database_path)
+        self.setWindowTitle(f"Mantenimientos — {equipo_nombre}")
+        self.setMinimumWidth(750)
+        self.resize(800, 480)
+        self._build()
+        self._refresh()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        self._tabla = _make_table(
+            ["#", "Descripción", "Frecuencia (meses)",
+             "Última ejecución", "Próxima ejecución", "Estado"]
+        )
+        self._tabla.doubleClicked.connect(self._editar)
+        layout.addWidget(self._tabla)
+
+        btn_bar = QHBoxLayout()
+        btn_crear  = _primary_button("+ Crear")
+        btn_editar = QPushButton("Editar")
+        btn_elim   = _danger_button("Eliminar")
+        btn_cerrar = QPushButton("Cerrar")
+
+        btn_crear.clicked.connect(lambda: self._crear())
+        btn_editar.clicked.connect(self._editar)
+        btn_elim.clicked.connect(self._eliminar)
+        btn_cerrar.clicked.connect(self.accept)
+
+        btn_bar.addWidget(btn_crear)
+        btn_bar.addWidget(btn_editar)
+        btn_bar.addWidget(btn_elim)
+        btn_bar.addStretch()
+        btn_bar.addWidget(btn_cerrar)
+        layout.addLayout(btn_bar)
+
+    def _refresh(self) -> None:
+        todos = self._repo.list_all()
+        programas = [p for p in todos if p.equipo_id == self._equipo_id]
+        tabla = self._tabla
+        tabla.setRowCount(0)
+        hoy = date.today()
+        for p in programas:
+            row = tabla.rowCount()
+            tabla.insertRow(row)
+            tabla.setItem(row, 0, QTableWidgetItem(str(p.id)))
+            tabla.setItem(row, 1, QTableWidgetItem(p.descripcion))
+            tabla.setItem(row, 2, QTableWidgetItem(str(p.frecuencia_meses)))
+            tabla.setItem(row, 3, QTableWidgetItem(p.ultima_ejecucion))
+            tabla.setItem(row, 4, QTableWidgetItem(p.proxima_ejecucion))
+            tabla.setItem(row, 5, QTableWidgetItem("Activo" if p.activo else "Inactivo"))
+            item_id = tabla.item(row, 0)
+            if item_id:
+                item_id.setData(Qt.ItemDataRole.UserRole, p.id)
+            # Colorear vencidos
+            try:
+                proxima = date.fromisoformat(p.proxima_ejecucion)
+                if proxima < hoy:
+                    brush = QBrush(_COLOR_VENCIDO)
+                    for col in range(tabla.columnCount()):
+                        it = tabla.item(row, col)
+                        if it:
+                            it.setBackground(brush)
+            except ValueError:
+                pass
+
+    def _selected_prog_id(self) -> int | None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return None
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        if item is None:
+            return None
+        val = item.data(Qt.ItemDataRole.UserRole)
+        return int(val) if val is not None else None
+
+    def _crear(self) -> None:
+        dlg = ProgramaDialog(self._db, None, equipo_id_fijo=self._equipo_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh()
+
+    def _editar(self) -> None:
+        prog_id = self._selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa.")
+            return
+        dlg = ProgramaDialog(self._db, prog_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh()
+
+    def _eliminar(self) -> None:
+        prog_id = self._selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa.")
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar este programa de mantenimiento?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._repo.delete(prog_id)
+            self._refresh()
+
+
 class ProgramaDialog(QDialog):
     def __init__(
         self,
         database_path: Path,
         programa_id: int | None = None,
+        *,
+        equipo_id_fijo: int | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._db = database_path
         self._programa_id = programa_id
+        self._equipo_id_fijo = equipo_id_fijo
         self._repo = ProgramaMantenimientoRepository(database_path)
         self._equipo_repo = EquipoRepository(database_path)
         self.setWindowTitle("Programa de Mantenimiento")
@@ -1618,6 +1836,13 @@ class ProgramaDialog(QDialog):
         self._equipo = QComboBox()
         for eq in self._equipo_repo.list_all(solo_activos=True):
             self._equipo.addItem(eq.etiqueta, eq.id)
+
+        # Si se abre desde MantenimientosEquipoDialog, bloquear el combo al equipo
+        if self._equipo_id_fijo is not None:
+            idx = self._equipo.findData(self._equipo_id_fijo)
+            if idx >= 0:
+                self._equipo.setCurrentIndex(idx)
+            self._equipo.setEnabled(False)
 
         self._descripcion = QLineEdit()
 
