@@ -53,6 +53,7 @@ from gestion_mantenimiento.ui.theme import build_app_palette, build_app_styles, 
 
 _NAV_ITEMS = [
     ("Dashboard", "dashboard"),
+    ("Tipos de Máquina", "tipos_equipo"),
     ("Equipos", "equipos"),
     ("Repuestos", "repuestos"),
     ("Órdenes de Trabajo", "ordenes"),
@@ -212,6 +213,7 @@ class MainWindow(QMainWindow):
     def _build_page(self, key: str) -> QWidget:
         builders = {
             "dashboard": self._build_dashboard_page,
+            "tipos_equipo": self._build_tipos_equipo_page,
             "equipos": self._build_equipos_page,
             "repuestos": self._build_repuestos_page,
             "ordenes": self._build_ordenes_page,
@@ -308,6 +310,110 @@ class MainWindow(QMainWindow):
             tabla2.setItem(row, 3, QTableWidgetItem(_ESTADOS_LABELS.get(o.estado, o.estado)))
             tabla2.setItem(row, 4, QTableWidgetItem(o.fecha_apertura))
             tabla2.setItem(row, 5, QTableWidgetItem(o.tecnico_nombre))
+
+    # ── Tipos de Máquina ──────────────────────────────────────────────────────
+
+    def _build_tipos_equipo_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        layout.addWidget(_page_title("Tipos de Máquina"))
+
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb_layout = QHBoxLayout(topbar)
+        tb_layout.setContentsMargins(12, 8, 12, 8)
+
+        self._te_search = QLineEdit()
+        self._te_search.setPlaceholderText("Buscar tipo...")
+        self._te_search.textChanged.connect(lambda: self._refresh_tipos_equipo())
+
+        self._te_show_inactive = QCheckBox("Mostrar inactivos")
+        self._te_show_inactive.stateChanged.connect(lambda: self._refresh_tipos_equipo())
+
+        btn_nuevo = _primary_button("+ Nuevo tipo")
+        btn_nuevo.clicked.connect(self._open_tipo_equipo_dialog)
+
+        tb_layout.addWidget(self._te_search, 1)
+        tb_layout.addWidget(self._te_show_inactive)
+        tb_layout.addWidget(btn_nuevo)
+        layout.addWidget(topbar)
+
+        self._te_table = _make_table(["ID", "Nombre", "Estado"])
+        self._te_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
+        self._te_table.doubleClicked.connect(self._edit_selected_tipo_equipo)
+        layout.addWidget(self._te_table)
+
+        actions = QWidget()
+        actions.setObjectName("actionButtons")
+        act_layout = QHBoxLayout(actions)
+        act_layout.setContentsMargins(0, 0, 0, 0)
+        btn_edit = QPushButton("Editar")
+        btn_edit.clicked.connect(self._edit_selected_tipo_equipo)
+        btn_delete = _danger_button("Eliminar")
+        btn_delete.clicked.connect(self._delete_selected_tipo_equipo)
+        act_layout.addStretch()
+        act_layout.addWidget(btn_edit)
+        act_layout.addWidget(btn_delete)
+        layout.addWidget(actions)
+
+        layout.addStretch()
+
+        def refresh() -> None:
+            self._refresh_tipos_equipo()
+
+        page._refresh = refresh  # type: ignore[attr-defined]
+        return page
+
+    def _refresh_tipos_equipo(self) -> None:
+        search = self._te_search.text().strip().lower()
+        solo_activos = not self._te_show_inactive.isChecked()
+        tipos = self._tipo_repo.list_all(solo_activos=solo_activos)
+        if search:
+            tipos = [t for t in tipos if search in t.nombre.lower()]
+        tabla = self._te_table
+        tabla.setRowCount(0)
+        for t in tipos:
+            row = tabla.rowCount()
+            tabla.insertRow(row)
+            tabla.setItem(row, 0, QTableWidgetItem(str(t.id)))
+            tabla.setItem(row, 1, QTableWidgetItem(t.nombre))
+            tabla.setItem(row, 2, QTableWidgetItem("Activo" if t.activo else "Inactivo"))
+            item_id = tabla.item(row, 0)
+            if item_id:
+                item_id.setData(Qt.ItemDataRole.UserRole, t.id)
+
+    def _open_tipo_equipo_dialog(self, tipo_id: int | None = None) -> None:
+        dlg = TipoEquipoDialog(self._db, tipo_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_tipos_equipo()
+
+    def _edit_selected_tipo_equipo(self) -> None:
+        tipo_id = self._selected_id(self._te_table)
+        if tipo_id is None:
+            return
+        self._open_tipo_equipo_dialog(tipo_id)
+
+    def _delete_selected_tipo_equipo(self) -> None:
+        tipo_id = self._selected_id(self._te_table)
+        if tipo_id is None:
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar",
+            "¿Eliminar el tipo seleccionado?\n"
+            "No se puede eliminar si hay equipos que lo usan.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                self._tipo_repo.delete(tipo_id)
+                self._refresh_tipos_equipo()
+            except Exception as exc:
+                QMessageBox.critical(self, "Error", str(exc))
 
     # ── Equipos ──────────────────────────────────────────────────────────────
 
@@ -1426,6 +1532,62 @@ class RepuestoCatalogDialog(QDialog):
                     self._stock_minimo.value(),
                     self._activo.isChecked(),
                 )
+            self.accept()
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
+
+
+class TipoEquipoDialog(QDialog):
+    def __init__(
+        self, database_path: Path, tipo_id: int | None = None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self._repo = TipoEquipoRepository(database_path)
+        self._tipo_id = tipo_id
+        self.setWindowTitle("Tipo de Máquina")
+        self.setMinimumWidth(360)
+        self._build()
+        if tipo_id is not None:
+            self._load(tipo_id)
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        self._nombre = QLineEdit()
+        self._activo = QCheckBox("Activo")
+        self._activo.setChecked(True)
+
+        form.addRow("Nombre *", self._nombre)
+        form.addRow("", self._activo)
+
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _load(self, tipo_id: int) -> None:
+        tipos = self._repo.list_all(solo_activos=False)
+        tipo = next((t for t in tipos if t.id == tipo_id), None)
+        if tipo is None:
+            return
+        self._nombre.setText(tipo.nombre)
+        self._activo.setChecked(tipo.activo)
+
+    def _save(self) -> None:
+        nombre = self._nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Validación", "El nombre es requerido.")
+            return
+        try:
+            if self._tipo_id is None:
+                self._repo.create(nombre)
+            else:
+                self._repo.update(self._tipo_id, nombre, self._activo.isChecked())
             self.accept()
         except Exception as exc:
             QMessageBox.critical(self, "Error", str(exc))
