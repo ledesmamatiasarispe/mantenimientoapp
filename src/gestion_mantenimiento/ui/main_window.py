@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QUrl
+from PySide6.QtCore import QDate, Qt, QTimer, QUrl
 from PySide6.QtGui import QBrush, QColor, QDesktopServices
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import (
@@ -43,6 +43,7 @@ from gestion_mantenimiento.data.models import (
 from gestion_mantenimiento.data.paths import get_database_path, get_theme_path
 from gestion_mantenimiento.data.repositories import (
     AdjuntoRepository,
+    AlertaRepository,
     EquipoRepository,
     OrdenProgramaRepository,
     OrdenTrabajoRepository,
@@ -167,11 +168,17 @@ class MainWindow(QMainWindow):
         self._programa_repo = ProgramaMantenimientoRepository(database_path)
         self._orden_programa_repo = OrdenProgramaRepository(database_path)
         self._adjunto_repo = AdjuntoRepository(database_path)
+        self._alerta_repo = AlertaRepository(database_path)
 
         self.setWindowTitle(f"Gestión Mantenimiento v{__version__}")
         self.resize(1280, 800)
         self._build_ui()
         self._navigate("dashboard")
+        # Alertas: refresco inicial + timer cada 5 minutos
+        self._refresh_alertas_badge()
+        self._alertas_timer = QTimer(self)
+        self._alertas_timer.timeout.connect(self._refresh_alertas_badge)
+        self._alertas_timer.start(5 * 60 * 1000)
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -220,6 +227,12 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
+        # Badge de alertas
+        self._alertas_btn = QPushButton(sidebar)
+        self._alertas_btn.setObjectName("navButton")
+        self._alertas_btn.clicked.connect(self._open_alertas)
+        layout.addWidget(self._alertas_btn)
+
         self._theme_btn = QPushButton(sidebar)
         self._theme_btn.setObjectName("navButton")
         self._theme_btn.clicked.connect(self._toggle_theme)
@@ -232,6 +245,24 @@ class MainWindow(QMainWindow):
         layout.addWidget(version_label)
 
         return sidebar
+
+    def _refresh_alertas_badge(self) -> None:
+        alertas = self._alerta_repo.compute()
+        n = len(alertas)
+        if n == 0:
+            self._alertas_btn.setText("Sin alertas")
+            self._alertas_btn.setStyleSheet("")
+        else:
+            self._alertas_btn.setText(f"⚠ Alertas ({n})")
+            # Resaltar en rojo si hay alertas
+            self._alertas_btn.setStyleSheet(
+                "QPushButton { color: #f87171; font-weight: 700; }"
+            )
+
+    def _open_alertas(self) -> None:
+        dlg = AlertasDialog(self._db, parent=self)
+        dlg.exec()
+        self._refresh_alertas_badge()
 
     def _update_theme_btn_label(self) -> None:
         if self._theme_mode == "dark":
@@ -1860,6 +1891,117 @@ class TipoEquipoDialog(QDialog):
             self.accept()
         except Exception as exc:
             QMessageBox.critical(self, "Error", str(exc))
+
+
+_TIPO_LABEL = {
+    "STOCK_BAJO":  "Stock bajo",
+    "ORDEN_NUEVA": "Orden nueva",
+    "MANT_VENCIDO": "Mant. vencido",
+}
+_TIPO_COLOR = {
+    "STOCK_BAJO":  "#f59e0b",   # naranja
+    "ORDEN_NUEVA": "#3b82f6",   # azul
+    "MANT_VENCIDO": "#ef4444",  # rojo
+}
+
+
+class AlertasDialog(QDialog):
+    """Centro de alertas: muestra alertas activas con opciones de snooze/ignorar."""
+
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._db   = database_path
+        self._repo = AlertaRepository(database_path)
+        self.setWindowTitle("Centro de alertas")
+        self.setMinimumWidth(700)
+        self.resize(780, 480)
+        self._build()
+        self._refresh()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        self._tabla = _make_table(["Tipo", "Título", "Descripción"])
+        self._tabla.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.ResizeMode.Stretch
+        )
+        layout.addWidget(self._tabla)
+
+        # Leyenda
+        leyenda = QLabel(
+            "  ⚠ Stock bajo    ●  Orden nueva    ✕  Mantenimiento vencido"
+        )
+        leyenda.setObjectName("muted")
+        layout.addWidget(leyenda)
+
+        btn_bar = QHBoxLayout()
+        self._btn_snooze  = QPushButton("Posponer 7 días")
+        self._btn_ignorar = _danger_button("Ignorar siempre")
+        btn_cerrar        = QPushButton("Cerrar")
+
+        self._btn_snooze.clicked.connect(lambda: self._accion("snooze"))
+        self._btn_ignorar.clicked.connect(lambda: self._accion("ignorar"))
+        btn_cerrar.clicked.connect(self.accept)
+
+        btn_bar.addWidget(self._btn_snooze)
+        btn_bar.addWidget(self._btn_ignorar)
+        btn_bar.addStretch()
+        btn_bar.addWidget(btn_cerrar)
+        layout.addLayout(btn_bar)
+
+        self._no_alertas_lbl = QLabel("No hay alertas activas.")
+        self._no_alertas_lbl.setObjectName("muted")
+        self._no_alertas_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._no_alertas_lbl.setVisible(False)
+        layout.addWidget(self._no_alertas_lbl)
+
+    def _refresh(self) -> None:
+        alertas = self._repo.compute()
+        self._tabla.setRowCount(0)
+
+        if not alertas:
+            self._tabla.setVisible(False)
+            self._no_alertas_lbl.setVisible(True)
+            self._btn_snooze.setEnabled(False)
+            self._btn_ignorar.setEnabled(False)
+            return
+
+        self._tabla.setVisible(True)
+        self._no_alertas_lbl.setVisible(False)
+        self._btn_snooze.setEnabled(True)
+        self._btn_ignorar.setEnabled(True)
+
+        for a in alertas:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+
+            tipo_item = QTableWidgetItem(_TIPO_LABEL.get(a.tipo, a.tipo))
+            color = _TIPO_COLOR.get(a.tipo, "#888888")
+            tipo_item.setForeground(QBrush(QColor(color)))
+            tipo_item.setData(Qt.ItemDataRole.UserRole, a.key)
+            self._tabla.setItem(row, 0, tipo_item)
+            self._tabla.setItem(row, 1, QTableWidgetItem(a.titulo))
+            self._tabla.setItem(row, 2, QTableWidgetItem(a.mensaje))
+
+    def _selected_key(self) -> str | None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return None
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        return item.data(Qt.ItemDataRole.UserRole) if item else None
+
+    def _accion(self, accion: str) -> None:
+        key = self._selected_key()
+        if key is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione una alerta de la lista.")
+            return
+        if accion == "snooze":
+            self._repo.snooze(key, dias=7)
+        else:
+            self._repo.ignorar(key)
+        self._refresh()
 
 
 class VerMantenimientoDialog(QDialog):

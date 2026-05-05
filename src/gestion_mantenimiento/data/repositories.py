@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing
+from datetime import date, timedelta
 from pathlib import Path
 
 from gestion_mantenimiento.data.models import (
+    Alerta,
     AppAlert,
     Equipo,
     OrdenPrograma,
@@ -812,4 +814,102 @@ class AdjuntoRepository:
     def delete(self, adjunto_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute("DELETE FROM programa_adjuntos WHERE id = ?", (adjunto_id,))
+            conn.commit()
+
+
+class AlertaRepository:
+    """Computa alertas activas y gestiona snooze/ignorar en alertas_app."""
+
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def compute(self) -> list[Alerta]:
+        hoy = date.today().isoformat()
+        alertas: list[Alerta] = []
+
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            # Keys actualmente en snooze (no mostrar)
+            snoozed = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT clave FROM alertas_app WHERE avisar_nuevamente_desde > ?",
+                    (hoy,),
+                ).fetchall()
+            }
+
+            # ── Repuestos en stock mínimo o por debajo ─────────────────────
+            for r in conn.execute(
+                "SELECT id, nombre, stock_actual, stock_minimo"
+                " FROM repuestos WHERE stock_actual <= stock_minimo AND activo = 1"
+            ).fetchall():
+                key = f"stock_bajo_{r[0]}"
+                if key not in snoozed:
+                    alertas.append(Alerta(
+                        key=key, tipo="STOCK_BAJO",
+                        titulo=f"Stock bajo: {r[1]}",
+                        mensaje=f"Actual {r[2]:g} ≤ mínimo {r[3]:g}",
+                        entidad_id=r[0],
+                    ))
+
+            # ── Órdenes de trabajo pendientes ──────────────────────────────
+            for r in conn.execute(
+                """
+                SELECT o.id, e.nombre, COALESCE(o.descripcion,''), o.fecha_apertura
+                FROM ordenes_trabajo o
+                JOIN equipos e ON e.id = o.equipo_id
+                WHERE o.estado = 'PENDIENTE'
+                ORDER BY o.id DESC
+                """
+            ).fetchall():
+                key = f"orden_nueva_{r[0]}"
+                if key not in snoozed:
+                    desc = r[2][:60] + ("…" if len(r[2]) > 60 else "")
+                    alertas.append(Alerta(
+                        key=key, tipo="ORDEN_NUEVA",
+                        titulo=f"Orden pendiente — {r[1]}",
+                        mensaje=f"#{r[0]}  {desc}  ({r[3]})",
+                        entidad_id=r[0],
+                    ))
+
+            # ── Mantenimientos vencidos ────────────────────────────────────
+            for r in conn.execute(
+                """
+                SELECT p.id, e.nombre, p.descripcion, p.proxima_ejecucion
+                FROM programas_mantenimiento p
+                JOIN equipos e ON e.id = p.equipo_id
+                WHERE p.proxima_ejecucion < ? AND p.proxima_ejecucion != '' AND p.activo = 1
+                ORDER BY p.proxima_ejecucion
+                """,
+                (hoy,),
+            ).fetchall():
+                key = f"mant_vencido_{r[0]}"
+                if key not in snoozed:
+                    alertas.append(Alerta(
+                        key=key, tipo="MANT_VENCIDO",
+                        titulo=f"Mantenimiento vencido — {r[1]}",
+                        mensaje=f"{r[2]}  (venció el {r[3]})",
+                        entidad_id=r[0],
+                    ))
+
+        return alertas
+
+    def snooze(self, key: str, dias: int = 7) -> None:
+        hasta = (date.today() + timedelta(days=dias)).isoformat()
+        self._upsert(key, hasta)
+
+    def ignorar(self, key: str) -> None:
+        self._upsert(key, "9999-12-31")
+
+    def _upsert(self, key: str, hasta: str) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                """
+                INSERT INTO alertas_app (clave, avisar_nuevamente_desde)
+                VALUES (?, ?)
+                ON CONFLICT(clave) DO UPDATE SET
+                    avisar_nuevamente_desde = excluded.avisar_nuevamente_desde,
+                    actualizado_en = CURRENT_TIMESTAMP
+                """,
+                (key, hasta),
+            )
             conn.commit()

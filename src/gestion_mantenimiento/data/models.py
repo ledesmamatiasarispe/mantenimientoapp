@@ -141,6 +141,15 @@ class ProgramaAdjunto:
 
 
 @dataclass(frozen=True)
+class Alerta:
+    key: str
+    tipo: str        # "STOCK_BAJO" | "ORDEN_NUEVA" | "MANT_VENCIDO"
+    titulo: str
+    mensaje: str
+    entidad_id: int
+
+
+@dataclass(frozen=True)
 class AppAlert:
     key: str
     source: str
