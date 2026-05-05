@@ -291,6 +291,17 @@ class MainWindow(QMainWindow):
         self._update_theme_btn_label()
         layout.addWidget(self._theme_btn)
 
+        api_label = QLabel("App técnicos:", sidebar)
+        api_label.setObjectName("muted")
+        api_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(api_label)
+
+        api_url_label = QLabel("192.168.100.30:8000", sidebar)
+        api_url_label.setObjectName("muted")
+        api_url_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        api_url_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(api_url_label)
+
         version_label = QLabel(f"v{__version__}", sidebar)
         version_label.setObjectName("muted")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

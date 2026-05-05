@@ -6,7 +6,7 @@ set "VENV_PY=%~dp0.venv\Scripts\python.exe"
 echo Iniciando API de tecnicos...
 echo.
 echo Acceder desde el celular (misma red WiFi):
-echo   http://192.168.0.127:8000
+echo   http://192.168.100.30:8000
 echo.
 echo Presiona Ctrl+C para detener.
 echo.
