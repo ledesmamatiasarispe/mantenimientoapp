@@ -64,25 +64,22 @@ def main() -> int:
 
 
 def _start_api_server(database_path: Path) -> None:
-    """Mata el uvicorn anterior (si existe) y arranca uno nuevo en el puerto 8000."""
-    repo_root = Path(__file__).resolve().parents[3]
+    """Arranca la API REST en background en el puerto 8000."""
+    # parents[2] = sistema-gestion-mantenimiento/  (project root)
+    repo_root = Path(__file__).resolve().parents[2]
+
     uvicorn_exe = repo_root / ".venv" / "Scripts" / "uvicorn.exe"
     if not uvicorn_exe.exists():
         uvicorn_exe = Path(sys.executable).parent / "uvicorn.exe"
     if not uvicorn_exe.exists():
         return
 
-    # Matar proceso que tenga ocupado el puerto 8000
+    # Cerrar uvicorn anterior si existe
     if sys.platform == "win32":
         try:
             subprocess.run(
-                ["netstat", "-ano"],
-                capture_output=True, text=True, timeout=5
-            )
-            result = subprocess.run(
-                "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :8000 ^| findstr LISTEN') "
-                "do taskkill /PID %a /F",
-                shell=True, capture_output=True, timeout=5,
+                ["taskkill", "/IM", "uvicorn.exe", "/F"],
+                capture_output=True, timeout=5,
             )
         except Exception:
             pass
