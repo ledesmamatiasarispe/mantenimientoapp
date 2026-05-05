@@ -209,14 +209,18 @@ def create_orden(
 
 @router.get("", response_model=list[OrdenCard])
 def list_ordenes(
-    _: CurrentTecnicoDep,
+    current_tecnico: CurrentTecnicoDep,
     connection: ConnectionDep,
     estado: str | None = Query(default=None),
     equipo_id: int | None = Query(default=None),
+    solo_mis: bool = Query(default=False),
 ) -> list[OrdenCard]:
     query = _base_query()
     clauses: list[str] = []
     params: list[object] = []
+    if solo_mis:
+        query += " JOIN orden_colaboradores _oc ON _oc.orden_id = o.id AND _oc.tecnico_id = ?"
+        params.insert(0, current_tecnico.id)
     if estado:
         clauses.append("o.estado = ?")
         params.append(estado)

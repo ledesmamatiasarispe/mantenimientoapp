@@ -1,7 +1,7 @@
 const state = {
   token: localStorage.getItem("gm_token") || "",
   tecnico: JSON.parse(localStorage.getItem("gm_tecnico") || "null"),
-  tab: "mis",
+  tab: "pendientes",
 };
 
 function setAuth(token, tecnico) {
@@ -106,34 +106,30 @@ function ordenCard(orden) {
 
 async function renderOrdenes() {
   renderLoading("Cargando órdenes...");
-  const ordenes = await apiFetch("/api/ordenes");
-  const filtered = ordenes.filter((orden) => {
-    if (state.tab === "mis") {
-      return ["PENDIENTE", "EN_PROGRESO"].includes(orden.estado);
-    }
-    if (state.tab === "completadas") {
-      return orden.estado === "COMPLETADA";
-    }
-    return true;
-  });
+
+  // Cada tab usa su propia query para no traer datos de más
+  let url = "/api/ordenes";
+  if (state.tab === "pendientes")   url = "/api/ordenes?estado=PENDIENTE";
+  if (state.tab === "mis")          url = "/api/ordenes?solo_mis=true";
+  if (state.tab === "completadas")  url = "/api/ordenes?estado=COMPLETADA";
+
+  const ordenes = await apiFetch(url);
+
   document.querySelector("#app").innerHTML = layout(`
     <div class="topbar">
       <div>
         <h1>Órdenes</h1>
         <div class="muted">${escapeHtml(state.tecnico.nombre)} ${escapeHtml(state.tecnico.apellido)}</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <a class="button primary" href="#nueva-orden">+ Nueva</a>
-        <button class="button secondary" id="logout-button">Salir</button>
-      </div>
+      <button class="button secondary" id="logout-button">Salir</button>
     </div>
     <div class="tabs">
-      <a class="tab ${state.tab === "mis" ? "active" : ""}" href="#ordenes?tab=mis">Mis órdenes</a>
-      <a class="tab ${state.tab === "todas" ? "active" : ""}" href="#ordenes?tab=todas">Todas</a>
+      <a class="tab ${state.tab === "pendientes"  ? "active" : ""}" href="#ordenes?tab=pendientes">Pendientes</a>
+      <a class="tab ${state.tab === "mis"         ? "active" : ""}" href="#ordenes?tab=mis">Mis órdenes</a>
       <a class="tab ${state.tab === "completadas" ? "active" : ""}" href="#ordenes?tab=completadas">Completadas</a>
     </div>
     <div class="list">
-      ${filtered.length ? filtered.map(ordenCard).join("") : '<div class="panel empty">No hay órdenes para mostrar.</div>'}
+      ${ordenes.length ? ordenes.map(ordenCard).join("") : '<div class="panel empty">No hay órdenes para mostrar.</div>'}
     </div>
   `, "ordenes");
   document.querySelector("#logout-button").addEventListener("click", () => {
