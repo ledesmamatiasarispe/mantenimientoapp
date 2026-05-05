@@ -236,9 +236,18 @@ class MainWindow(QMainWindow):
         from gestion_mantenimiento.data.paths import get_theme_path
         theme = get_theme(mode)
         app = QApplication.instance()
-        if app is not None:
-            app.setStyleSheet(build_app_styles(theme))
-            app.setPalette(build_app_palette(theme))
+        if app is None:
+            return
+        palette = build_app_palette(theme)
+        stylesheet = build_app_styles(theme)
+        # Clear first so Qt re-evaluates all rules
+        app.setStyleSheet("")
+        app.setStyleSheet(stylesheet)
+        app.setPalette(palette)
+        # Force every visible widget to repaint with new palette+stylesheet
+        for widget in app.allWidgets():
+            widget.setPalette(palette)
+            widget.update()
         save_theme_mode(get_theme_path(), mode)
 
     def _navigate(self, key: str) -> None:
