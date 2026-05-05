@@ -68,8 +68,8 @@ function loginView(error = "") {
         <h1 class="title">Técnico de Mantenimiento</h1>
         <p class="subtitle">Acceso móvil a órdenes y programas.</p>
         <div class="field">
-          <label for="dni">DNI</label>
-          <input id="dni" name="dni" required />
+          <label for="legajo">Legajo</label>
+          <input id="legajo" name="legajo" required />
         </div>
         <div class="field">
           <label for="password">Contraseña</label>
@@ -444,7 +444,7 @@ async function handleLoginSubmit(event) {
   try {
     const payload = await apiFetch("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ dni: form.dni.value.trim(), password: form.password.value }),
+      body: JSON.stringify({ legajo: form.legajo.value.trim(), password: form.password.value }),
     });
     setAuth(payload.access_token, payload.tecnico);
     location.hash = "#ordenes";

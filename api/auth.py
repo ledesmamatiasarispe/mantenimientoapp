@@ -40,7 +40,7 @@ def _serialize_tecnico(row: sqlite3.Row) -> TecnicoPublic:
         id=int(row["id"]),
         nombre=str(row["nombre"]),
         apellido=str(row["apellido"]),
-        dni=str(row["dni"] or ""),
+        legajo=str(row["legajo"] or ""),
         telefono=str(row["telefono"] or ""),
         especialidad=str(row["especialidad"] or ""),
     )
@@ -49,7 +49,7 @@ def _serialize_tecnico(row: sqlite3.Row) -> TecnicoPublic:
 def authenticate_tecnico(
     connection: sqlite3.Connection,
     *,
-    dni: str,
+    legajo: str,
     password: str,
 ) -> TecnicoPublic | None:
     row = connection.execute(
@@ -58,15 +58,15 @@ def authenticate_tecnico(
             id,
             nombre,
             apellido,
-            dni,
+            legajo,
             telefono,
             especialidad,
             password_hash,
             activo
         FROM tecnicos
-        WHERE dni = ?
+        WHERE legajo = ?
         """,
-        (dni.strip(),),
+        (legajo.strip(),),
     ).fetchone()
     if row is None or not bool(row["activo"]):
         return None
@@ -99,7 +99,7 @@ def get_current_tecnico(token: TokenDep, connection: ConnectionDep) -> TecnicoPu
 
     row = connection.execute(
         """
-        SELECT id, nombre, apellido, dni, telefono, especialidad, activo
+        SELECT id, nombre, apellido, legajo, telefono, especialidad, activo
         FROM tecnicos
         WHERE id = ?
         """,
@@ -117,7 +117,7 @@ CurrentTecnicoDep = Annotated[TecnicoPublic, Depends(get_current_tecnico)]
 def login(payload: LoginRequest, connection: ConnectionDep) -> TokenResponse:
     tecnico = authenticate_tecnico(
         connection,
-        dni=payload.dni,
+        legajo=payload.legajo,
         password=payload.password,
     )
     if tecnico is None:

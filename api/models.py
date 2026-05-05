@@ -7,7 +7,7 @@ class TecnicoPublic(BaseModel):
     id: int
     nombre: str
     apellido: str
-    dni: str
+    legajo: str
     telefono: str
     especialidad: str
 
@@ -17,7 +17,7 @@ class TecnicoPublic(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    dni: str = Field(min_length=1)
+    legajo: str = Field(min_length=1)
     password: str = Field(min_length=1)
 
 

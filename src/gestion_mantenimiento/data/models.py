@@ -39,7 +39,7 @@ class Tecnico:
     id: int
     nombre: str
     apellido: str
-    dni: str
+    legajo: str
     telefono: str
     especialidad: str
     activo: bool

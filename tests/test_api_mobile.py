@@ -12,7 +12,7 @@ from gestion_mantenimiento.data.schema import initialize_database
 def _auth_headers(client: TestClient) -> dict[str, str]:
     response = client.post(
         "/api/auth/login",
-        json={"dni": "20111111", "password": "secreto123"},
+        json={"legajo": "20111111", "password": "secreto123"},
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
@@ -33,14 +33,14 @@ def test_login_and_me(tmp_path, monkeypatch) -> None:
     client = TestClient(create_app())
     response = client.post(
         "/api/auth/login",
-        json={"dni": "20111111", "password": "secreto123"},
+        json={"legajo": "20111111", "password": "secreto123"},
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
 
     me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
-    assert me.json()["dni"] == "20111111"
+    assert me.json()["legajo"] == "20111111"
 
 
 def test_orden_flow_accept_note_complete(tmp_path, monkeypatch) -> None:

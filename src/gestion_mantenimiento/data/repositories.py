@@ -305,7 +305,7 @@ class TecnicoRepository:
 
     def list_all(self, search: str = "", *, solo_activos: bool = False) -> list[Tecnico]:
         query = """
-            SELECT id, nombre, apellido, COALESCE(dni, ''), COALESCE(telefono, ''),
+            SELECT id, nombre, apellido, COALESCE(legajo, ''), COALESCE(telefono, ''),
                    COALESCE(especialidad, ''), activo
             FROM tecnicos
         """
@@ -318,7 +318,7 @@ class TecnicoRepository:
         if search.strip():
             term = f"%{search.strip()}%"
             conditions.append(
-                "(nombre LIKE ? OR apellido LIKE ? OR dni LIKE ? OR especialidad LIKE ?)"
+                "(nombre LIKE ? OR apellido LIKE ? OR legajo LIKE ? OR especialidad LIKE ?)"
             )
             params.extend([term, term, term, term])
 
@@ -332,22 +332,22 @@ class TecnicoRepository:
 
         return [
             Tecnico(
-                id=r[0], nombre=r[1], apellido=r[2], dni=r[3],
+                id=r[0], nombre=r[1], apellido=r[2], legajo=r[3],
                 telefono=r[4], especialidad=r[5], activo=bool(r[6]),
             )
             for r in rows
         ]
 
     def create(
-        self, nombre: str, apellido: str, dni: str, telefono: str, especialidad: str
+        self, nombre: str, apellido: str, legajo: str, telefono: str, especialidad: str
     ) -> int:
         with closing(sqlite3.connect(self.database_path)) as conn:
             cur = conn.execute(
                 """
-                INSERT INTO tecnicos (nombre, apellido, dni, telefono, especialidad)
+                INSERT INTO tecnicos (nombre, apellido, legajo, telefono, especialidad)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (nombre.strip(), apellido.strip(), dni.strip(),
+                (nombre.strip(), apellido.strip(), legajo.strip(),
                  telefono.strip(), especialidad.strip()),
             )
             conn.commit()
@@ -358,7 +358,7 @@ class TecnicoRepository:
         tecnico_id: int,
         nombre: str,
         apellido: str,
-        dni: str,
+        legajo: str,
         telefono: str,
         especialidad: str,
         activo: bool,
@@ -367,12 +367,12 @@ class TecnicoRepository:
             conn.execute(
                 """
                 UPDATE tecnicos SET
-                    nombre = ?, apellido = ?, dni = ?, telefono = ?,
+                    nombre = ?, apellido = ?, legajo = ?, telefono = ?,
                     especialidad = ?, activo = ?
                 WHERE id = ?
                 """,
                 (
-                    nombre.strip(), apellido.strip(), dni.strip(),
+                    nombre.strip(), apellido.strip(), legajo.strip(),
                     telefono.strip(), especialidad.strip(), int(activo), tecnico_id,
                 ),
             )

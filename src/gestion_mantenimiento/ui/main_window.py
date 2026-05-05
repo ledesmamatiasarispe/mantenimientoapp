@@ -1151,7 +1151,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(topbar)
 
         self._tec_table = _make_table(
-            ["ID", "Apellido", "Nombre", "DNI", "Teléfono", "Especialidad", "Estado"]
+            ["ID", "Apellido", "Nombre", "Legajo", "Teléfono", "Especialidad", "Estado"]
         )
         self._tec_table.doubleClicked.connect(self._edit_selected_tecnico)
         layout.addWidget(self._tec_table)
@@ -1191,7 +1191,7 @@ class MainWindow(QMainWindow):
             tabla.setItem(row, 0, QTableWidgetItem(str(t.id)))
             tabla.setItem(row, 1, QTableWidgetItem(t.apellido))
             tabla.setItem(row, 2, QTableWidgetItem(t.nombre))
-            tabla.setItem(row, 3, QTableWidgetItem(t.dni))
+            tabla.setItem(row, 3, QTableWidgetItem(t.legajo))
             tabla.setItem(row, 4, QTableWidgetItem(t.telefono))
             tabla.setItem(row, 5, QTableWidgetItem(t.especialidad))
             tabla.setItem(row, 6, QTableWidgetItem("Activo" if t.activo else "Inactivo"))
@@ -1545,7 +1545,7 @@ class TecnicoDialog(QDialog):
 
         self._nombre = QLineEdit()
         self._apellido = QLineEdit()
-        self._dni = QLineEdit()
+        self._legajo = QLineEdit()
         self._telefono = QLineEdit()
         self._especialidad = QLineEdit()
         self._activo = QCheckBox("Activo")
@@ -1553,7 +1553,7 @@ class TecnicoDialog(QDialog):
 
         form.addRow("Nombre *", self._nombre)
         form.addRow("Apellido *", self._apellido)
-        form.addRow("DNI", self._dni)
+        form.addRow("Legajo", self._legajo)
         form.addRow("Teléfono", self._telefono)
         form.addRow("Especialidad", self._especialidad)
         form.addRow("", self._activo)
@@ -1574,7 +1574,7 @@ class TecnicoDialog(QDialog):
             return
         self._nombre.setText(tec.nombre)
         self._apellido.setText(tec.apellido)
-        self._dni.setText(tec.dni)
+        self._legajo.setText(tec.legajo)
         self._telefono.setText(tec.telefono)
         self._especialidad.setText(tec.especialidad)
         self._activo.setChecked(tec.activo)
@@ -1589,13 +1589,13 @@ class TecnicoDialog(QDialog):
         try:
             if self._tecnico_id is None:
                 self._repo.create(
-                    nombre, apellido, self._dni.text().strip(),
+                    nombre, apellido, self._legajo.text().strip(),
                     self._telefono.text().strip(), self._especialidad.text().strip(),
                 )
             else:
                 self._repo.update(
                     self._tecnico_id, nombre, apellido,
-                    self._dni.text().strip(), self._telefono.text().strip(),
+                    self._legajo.text().strip(), self._telefono.text().strip(),
                     self._especialidad.text().strip(), self._activo.isChecked(),
                 )
             self.accept()

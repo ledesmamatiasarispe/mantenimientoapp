@@ -13,7 +13,7 @@ def main() -> int:
     try:
         rows = connection.execute(
             """
-            SELECT id, nombre, apellido, dni
+            SELECT id, nombre, apellido, legajo
             FROM tecnicos
             WHERE activo = 1
             ORDER BY apellido, nombre
@@ -24,7 +24,7 @@ def main() -> int:
             return 0
         for row in rows:
             nombre = f'{row["nombre"]} {row["apellido"]}'.strip()
-            print(f'\nTécnico #{row["id"]} - {nombre} (DNI {row["dni"]})')
+            print(f'\nTécnico #{row["id"]} - {nombre} (DNI {row["legajo"]})')
             while True:
                 password = getpass("Nueva contraseña: ").strip()
                 if not password:

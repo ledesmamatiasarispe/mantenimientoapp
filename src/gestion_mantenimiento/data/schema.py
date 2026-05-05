@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS tecnicos (
     id INTEGER PRIMARY KEY,
     nombre TEXT NOT NULL,
     apellido TEXT NOT NULL,
-    dni TEXT NOT NULL DEFAULT '',
+    legajo TEXT NOT NULL DEFAULT '',
     telefono TEXT NOT NULL DEFAULT '',
     especialidad TEXT NOT NULL DEFAULT '',
     activo INTEGER NOT NULL DEFAULT 1,
@@ -157,7 +157,7 @@ INSERT OR IGNORE INTO tipos_equipo (id, nombre) VALUES
     (4, 'Equipamiento eléctrico'),
     (5, 'Sistema hidráulico');
 
-INSERT OR IGNORE INTO tecnicos (id, nombre, apellido, dni, telefono, especialidad) VALUES
+INSERT OR IGNORE INTO tecnicos (id, nombre, apellido, legajo, telefono, especialidad) VALUES
     (1, 'Carlos', 'García', '20111111', '3516000001', 'Mecánica general'),
     (2, 'Martín', 'López', '24222222', '3516000002', 'Electricidad'),
     (3, 'Diego', 'Fernández', '28333333', '3516000003', 'Hidráulica');
@@ -177,6 +177,7 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         connection.execute("PRAGMA foreign_keys = OFF")
         connection.executescript(SCHEMA_SQL)
         # Run all migrations explicitly outside executescript so errors surface clearly
+        _migrate_tecnicos_legajo(connection)
         _migrate_frecuencia_meses(connection)
         _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
@@ -208,6 +209,15 @@ def clear_database(database_path: Path) -> None:
         ):
             connection.execute(f"DELETE FROM {table_name}")
         connection.commit()
+
+
+def _migrate_tecnicos_legajo(connection: sqlite3.Connection) -> None:
+    """Renombra dni → legajo en tecnicos."""
+    if not _table_exists(connection, "tecnicos"):
+        return
+    cols = _table_columns(connection, "tecnicos")
+    if "dni" in cols and "legajo" not in cols:
+        connection.execute("ALTER TABLE tecnicos RENAME COLUMN dni TO legajo")
 
 
 def _migrate_frecuencia_meses(connection: sqlite3.Connection) -> None:
