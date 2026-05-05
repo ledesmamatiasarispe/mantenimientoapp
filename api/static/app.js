@@ -46,7 +46,11 @@ async function apiFetch(path, options = {}) {
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ detail: "Error inesperado." }));
-    throw new Error(payload.detail || "Error inesperado.");
+    const detail = payload.detail;
+    const message = Array.isArray(detail)
+      ? detail.map((d) => d.msg || JSON.stringify(d)).join(", ")
+      : String(detail || "Error inesperado.");
+    throw new Error(message);
   }
   return response.json();
 }
