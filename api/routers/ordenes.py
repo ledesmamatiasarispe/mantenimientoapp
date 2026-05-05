@@ -1,0 +1,314 @@
+from __future__ import annotations
+
+import sqlite3
+from datetime import datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from api.auth import CurrentTecnicoDep
+from api.database import get_db
+from api.models import (
+    CompletarOrdenRequest,
+    ObservacionRequest,
+    OrdenCard,
+    OrdenDetail,
+    ProgramaAdjuntoItem,
+    ProgramaResumen,
+    RepuestoOrdenItem,
+)
+
+router = APIRouter(prefix="/api/ordenes", tags=["ordenes"])
+ConnectionDep = Annotated[sqlite3.Connection, Depends(get_db)]
+
+
+def _card_from_row(row: sqlite3.Row) -> OrdenCard:
+    return OrdenCard(
+        id=int(row["id"]),
+        equipo_id=int(row["equipo_id"]),
+        equipo_nombre=str(row["equipo_nombre"] or ""),
+        equipo_tipo_nombre=str(row["equipo_tipo_nombre"] or ""),
+        equipo_marca=str(row["equipo_marca"] or ""),
+        equipo_modelo=str(row["equipo_modelo"] or ""),
+        equipo_ubicacion=str(row["equipo_ubicacion"] or ""),
+        tipo=str(row["tipo"] or ""),
+        descripcion=str(row["descripcion"] or ""),
+        fecha_apertura=str(row["fecha_apertura"] or ""),
+        fecha_cierre=str(row["fecha_cierre"] or ""),
+        estado=str(row["estado"] or ""),
+        tecnico_id=int(row["tecnico_id"]) if row["tecnico_id"] is not None else None,
+        tecnico_nombre=str(row["tecnico_nombre"] or ""),
+        costo_mano_obra=float(row["costo_mano_obra"] or 0),
+        observaciones=str(row["observaciones"] or ""),
+    )
+
+
+def _base_query() -> str:
+    return """
+        SELECT
+            o.id,
+            o.equipo_id,
+            e.nombre AS equipo_nombre,
+            COALESCE(te.nombre, '') AS equipo_tipo_nombre,
+            COALESCE(e.marca, '') AS equipo_marca,
+            COALESCE(e.modelo, '') AS equipo_modelo,
+            COALESCE(e.ubicacion, '') AS equipo_ubicacion,
+            o.tipo,
+            COALESCE(o.descripcion, '') AS descripcion,
+            COALESCE(o.fecha_apertura, '') AS fecha_apertura,
+            COALESCE(o.fecha_cierre, '') AS fecha_cierre,
+            o.estado,
+            o.tecnico_id,
+            COALESCE(trim(t.nombre || ' ' || t.apellido), '') AS tecnico_nombre,
+            COALESCE(o.costo_mano_obra, 0) AS costo_mano_obra,
+            COALESCE(o.observaciones, '') AS observaciones
+        FROM ordenes_trabajo o
+        JOIN equipos e ON e.id = o.equipo_id
+        LEFT JOIN tipos_equipo te ON te.id = e.tipo_id
+        LEFT JOIN tecnicos t ON t.id = o.tecnico_id
+    """
+
+
+def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[ProgramaResumen]:
+    program_rows = connection.execute(
+        """
+        SELECT
+            p.id,
+            COALESCE(p.descripcion, '') AS descripcion,
+            COALESCE(p.frecuencia_meses, 0) AS frecuencia_meses,
+            COALESCE(p.ultima_ejecucion, '') AS ultima_ejecucion,
+            COALESCE(p.proxima_ejecucion, '') AS proxima_ejecucion
+        FROM orden_programas op
+        JOIN programas_mantenimiento p ON p.id = op.programa_id
+        WHERE op.orden_id = ?
+        ORDER BY p.proxima_ejecucion, p.id
+        """,
+        (orden_id,),
+    ).fetchall()
+    programas: list[ProgramaResumen] = []
+    for row in program_rows:
+        adjuntos = connection.execute(
+            """
+            SELECT id, tipo, nombre
+            FROM programa_adjuntos
+            WHERE programa_id = ?
+            ORDER BY tipo, nombre
+            """,
+            (row["id"],),
+        ).fetchall()
+        programas.append(
+            ProgramaResumen(
+                id=int(row["id"]),
+                descripcion=str(row["descripcion"] or ""),
+                frecuencia_meses=int(row["frecuencia_meses"] or 0),
+                ultima_ejecucion=str(row["ultima_ejecucion"] or ""),
+                proxima_ejecucion=str(row["proxima_ejecucion"] or ""),
+                adjuntos=[
+                    ProgramaAdjuntoItem(
+                        id=int(adjunto["id"]),
+                        tipo=str(adjunto["tipo"]),
+                        nombre=str(adjunto["nombre"] or ""),
+                    )
+                    for adjunto in adjuntos
+                ],
+            )
+        )
+    return programas
+
+
+def _get_orden_detail(connection: sqlite3.Connection, orden_id: int) -> OrdenDetail | None:
+    row = connection.execute(_base_query() + " WHERE o.id = ?", (orden_id,)).fetchone()
+    if row is None:
+        return None
+    repuestos = connection.execute(
+        """
+        SELECT
+            ro.id,
+            ro.repuesto_id,
+            COALESCE(r.nombre, ro.descripcion) AS descripcion,
+            COALESCE(ro.cantidad, 0) AS cantidad,
+            COALESCE(ro.costo_unitario, 0) AS costo_unitario
+        FROM repuestos_orden ro
+        LEFT JOIN repuestos r ON r.id = ro.repuesto_id
+        WHERE ro.orden_id = ?
+        ORDER BY ro.id
+        """,
+        (orden_id,),
+    ).fetchall()
+    return OrdenDetail(
+        **_card_from_row(row).model_dump(),
+        repuestos=[
+            RepuestoOrdenItem(
+                id=int(item["id"]),
+                repuesto_id=int(item["repuesto_id"]) if item["repuesto_id"] is not None else None,
+                descripcion=str(item["descripcion"] or ""),
+                cantidad=float(item["cantidad"] or 0),
+                costo_unitario=float(item["costo_unitario"] or 0),
+            )
+            for item in repuestos
+        ],
+        programas=_programas_for_orden(connection, orden_id),
+    )
+
+
+@router.get("", response_model=list[OrdenCard])
+def list_ordenes(
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+    estado: str | None = Query(default=None),
+    equipo_id: int | None = Query(default=None),
+) -> list[OrdenCard]:
+    query = _base_query()
+    clauses: list[str] = []
+    params: list[object] = []
+    if estado:
+        clauses.append("o.estado = ?")
+        params.append(estado)
+    if equipo_id is not None:
+        clauses.append("o.equipo_id = ?")
+        params.append(equipo_id)
+    if clauses:
+        query += " WHERE " + " AND ".join(clauses)
+    query += """
+        ORDER BY
+            CASE o.estado
+                WHEN 'PENDIENTE' THEN 0
+                WHEN 'EN_PROGRESO' THEN 1
+                ELSE 2
+            END,
+            o.fecha_apertura DESC,
+            o.id DESC
+    """
+    rows = connection.execute(query, tuple(params)).fetchall()
+    return [_card_from_row(row) for row in rows]
+
+
+@router.get("/{orden_id}", response_model=OrdenDetail)
+def get_orden(
+    orden_id: int,
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    return orden
+
+
+@router.post("/{orden_id}/aceptar", response_model=OrdenDetail)
+def aceptar_orden(
+    orden_id: int,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT id, estado FROM ordenes_trabajo WHERE id = ?",
+        (orden_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) != "PENDIENTE":
+        raise HTTPException(status_code=409, detail="La orden ya no está en PENDIENTE.")
+
+    connection.execute(
+        """
+        UPDATE ordenes_trabajo
+        SET
+            estado = 'EN_PROGRESO',
+            tecnico_id = ?,
+            actualizado_en = CURRENT_TIMESTAMP
+        WHERE id = ? AND estado = 'PENDIENTE'
+        """,
+        (current_tecnico.id, orden_id),
+    )
+    connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
+@router.post("/{orden_id}/completar", response_model=OrdenDetail)
+def completar_orden(
+    orden_id: int,
+    payload: CompletarOrdenRequest,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT id, estado, tecnico_id, observaciones FROM ordenes_trabajo WHERE id = ?",
+        (orden_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) != "EN_PROGRESO":
+        raise HTTPException(status_code=409, detail="La orden no está en EN_PROGRESO.")
+    if row["tecnico_id"] is not None and int(row["tecnico_id"]) != current_tecnico.id:
+        raise HTTPException(status_code=403, detail="El técnico no es el asignado.")
+
+    nueva_obs = payload.observaciones.strip()
+    observaciones = str(row["observaciones"] or "")
+    merged = observaciones
+    if nueva_obs:
+        merged = f"{observaciones}\n---\n{nueva_obs}" if observaciones else nueva_obs
+
+    connection.execute(
+        """
+        UPDATE ordenes_trabajo
+        SET
+            estado = 'COMPLETADA',
+            fecha_cierre = date('now'),
+            observaciones = ?,
+            actualizado_en = CURRENT_TIMESTAMP
+        WHERE id = ? AND estado = 'EN_PROGRESO'
+        """,
+        (merged, orden_id),
+    )
+    connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
+@router.post("/{orden_id}/observaciones", response_model=OrdenDetail)
+def agregar_observacion(
+    orden_id: int,
+    payload: ObservacionRequest,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT estado, observaciones FROM ordenes_trabajo WHERE id = ?",
+        (orden_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) in {"COMPLETADA", "CANCELADA"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No se pueden agregar observaciones en este estado.",
+        )
+
+    texto = payload.texto.strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="La observación no puede estar vacía.")
+    marca_tiempo = datetime.now().strftime("%Y-%m-%d %H:%M")
+    bloque = f"[{marca_tiempo}] {current_tecnico.nombre_completo}: {texto}"
+    observaciones = str(row["observaciones"] or "")
+    merged = f"{observaciones}\n---\n{bloque}" if observaciones else bloque
+
+    connection.execute(
+        """
+        UPDATE ordenes_trabajo
+        SET observaciones = ?, actualizado_en = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (merged, orden_id),
+    )
+    connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
