@@ -296,7 +296,7 @@ class MainWindow(QMainWindow):
         api_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(api_label)
 
-        api_url_label = QLabel("192.168.100.30:8000", sidebar)
+        api_url_label = QLabel("mantenimiento:54321", sidebar)
         api_url_label.setObjectName("muted")
         api_url_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         api_url_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)

@@ -64,7 +64,7 @@ def main() -> int:
 
 
 def _start_api_server(database_path: Path) -> None:
-    """Arranca la API REST en background en el puerto 8000."""
+    """Arranca la API REST en background en el puerto 54321."""
     # parents[2] = sistema-gestion-mantenimiento/  (project root)
     repo_root = Path(__file__).resolve().parents[2]
 
@@ -87,7 +87,7 @@ def _start_api_server(database_path: Path) -> None:
     env = {**os.environ, "DB_PATH": str(database_path)}
     try:
         subprocess.Popen(
-            [str(uvicorn_exe), "api.main:app", "--host", "0.0.0.0", "--port", "8000"],
+            [str(uvicorn_exe), "api.main:app", "--host", "0.0.0.0", "--port", "54321"],
             cwd=str(repo_root),
             env=env,
             stdout=subprocess.DEVNULL,
