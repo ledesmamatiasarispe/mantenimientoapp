@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
         self._te_show_inactive.stateChanged.connect(lambda: self._refresh_tipos_equipo())
 
         btn_nuevo = _primary_button("+ Nuevo tipo")
-        btn_nuevo.clicked.connect(self._open_tipo_equipo_dialog)
+        btn_nuevo.clicked.connect(lambda: self._open_tipo_equipo_dialog())
 
         tb_layout.addWidget(self._te_search, 1)
         tb_layout.addWidget(self._te_show_inactive)
@@ -438,7 +438,7 @@ class MainWindow(QMainWindow):
         self._eq_show_inactive.stateChanged.connect(lambda: self._refresh_equipos())
 
         btn_nuevo = _primary_button("+ Nuevo equipo")
-        btn_nuevo.clicked.connect(self._open_equipo_dialog)
+        btn_nuevo.clicked.connect(lambda: self._open_equipo_dialog())
 
         tb_layout.addWidget(self._eq_search, 1)
         tb_layout.addWidget(self._eq_show_inactive)
@@ -540,7 +540,7 @@ class MainWindow(QMainWindow):
         self._rep_show_inactive.stateChanged.connect(lambda: self._refresh_repuestos())
 
         btn_nuevo = _primary_button("+ Nuevo repuesto")
-        btn_nuevo.clicked.connect(self._open_repuesto_dialog)
+        btn_nuevo.clicked.connect(lambda: self._open_repuesto_dialog())
 
         tb_layout.addWidget(self._rep_search, 1)
         tb_layout.addWidget(self._rep_show_inactive)
@@ -645,7 +645,7 @@ class MainWindow(QMainWindow):
         self._ot_estado_filter.currentIndexChanged.connect(lambda: self._refresh_ordenes())
 
         btn_nuevo = _primary_button("+ Nueva orden")
-        btn_nuevo.clicked.connect(self._open_orden_dialog)
+        btn_nuevo.clicked.connect(lambda: self._open_orden_dialog())
 
         tb_layout.addWidget(self._ot_search, 1)
         tb_layout.addWidget(self._ot_estado_filter)
@@ -745,7 +745,7 @@ class MainWindow(QMainWindow):
         self._prog_show_inactive.stateChanged.connect(lambda: self._refresh_programas())
 
         btn_nuevo = _primary_button("+ Nuevo programa")
-        btn_nuevo.clicked.connect(self._open_programa_dialog)
+        btn_nuevo.clicked.connect(lambda: self._open_programa_dialog())
 
         tb_layout.addStretch()
         tb_layout.addWidget(self._prog_show_inactive)
@@ -843,7 +843,7 @@ class MainWindow(QMainWindow):
         self._tec_show_inactive.stateChanged.connect(lambda: self._refresh_tecnicos())
 
         btn_nuevo = _primary_button("+ Nuevo técnico")
-        btn_nuevo.clicked.connect(self._open_tecnico_dialog)
+        btn_nuevo.clicked.connect(lambda: self._open_tecnico_dialog())
 
         tb_layout.addWidget(self._tec_search, 1)
         tb_layout.addWidget(self._tec_show_inactive)
