@@ -829,43 +829,31 @@ class MainWindow(QMainWindow):
         tb_layout = QHBoxLayout(topbar)
         tb_layout.setContentsMargins(12, 8, 12, 8)
 
-        self._prog_show_inactive = QCheckBox("Mostrar inactivos")
+        self._prog_show_inactive = QCheckBox("Mostrar máquinas inactivas")
         self._prog_show_inactive.stateChanged.connect(lambda: self._refresh_programas())
-
-        btn_nuevo = _primary_button("+ Nuevo programa")
-        btn_nuevo.clicked.connect(lambda: self._open_programa_dialog())
 
         tb_layout.addStretch()
         tb_layout.addWidget(self._prog_show_inactive)
-        tb_layout.addWidget(btn_nuevo)
         layout.addWidget(topbar)
 
-        # ── Tabla ────────────────────────────────────────────────────────────
+        # ── Tabla (una fila por máquina) ─────────────────────────────────────
         self._prog_table = _make_table(
-            ["#", "Equipo", "Descripción", "Frecuencia (meses)",
-             "Última ejecución", "Próxima ejecución", "Estado"]
+            ["Máquina", "Tipo", "Programas activos", "Próxima ejecución", "Días restantes"]
         )
-        self._prog_table.doubleClicked.connect(self._edit_selected_programa)
+        self._prog_table.doubleClicked.connect(self._open_mantenimientos_equipo)
         layout.addWidget(self._prog_table)
 
-        # ── Botones inferiores ───────────────────────────────────────────────
+        # ── Botón inferior ───────────────────────────────────────────────────
         actions = QWidget()
         actions.setObjectName("actionButtons")
         act_layout = QHBoxLayout(actions)
         act_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._btn_editar_mantenimientos = QPushButton("Editar mantenimientos")
-        self._btn_editar_mantenimientos.clicked.connect(self._open_mantenimientos_equipo)
+        btn_editar = _primary_button("Editar mantenimientos")
+        btn_editar.clicked.connect(self._open_mantenimientos_equipo)
 
-        btn_edit = QPushButton("Editar programa")
-        btn_edit.clicked.connect(self._edit_selected_programa)
-        btn_delete = _danger_button("Eliminar")
-        btn_delete.clicked.connect(self._delete_selected_programa)
-
-        act_layout.addWidget(self._btn_editar_mantenimientos)
         act_layout.addStretch()
-        act_layout.addWidget(btn_edit)
-        act_layout.addWidget(btn_delete)
+        act_layout.addWidget(btn_editar)
         layout.addWidget(actions)
 
         def refresh() -> None:
@@ -875,89 +863,90 @@ class MainWindow(QMainWindow):
         return page
 
     def _refresh_programas(self) -> None:
-        mes_sel  = self._prog_mes.currentIndex() + 1   # 1-12
+        mes_sel  = self._prog_mes.currentIndex() + 1
         anio_sel = self._prog_anio.value()
         hoy = date.today()
 
         solo_activos = not self._prog_show_inactive.isChecked()
-        programas = self._programa_repo.list_all(solo_activos=solo_activos)
+        equipos = self._equipo_repo.list_all(solo_activos=solo_activos)
+
+        # Agrupar todos los programas por equipo_id
+        todos_programas = self._programa_repo.list_all()
+        por_equipo: dict[int, list] = {}
+        for p in todos_programas:
+            por_equipo.setdefault(p.equipo_id, []).append(p)
+
         tabla = self._prog_table
         tabla.setRowCount(0)
 
-        for p in programas:
+        for eq in equipos:
+            progs = por_equipo.get(eq.id, [])
+            activos = [p for p in progs if p.activo]
+
+            # Fecha más próxima entre todos los programas de esta máquina
+            proximas: list[date] = []
+            for p in progs:
+                try:
+                    proximas.append(date.fromisoformat(p.proxima_ejecucion))
+                except ValueError:
+                    pass
+
+            proxima_str   = min(proximas).isoformat() if proximas else "—"
+            dias_restantes = ""
+            if proximas:
+                delta = (min(proximas) - hoy).days
+                if delta < 0:
+                    dias_restantes = f"{abs(delta)} días vencido"
+                elif delta == 0:
+                    dias_restantes = "Hoy"
+                else:
+                    dias_restantes = f"{delta} días"
+
             row = tabla.rowCount()
             tabla.insertRow(row)
+            tabla.setItem(row, 0, QTableWidgetItem(eq.nombre))
+            tabla.setItem(row, 1, QTableWidgetItem(eq.tipo_nombre))
+            tabla.setItem(row, 2, QTableWidgetItem(str(len(activos)) if activos else "Sin programas"))
+            tabla.setItem(row, 3, QTableWidgetItem(proxima_str))
+            tabla.setItem(row, 4, QTableWidgetItem(dias_restantes))
 
-            tabla.setItem(row, 0, QTableWidgetItem(str(p.id)))
-            tabla.setItem(row, 1, QTableWidgetItem(p.equipo_nombre))
-            tabla.setItem(row, 2, QTableWidgetItem(p.descripcion))
-            tabla.setItem(row, 3, QTableWidgetItem(str(p.frecuencia_meses)))
-            tabla.setItem(row, 4, QTableWidgetItem(p.ultima_ejecucion))
-            tabla.setItem(row, 5, QTableWidgetItem(p.proxima_ejecucion))
-            tabla.setItem(row, 6, QTableWidgetItem("Activo" if p.activo else "Inactivo"))
+            # Guardar equipo_id en UserRole de la primera celda
+            item0 = tabla.item(row, 0)
+            if item0:
+                item0.setData(Qt.ItemDataRole.UserRole, eq.id)
 
-            item_id = tabla.item(row, 0)
-            if item_id:
-                item_id.setData(Qt.ItemDataRole.UserRole, p.id)
-                item_id.setData(Qt.ItemDataRole.UserRole + 1, p.equipo_id)
-
-            # Determinar color de la fila
+            # Color de fila según la fecha más próxima
             color: QColor | None = None
-            try:
-                proxima = date.fromisoformat(p.proxima_ejecucion)
-                if proxima < hoy:
+            if proximas:
+                nearest = min(proximas)
+                if nearest < hoy:
                     color = _COLOR_VENCIDO
-                elif proxima.year == anio_sel and proxima.month == mes_sel:
+                elif nearest.year == anio_sel and nearest.month == mes_sel:
                     color = _COLOR_VENCE_MES
-            except ValueError:
-                pass
 
             if color is not None:
                 brush = QBrush(color)
                 for col in range(tabla.columnCount()):
-                    item = tabla.item(row, col)
-                    if item:
-                        item.setBackground(brush)
+                    it = tabla.item(row, col)
+                    if it:
+                        it.setBackground(brush)
 
     def _open_mantenimientos_equipo(self) -> None:
         selected = self._prog_table.selectedItems()
         if not selected:
-            QMessageBox.information(self, "Sin selección", "Seleccione un programa de la lista.")
+            QMessageBox.information(self, "Sin selección", "Seleccione una máquina de la lista.")
             return
         row = self._prog_table.row(selected[0])
         item = self._prog_table.item(row, 0)
         if item is None:
             return
-        equipo_id = item.data(Qt.ItemDataRole.UserRole + 1)
-        equipo_nombre = (self._prog_table.item(row, 1) or QTableWidgetItem("")).text()
+        equipo_id = item.data(Qt.ItemDataRole.UserRole)
+        equipo_nombre = item.text()
         if equipo_id is None:
             return
         dlg = MantenimientosEquipoDialog(self._db, equipo_id, equipo_nombre, parent=self)
         dlg.exec()
         self._refresh_programas()
-
-    def _open_programa_dialog(self, programa_id: int | None = None) -> None:
-        dlg = ProgramaDialog(self._db, programa_id, parent=self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            self._refresh_programas()
-
-    def _edit_selected_programa(self) -> None:
-        prog_id = self._selected_id(self._prog_table)
-        if prog_id is None:
-            return
-        self._open_programa_dialog(prog_id)
-
-    def _delete_selected_programa(self) -> None:
-        prog_id = self._selected_id(self._prog_table)
-        if prog_id is None:
-            return
-        reply = QMessageBox.question(
-            self, "Confirmar", "¿Eliminar el programa seleccionado?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self._programa_repo.delete(prog_id)
-            self._refresh_programas()
 
     # ── Técnicos ─────────────────────────────────────────────────────────────
 
