@@ -1164,6 +1164,10 @@ class MainWindow(QMainWindow):
         btn_edit.clicked.connect(self._edit_selected_tecnico)
         btn_delete = _danger_button("Eliminar")
         btn_delete.clicked.connect(self._delete_selected_tecnico)
+        btn_pass = QPushButton("Cambiar contraseña")
+        btn_pass.clicked.connect(self._cambiar_password_tecnico)
+
+        act_layout.addWidget(btn_pass)
         act_layout.addStretch()
         act_layout.addWidget(btn_edit)
         act_layout.addWidget(btn_delete)
@@ -1194,6 +1198,17 @@ class MainWindow(QMainWindow):
             item_id = tabla.item(row, 0)
             if item_id:
                 item_id.setData(Qt.ItemDataRole.UserRole, t.id)
+
+    def _cambiar_password_tecnico(self) -> None:
+        tecnico_id = self._selected_id(self._tec_table)
+        if tecnico_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un técnico de la lista.")
+            return
+        row = self._tec_table.currentRow()
+        nombre = (self._tec_table.item(row, 1) or QTableWidgetItem("")).text()
+        apellido = (self._tec_table.item(row, 0) or QTableWidgetItem("")).text()
+        dlg = CambiarPasswordDialog(self._db, tecnico_id, f"{nombre} {apellido}".strip(), parent=self)
+        dlg.exec()
 
     def _open_tecnico_dialog(self, tecnico_id: int | None = None) -> None:
         dlg = TecnicoDialog(self._db, tecnico_id, parent=self)
@@ -1435,6 +1450,76 @@ class EquipoDialog(QDialog):
                     self._equipo_id, nombre, tipo_id, numero_serie, marca, modelo,
                     ubicacion, fecha_adq, observaciones, activo,
                 )
+            self.accept()
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
+
+
+class CambiarPasswordDialog(QDialog):
+    """Dialog para configurar la contraseña de acceso web de un técnico."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        tecnico_id: int,
+        tecnico_nombre: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._tecnico_id = tecnico_id
+        self.setWindowTitle(f"Contraseña — {tecnico_nombre}")
+        self.setMinimumWidth(360)
+        self._build()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+
+        info = QLabel("Esta contraseña se usa para ingresar a la app web desde el celular.")
+        info.setObjectName("muted")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        form = QFormLayout()
+        self._pass1 = QLineEdit()
+        self._pass1.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pass1.setPlaceholderText("Nueva contraseña")
+        self._pass2 = QLineEdit()
+        self._pass2.setEchoMode(QLineEdit.EchoMode.Password)
+        self._pass2.setPlaceholderText("Confirmar contraseña")
+
+        form.addRow("Nueva contraseña:", self._pass1)
+        form.addRow("Confirmar:", self._pass2)
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _save(self) -> None:
+        p1 = self._pass1.text()
+        p2 = self._pass2.text()
+        if not p1:
+            QMessageBox.warning(self, "Validación", "La contraseña no puede estar vacía.")
+            return
+        if p1 != p2:
+            QMessageBox.warning(self, "Validación", "Las contraseñas no coinciden.")
+            return
+        try:
+            from api.auth import hash_password
+            hashed = hash_password(p1)
+            import sqlite3
+            from contextlib import closing
+            with closing(sqlite3.connect(self._db)) as conn:
+                conn.execute(
+                    "UPDATE tecnicos SET password_hash = ? WHERE id = ?",
+                    (hashed, self._tecnico_id),
+                )
+                conn.commit()
+            QMessageBox.information(self, "Listo", "Contraseña actualizada correctamente.")
             self.accept()
         except Exception as exc:
             QMessageBox.critical(self, "Error", str(exc))
