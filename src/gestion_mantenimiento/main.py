@@ -64,18 +64,33 @@ def main() -> int:
 
 
 def _start_api_server(database_path: Path) -> None:
-    """Arranca la API REST en background en el puerto 8000."""
+    """Mata el uvicorn anterior (si existe) y arranca uno nuevo en el puerto 8000."""
     repo_root = Path(__file__).resolve().parents[3]
-    uvicorn = repo_root / ".venv" / "Scripts" / "uvicorn.exe"
-    if not uvicorn.exists():
-        uvicorn = Path(sys.executable).parent / "uvicorn.exe"
-    if not uvicorn.exists():
-        return  # uvicorn no instalado, continúa sin API
+    uvicorn_exe = repo_root / ".venv" / "Scripts" / "uvicorn.exe"
+    if not uvicorn_exe.exists():
+        uvicorn_exe = Path(sys.executable).parent / "uvicorn.exe"
+    if not uvicorn_exe.exists():
+        return
+
+    # Matar proceso que tenga ocupado el puerto 8000
+    if sys.platform == "win32":
+        try:
+            subprocess.run(
+                ["netstat", "-ano"],
+                capture_output=True, text=True, timeout=5
+            )
+            result = subprocess.run(
+                "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :8000 ^| findstr LISTEN') "
+                "do taskkill /PID %a /F",
+                shell=True, capture_output=True, timeout=5,
+            )
+        except Exception:
+            pass
 
     env = {**os.environ, "DB_PATH": str(database_path)}
     try:
         subprocess.Popen(
-            [str(uvicorn), "api.main:app", "--host", "0.0.0.0", "--port", "8000"],
+            [str(uvicorn_exe), "api.main:app", "--host", "0.0.0.0", "--port", "8000"],
             cwd=str(repo_root),
             env=env,
             stdout=subprocess.DEVNULL,
@@ -83,7 +98,7 @@ def _start_api_server(database_path: Path) -> None:
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
     except OSError:
-        pass  # Si falla el arranque, la app de escritorio sigue funcionando
+        pass
 
 
 if __name__ == "__main__":

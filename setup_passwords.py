@@ -24,7 +24,7 @@ def main() -> int:
             return 0
         for row in rows:
             nombre = f'{row["nombre"]} {row["apellido"]}'.strip()
-            print(f'\nTécnico #{row["id"]} - {nombre} (DNI {row["legajo"]})')
+            print(f'\nTécnico #{row["id"]} - {nombre} (Legajo {row["legajo"]})')
             while True:
                 password = getpass("Nueva contraseña: ").strip()
                 if not password:
