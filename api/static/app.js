@@ -111,11 +111,11 @@ function ordenCard(orden) {
 async function renderOrdenes() {
   renderLoading("Cargando órdenes...");
 
-  // Cada tab usa su propia query para no traer datos de más
   let url = "/api/ordenes";
   if (state.tab === "pendientes")   url = "/api/ordenes?estado=PENDIENTE";
   if (state.tab === "mis")          url = "/api/ordenes?solo_mis=true";
   if (state.tab === "completadas")  url = "/api/ordenes?estado=COMPLETADA";
+  // "todas" usa la URL base sin filtro
 
   const ordenes = await apiFetch(url);
 
@@ -130,6 +130,7 @@ async function renderOrdenes() {
     <div class="tabs">
       <a class="tab ${state.tab === "pendientes"  ? "active" : ""}" href="#ordenes?tab=pendientes">Pendientes</a>
       <a class="tab ${state.tab === "mis"         ? "active" : ""}" href="#ordenes?tab=mis">Mis órdenes</a>
+      <a class="tab ${state.tab === "todas"       ? "active" : ""}" href="#ordenes?tab=todas">Todas</a>
       <a class="tab ${state.tab === "completadas" ? "active" : ""}" href="#ordenes?tab=completadas">Completadas</a>
     </div>
     <div class="list">
