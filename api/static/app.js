@@ -125,7 +125,10 @@ async function renderOrdenes() {
         <h1>Órdenes</h1>
         <div class="muted">${escapeHtml(state.tecnico.nombre)} ${escapeHtml(state.tecnico.apellido)}</div>
       </div>
-      <button class="button secondary" id="logout-button">Salir</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a class="button primary" href="#nueva-orden">+ Nueva</a>
+        <button class="button secondary" id="logout-button">Salir</button>
+      </div>
     </div>
     <div class="tabs">
       <a class="tab ${state.tab === "pendientes"  ? "active" : ""}" href="#ordenes?tab=pendientes">Pendientes</a>
