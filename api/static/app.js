@@ -242,15 +242,22 @@ async function renderOrdenDetalle(ordenId) {
     ` : ""}
   `, "ordenes");
 
+  // Helper: recarga la pantalla actual sin cambiar la URL
+  async function refresh() {
+    await renderOrdenDetalle(ordenId);
+  }
+
   const acceptButton = document.querySelector("#accept-button");
   if (acceptButton) {
     acceptButton.addEventListener("click", async () => {
       if (!window.confirm("¿Confirmar que vas a realizar esta orden?")) return;
+      acceptButton.disabled = true;
       try {
         await apiFetch(`/api/ordenes/${ordenId}/aceptar`, { method: "POST" });
-        location.hash = `#orden/${ordenId}`;
+        await refresh();
       } catch (error) {
         window.alert(error.message);
+        acceptButton.disabled = false;
       }
     });
   }
@@ -261,14 +268,17 @@ async function renderOrdenDetalle(ordenId) {
       event.preventDefault();
       const texto = noteForm.nota.value.trim();
       if (!texto) return;
+      const btn = noteForm.querySelector("[type=submit]");
+      btn.disabled = true;
       try {
         await apiFetch(`/api/ordenes/${ordenId}/observaciones`, {
           method: "POST",
           body: JSON.stringify({ texto }),
         });
-        location.hash = `#orden/${ordenId}`;
+        await refresh();
       } catch (error) {
         window.alert(error.message);
+        btn.disabled = false;
       }
     });
   }
@@ -307,14 +317,19 @@ async function renderOrdenDetalle(ordenId) {
           const repuesto_id = Number(document.querySelector("#rep-select").value);
           const cantidad = Number(document.querySelector("#rep-cant").value);
           if (!repuesto_id || cantidad <= 0) return;
+          const submitBtn = e.currentTarget.querySelector("[type=submit]");
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Agregando...";
           try {
             await apiFetch(`/api/ordenes/${ordenId}/repuestos`, {
               method: "POST",
               body: JSON.stringify({ repuesto_id, cantidad }),
             });
-            location.hash = `#orden/${ordenId}`;
+            await refresh();
           } catch (error) {
             window.alert(error.message);
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Agregar";
           }
         });
       } catch (error) {
@@ -329,14 +344,18 @@ async function renderOrdenDetalle(ordenId) {
     completeButton.addEventListener("click", async () => {
       const observaciones = document.querySelector("#nota").value.trim();
       if (!window.confirm("¿Confirmar que la orden quedó completada?")) return;
+      completeButton.disabled = true;
       try {
         await apiFetch(`/api/ordenes/${ordenId}/completar`, {
           method: "POST",
           body: JSON.stringify({ observaciones }),
         });
+        // Después de completar sí navegamos a la lista
+        state.tab = "completadas";
         location.hash = "#ordenes?tab=completadas";
       } catch (error) {
         window.alert(error.message);
+        completeButton.disabled = false;
       }
     });
   }
