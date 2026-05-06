@@ -629,6 +629,10 @@ class MainWindow(QMainWindow):
         btn_edit.clicked.connect(self._edit_selected_equipo)
         btn_delete = _danger_button("Eliminar")
         btn_delete.clicked.connect(self._delete_selected_equipo)
+        btn_historial = QPushButton("Ver historial")
+        btn_historial.clicked.connect(self._open_historial_equipo)
+
+        act_layout.addWidget(btn_historial)
         act_layout.addStretch()
         act_layout.addWidget(btn_edit)
         act_layout.addWidget(btn_delete)
@@ -660,6 +664,16 @@ class MainWindow(QMainWindow):
             item_id = tabla.item(row, 0)
             if item_id:
                 item_id.setData(Qt.ItemDataRole.UserRole, eq.id)
+
+    def _open_historial_equipo(self) -> None:
+        equipo_id = self._selected_id(self._eq_table)
+        if equipo_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un equipo de la lista.")
+            return
+        row = self._eq_table.currentRow()
+        nombre = (self._eq_table.item(row, 1) or QTableWidgetItem("")).text()
+        dlg = HistorialEquipoDialog(self._db, equipo_id, nombre, parent=self)
+        dlg.exec()
 
     def _open_equipo_dialog(self, equipo_id: int | None = None) -> None:
         dlg = EquipoDialog(self._db, equipo_id, parent=self)
@@ -1357,6 +1371,128 @@ def _set_color_btn_style(btn: QPushButton, color: str) -> None:
 
 
 # ── Dialogs ───────────────────────────────────────────────────────────────────
+
+class HistorialEquipoDialog(QDialog):
+    """Historial completo de mantenimientos realizados en un equipo."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        equipo_id: int,
+        equipo_nombre: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._equipo_id = equipo_id
+        self.setWindowTitle(f"Historial — {equipo_nombre}")
+        self.setMinimumWidth(800)
+        self.resize(860, 520)
+        self._build()
+        self._load()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        self._tabla = _make_table(
+            ["Fecha cierre", "Tipo", "Descripción", "Técnico(s)", "Estado"]
+        )
+        self._tabla.doubleClicked.connect(self._ver_observaciones)
+        layout.addWidget(self._tabla)
+
+        btn_row = QHBoxLayout()
+        btn_obs = QPushButton("Ver observaciones")
+        btn_obs.clicked.connect(self._ver_observaciones)
+        btn_cerrar = QPushButton("Cerrar")
+        btn_cerrar.clicked.connect(self.accept)
+        btn_row.addWidget(btn_obs)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_cerrar)
+        layout.addLayout(btn_row)
+
+    def _load(self) -> None:
+        import sqlite3 as _sqlite3
+        from contextlib import closing as _closing
+
+        with _closing(_sqlite3.connect(self._db)) as conn:
+            conn.row_factory = _sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT
+                    o.id,
+                    o.tipo,
+                    COALESCE(o.descripcion, '')    AS descripcion,
+                    COALESCE(o.fecha_cierre, '')   AS fecha_cierre,
+                    COALESCE(o.fecha_apertura, '') AS fecha_apertura,
+                    o.estado,
+                    COALESCE(o.observaciones, '')  AS observaciones,
+                    COALESCE(trim(t.nombre || ' ' || t.apellido), '') AS tecnico_nombre
+                FROM ordenes_trabajo o
+                LEFT JOIN tecnicos t ON t.id = o.tecnico_id
+                WHERE o.equipo_id = ?
+                ORDER BY
+                    CASE WHEN o.fecha_cierre = '' OR o.fecha_cierre IS NULL THEN 1 ELSE 0 END,
+                    o.fecha_cierre DESC,
+                    o.id DESC
+                """,
+                (self._equipo_id,),
+            ).fetchall()
+
+            # Colaboradores por orden
+            colab_by_orden: dict[int, list[str]] = {}
+            for r in rows:
+                colab_rows = conn.execute(
+                    """
+                    SELECT trim(t2.nombre || ' ' || t2.apellido)
+                    FROM orden_colaboradores oc
+                    JOIN tecnicos t2 ON t2.id = oc.tecnico_id
+                    WHERE oc.orden_id = ?
+                    ORDER BY oc.creado_en
+                    """,
+                    (int(r["id"]),),
+                ).fetchall()
+                colab_by_orden[int(r["id"])] = [c[0] for c in colab_rows]
+
+        self._tabla.setRowCount(0)
+        for r in rows:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+            fecha = r["fecha_cierre"] or r["fecha_apertura"]
+            tecnicos = colab_by_orden.get(int(r["id"]), [])
+            tecnico_str = ", ".join(tecnicos) if tecnicos else str(r["tecnico_nombre"])
+            self._tabla.setItem(row, 0, QTableWidgetItem(fecha))
+            self._tabla.setItem(row, 1, QTableWidgetItem(str(r["tipo"])))
+            self._tabla.setItem(row, 2, QTableWidgetItem(str(r["descripcion"])))
+            self._tabla.setItem(row, 3, QTableWidgetItem(tecnico_str))
+            self._tabla.setItem(row, 4, QTableWidgetItem(str(r["estado"])))
+            item = self._tabla.item(row, 0)
+            if item:
+                item.setData(Qt.ItemDataRole.UserRole, str(r["observaciones"]))
+
+    def _ver_observaciones(self) -> None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        obs = item.data(Qt.ItemDataRole.UserRole) if item else ""
+        if not obs:
+            QMessageBox.information(self, "Observaciones", "Esta orden no tiene observaciones.")
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Observaciones")
+        dlg.setMinimumWidth(500)
+        v = QVBoxLayout(dlg)
+        txt = QTextEdit()
+        txt.setPlainText(obs)
+        txt.setReadOnly(True)
+        v.addWidget(txt)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        bb.rejected.connect(dlg.accept)
+        v.addWidget(bb)
+        dlg.exec()
+
 
 class EquipoDialog(QDialog):
     def __init__(

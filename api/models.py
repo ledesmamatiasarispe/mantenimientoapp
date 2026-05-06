@@ -85,6 +85,30 @@ class OrdenDetail(OrdenCard):
     colaboradores: list[ColaboradorItem] = []
 
 
+class AgregarRepuestoOrdenRequest(BaseModel):
+    repuesto_id: int
+    cantidad: float = 1.0
+
+
+class RepuestoDisponible(BaseModel):
+    id: int
+    nombre: str
+    stock_actual: float
+    stock_minimo: float
+
+
+class HistorialOrdenItem(BaseModel):
+    id: int
+    tipo: str
+    descripcion: str
+    fecha_apertura: str
+    fecha_cierre: str
+    estado: str
+    observaciones: str
+    tecnico_nombre: str
+    colaboradores: list[str] = []
+
+
 class CrearOrdenRequest(BaseModel):
     equipo_id: int
     tipo: str = "CORRECTIVO"

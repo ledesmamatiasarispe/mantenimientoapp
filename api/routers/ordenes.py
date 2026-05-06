@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from api.auth import CurrentTecnicoDep
 from api.database import get_db
 from api.models import (
+    AgregarRepuestoOrdenRequest,
     ColaboradorItem,
     CompletarOrdenRequest,
     CrearOrdenRequest,
@@ -339,6 +340,50 @@ def completar_orden(
         (merged, orden_id),
     )
     connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
+@router.post("/{orden_id}/repuestos", response_model=OrdenDetail)
+def agregar_repuesto_a_orden(
+    orden_id: int,
+    payload: AgregarRepuestoOrdenRequest,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT estado FROM ordenes_trabajo WHERE id = ?", (orden_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) in ("COMPLETADA", "CANCELADA"):
+        raise HTTPException(status_code=409, detail="No se pueden agregar repuestos a una orden cerrada.")
+    if payload.cantidad <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0.")
+
+    rep = connection.execute(
+        "SELECT id, nombre, stock_actual FROM repuestos WHERE id = ? AND activo = 1",
+        (payload.repuesto_id,),
+    ).fetchone()
+    if rep is None:
+        raise HTTPException(status_code=404, detail="Repuesto no encontrado.")
+
+    connection.execute(
+        """
+        INSERT INTO repuestos_orden (orden_id, repuesto_id, descripcion, cantidad, costo_unitario)
+        VALUES (?, ?, ?, ?, 0)
+        """,
+        (orden_id, payload.repuesto_id, str(rep["nombre"]), payload.cantidad),
+    )
+    connection.execute(
+        "UPDATE repuestos SET stock_actual = stock_actual - ?,"
+        " actualizado_en = CURRENT_TIMESTAMP WHERE id = ?",
+        (payload.cantidad, payload.repuesto_id),
+    )
+    connection.commit()
+
     orden = _get_orden_detail(connection, orden_id)
     if orden is None:
         raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")

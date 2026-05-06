@@ -13,9 +13,11 @@ from api.database import get_db
 from api.models import (
     EquipoCard,
     EquipoDetail,
+    HistorialOrdenItem,
     ProgramaAdjuntoItem,
     ProgramaDetail,
     ProgramaResumen,
+    RepuestoDisponible,
 )
 
 router = APIRouter(tags=["biblioteca"])
@@ -225,3 +227,81 @@ def get_adjunto(
     else:
         media_type = media_type or "image/jpeg"
     return FileResponse(path, media_type=media_type, filename=str(row["nombre"] or path.name))
+
+
+@router.get("/api/repuestos", response_model=list[RepuestoDisponible])
+def list_repuestos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[RepuestoDisponible]:
+    rows = connection.execute(
+        """
+        SELECT id, nombre, stock_actual, stock_minimo
+        FROM repuestos
+        WHERE activo = 1
+        ORDER BY nombre
+        """
+    ).fetchall()
+    return [
+        RepuestoDisponible(
+            id=int(r["id"]),
+            nombre=str(r["nombre"]),
+            stock_actual=float(r["stock_actual"] or 0),
+            stock_minimo=float(r["stock_minimo"] or 0),
+        )
+        for r in rows
+    ]
+
+
+@router.get("/api/equipos/{equipo_id}/historial", response_model=list[HistorialOrdenItem])
+def get_historial_equipo(
+    equipo_id: int,
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> list[HistorialOrdenItem]:
+    rows = connection.execute(
+        """
+        SELECT
+            o.id,
+            o.tipo,
+            COALESCE(o.descripcion, '')    AS descripcion,
+            COALESCE(o.fecha_apertura, '') AS fecha_apertura,
+            COALESCE(o.fecha_cierre, '')   AS fecha_cierre,
+            o.estado,
+            COALESCE(o.observaciones, '')  AS observaciones,
+            COALESCE(trim(t.nombre || ' ' || t.apellido), '') AS tecnico_nombre
+        FROM ordenes_trabajo o
+        LEFT JOIN tecnicos t ON t.id = o.tecnico_id
+        WHERE o.equipo_id = ?
+        ORDER BY
+            CASE WHEN o.fecha_cierre = '' OR o.fecha_cierre IS NULL THEN 1 ELSE 0 END,
+            o.fecha_cierre DESC,
+            o.id DESC
+        """,
+        (equipo_id,),
+    ).fetchall()
+
+    items = []
+    for r in rows:
+        orden_id = int(r["id"])
+        colab_rows = connection.execute(
+            """
+            SELECT trim(t.nombre || ' ' || t.apellido) AS nombre_completo
+            FROM orden_colaboradores oc
+            JOIN tecnicos t ON t.id = oc.tecnico_id
+            WHERE oc.orden_id = ?
+            ORDER BY oc.creado_en
+            """,
+            (orden_id,),
+        ).fetchall()
+        items.append(
+            HistorialOrdenItem(
+                id=orden_id,
+                tipo=str(r["tipo"] or ""),
+                descripcion=str(r["descripcion"]),
+                fecha_apertura=str(r["fecha_apertura"]),
+                fecha_cierre=str(r["fecha_cierre"]),
+                estado=str(r["estado"] or ""),
+                observaciones=str(r["observaciones"]),
+                tecnico_nombre=str(r["tecnico_nombre"]),
+                colaboradores=[str(c["nombre_completo"]) for c in colab_rows],
+            )
+        )
+    return items

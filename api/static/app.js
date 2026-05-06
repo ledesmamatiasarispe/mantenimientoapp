@@ -205,16 +205,15 @@ async function renderOrdenDetalle(ordenId) {
       <div class="prewrap">${escapeHtml(orden.observaciones || "Sin observaciones.")}</div>
     </div>
     <div class="panel">
-      <div class="section-title">Repuestos</div>
+      <div class="section-title">Repuestos utilizados</div>
       ${orden.repuestos.length ? orden.repuestos.map((item) => `
         <div class="card">
           <h4>${escapeHtml(item.descripcion)}</h4>
-          <div class="meta">
-            <span>Cantidad: ${item.cantidad}</span>
-            <span>Costo: ${item.costo_unitario}</span>
-          </div>
+          <div class="meta"><span>Cantidad: ${item.cantidad}</span></div>
         </div>
       `).join("") : '<div class="muted">Sin repuestos.</div>'}
+      ${puedeTrabajar ? `<button class="button secondary" id="agregar-repuesto-btn" style="margin-top:8px">+ Agregar repuesto</button>` : ""}
+      <div id="repuesto-form-container"></div>
     </div>
     <div class="panel">
       <div class="section-title">Programas vinculados</div>
@@ -274,6 +273,57 @@ async function renderOrdenDetalle(ordenId) {
     });
   }
 
+  const agregarRepuestoBtn = document.querySelector("#agregar-repuesto-btn");
+  if (agregarRepuestoBtn) {
+    agregarRepuestoBtn.addEventListener("click", async () => {
+      agregarRepuestoBtn.disabled = true;
+      const container = document.querySelector("#repuesto-form-container");
+      try {
+        const repuestos = await apiFetch("/api/repuestos");
+        container.innerHTML = `
+          <form id="rep-form" style="margin-top:10px">
+            <div class="field">
+              <label>Repuesto</label>
+              <select id="rep-select" required>
+                <option value="">Seleccionar...</option>
+                ${repuestos.map((r) => `<option value="${r.id}" data-stock="${r.stock_actual}">${escapeHtml(r.nombre)} (stock: ${r.stock_actual})</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label>Cantidad</label>
+              <input id="rep-cant" type="number" min="0.001" step="0.001" value="1" required />
+            </div>
+            <div class="button-row">
+              <button type="button" class="button secondary" id="rep-cancel">Cancelar</button>
+              <button type="submit" class="button primary">Agregar</button>
+            </div>
+          </form>`;
+        document.querySelector("#rep-cancel").addEventListener("click", () => {
+          container.innerHTML = "";
+          agregarRepuestoBtn.disabled = false;
+        });
+        document.querySelector("#rep-form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const repuesto_id = Number(document.querySelector("#rep-select").value);
+          const cantidad = Number(document.querySelector("#rep-cant").value);
+          if (!repuesto_id || cantidad <= 0) return;
+          try {
+            await apiFetch(`/api/ordenes/${ordenId}/repuestos`, {
+              method: "POST",
+              body: JSON.stringify({ repuesto_id, cantidad }),
+            });
+            location.hash = `#orden/${ordenId}`;
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      } catch (error) {
+        window.alert(error.message);
+        agregarRepuestoBtn.disabled = false;
+      }
+    });
+  }
+
   const completeButton = document.querySelector("#complete-button");
   if (completeButton) {
     completeButton.addEventListener("click", async () => {
@@ -319,7 +369,10 @@ async function renderBiblioteca() {
 
 async function renderEquipoDetalle(equipoId) {
   renderLoading("Cargando equipo...");
-  const equipo = await apiFetch(`/api/equipos/${equipoId}`);
+  const [equipo, historial] = await Promise.all([
+    apiFetch(`/api/equipos/${equipoId}`),
+    apiFetch(`/api/equipos/${equipoId}/historial`),
+  ]);
   document.querySelector("#app").innerHTML = layout(`
     <div class="topbar">
       <div>
@@ -336,8 +389,26 @@ async function renderEquipoDetalle(equipoId) {
       <div class="prewrap">${escapeHtml(equipo.observaciones || "Sin observaciones.")}</div>
     </div>
     <div class="panel">
-      <div class="section-title">Programas</div>
+      <div class="section-title">Programas de mantenimiento</div>
       ${equipo.programas.length ? equipo.programas.map(programaMarkup).join("") : '<div class="muted">Sin programas activos.</div>'}
+    </div>
+    <div class="panel">
+      <div class="section-title">Historial de mantenimiento</div>
+      ${historial.length ? historial.map((h) => `
+        <div class="card">
+          <div class="card-header-row">
+            <span class="badge ${badgeClass(h.estado)}">${escapeHtml(h.estado)}</span>
+            <span class="meta">${escapeHtml(h.fecha_cierre || h.fecha_apertura)}</span>
+          </div>
+          <h4>${escapeHtml(h.tipo)} — ${escapeHtml(h.descripcion || "Sin descripción")}</h4>
+          ${h.colaboradores.length
+            ? `<div class="muted">${h.colaboradores.map(escapeHtml).join(", ")}</div>`
+            : h.tecnico_nombre ? `<div class="muted">${escapeHtml(h.tecnico_nombre)}</div>` : ""}
+          ${h.observaciones
+            ? `<details><summary class="muted">Ver observaciones</summary><div class="prewrap" style="margin-top:6px">${escapeHtml(h.observaciones)}</div></details>`
+            : ""}
+        </div>`).join("")
+      : '<div class="muted">Sin historial registrado.</div>'}
     </div>
   `, "biblioteca");
 }
