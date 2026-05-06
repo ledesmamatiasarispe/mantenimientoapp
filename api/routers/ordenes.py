@@ -390,6 +390,35 @@ def agregar_repuesto_a_orden(
     return orden
 
 
+@router.delete("/{orden_id}/repuestos/{item_id}", response_model=OrdenDetail)
+def quitar_repuesto_de_orden(
+    orden_id: int,
+    item_id: int,
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT repuesto_id, cantidad FROM repuestos_orden WHERE id = ? AND orden_id = ?",
+        (item_id, orden_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Repuesto no encontrado en la orden.")
+
+    connection.execute("DELETE FROM repuestos_orden WHERE id = ?", (item_id,))
+    if row["repuesto_id"] is not None:
+        connection.execute(
+            "UPDATE repuestos SET stock_actual = stock_actual + ?,"
+            " actualizado_en = CURRENT_TIMESTAMP WHERE id = ?",
+            (row["cantidad"], row["repuesto_id"]),
+        )
+    connection.commit()
+
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
 @router.post("/{orden_id}/observaciones", response_model=OrdenDetail)
 def agregar_observacion(
     orden_id: int,

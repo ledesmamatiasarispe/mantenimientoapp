@@ -210,9 +210,14 @@ async function renderOrdenDetalle(ordenId) {
     <div class="panel">
       <div class="section-title">Repuestos utilizados</div>
       ${orden.repuestos.length ? orden.repuestos.map((item) => `
-        <div class="card">
-          <h4>${escapeHtml(item.descripcion)}</h4>
-          <div class="meta"><span>Cantidad: ${item.cantidad}</span></div>
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h4 style="margin:0">${escapeHtml(item.descripcion)}</h4>
+            <div class="meta"><span>Cantidad: ${item.cantidad}</span></div>
+          </div>
+          ${!["COMPLETADA","CANCELADA"].includes(orden.estado)
+            ? `<button class="button secondary quitar-rep-btn" data-item-id="${item.id}" style="min-width:36px;padding:0 10px">✕</button>`
+            : ""}
         </div>
       `).join("") : '<div class="muted">Sin repuestos.</div>'}
       ${puedeTrabajar ? `<button class="button secondary" id="agregar-repuesto-btn" style="margin-top:8px">+ Agregar repuesto</button>` : ""}
@@ -244,6 +249,21 @@ async function renderOrdenDetalle(ordenId) {
       </div>
     ` : ""}
   `, "ordenes");
+
+  // Botones quitar repuesto (✕)
+  document.querySelectorAll(".quitar-rep-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Quitar este repuesto? Se restaurará el stock.")) return;
+      btn.disabled = true;
+      try {
+        await apiFetch(`/api/ordenes/${ordenId}/repuestos/${btn.dataset.itemId}`, { method: "DELETE" });
+        await refresh();
+      } catch (error) {
+        window.alert(error.message);
+        btn.disabled = false;
+      }
+    });
+  });
 
   // Helper: recarga la pantalla actual sin cambiar la URL
   async function refresh() {
