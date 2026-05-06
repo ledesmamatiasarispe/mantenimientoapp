@@ -146,7 +146,22 @@ async function renderOrdenes() {
   });
 }
 
-function programaMarkup(programa) {
+function programaMarkup(programa, { ordenId = null, puedeTogglear = false } = {}) {
+  const pasos = programa.pasos ?? [];
+  const completados = pasos.filter((p) => p.completado).length;
+  const pasosHtml = pasos.length
+    ? `<div class="pasos-lista">
+        <div class="pasos-progreso muted">${completados}/${pasos.length} pasos completados</div>
+        ${pasos.map((paso) => `
+          <label class="paso-item ${paso.completado ? "completado" : ""}">
+            <input type="checkbox" class="paso-check" data-paso-id="${paso.id}" data-orden-id="${ordenId ?? ""}"
+              ${paso.completado ? "checked" : ""} ${puedeTogglear ? "" : "disabled"} />
+            <span>${escapeHtml(paso.descripcion)}</span>
+          </label>
+        `).join("")}
+      </div>`
+    : "";
+
   return `
     <div class="card">
       <h4>${escapeHtml(programa.descripcion)}</h4>
@@ -154,11 +169,12 @@ function programaMarkup(programa) {
         <span>Cada ${programa.frecuencia_meses} meses</span>
         <span>Próxima: ${escapeHtml(programa.proxima_ejecucion)}</span>
       </div>
+      ${pasosHtml}
       ${programa.adjuntos.length ? `
-        <div class="meta">
+        <div class="meta" style="margin-top:6px">
           ${programa.adjuntos.map((adjunto) => `<a href="#programa/${programa.id}">${escapeHtml(adjunto.tipo)} · ${escapeHtml(adjunto.nombre)}</a>`).join("")}
         </div>
-      ` : '<div class="muted">Sin adjuntos.</div>'}
+      ` : ""}
     </div>
   `;
 }
@@ -224,8 +240,28 @@ async function renderOrdenDetalle(ordenId) {
       <div id="repuesto-form-container"></div>
     </div>
     <div class="panel">
+      <div class="section-title">Fotos</div>
+      <div id="fotos-lista">
+        ${(orden.fotos ?? []).map((f) => `
+          <a class="foto-thumb" href="/api/ordenes/${ordenId}/fotos/${f.id}" target="_blank">
+            <img src="/api/ordenes/${ordenId}/fotos/${f.id}" alt="${escapeHtml(f.nombre)}" loading="lazy" />
+            <span class="muted">${escapeHtml(f.nombre)}</span>
+          </a>
+        `).join("") || '<span class="muted">Sin fotos.</span>'}
+      </div>
+      ${puedeTrabajar ? `
+        <label class="button secondary" style="margin-top:8px;cursor:pointer;display:inline-block">
+          📷 Agregar foto
+          <input type="file" id="foto-input" accept="image/*" capture="environment" style="display:none" />
+        </label>
+        <div id="foto-upload-status"></div>
+      ` : ""}
+    </div>
+    <div class="panel">
       <div class="section-title">Programas vinculados</div>
-      ${orden.programas.length ? orden.programas.map(programaMarkup).join("") : '<div class="muted">Sin programas vinculados.</div>'}
+      ${orden.programas.length
+        ? orden.programas.map((p) => programaMarkup(p, { ordenId, puedeTogglear: puedeTrabajar })).join("")
+        : '<div class="muted">Sin programas vinculados.</div>'}
     </div>
     ${puedeAceptar ? `
       <div class="panel">
@@ -373,7 +409,6 @@ async function renderOrdenDetalle(ordenId) {
           method: "POST",
           body: JSON.stringify({ observaciones }),
         });
-        // Después de completar sí navegamos a la lista
         state.tab = "completadas";
         location.hash = "#ordenes?tab=completadas";
       } catch (error) {
@@ -382,6 +417,53 @@ async function renderOrdenDetalle(ordenId) {
       }
     });
   }
+
+  // Foto upload
+  const fotoInput = document.querySelector("#foto-input");
+  if (fotoInput) {
+    fotoInput.addEventListener("change", async () => {
+      const file = fotoInput.files[0];
+      if (!file) return;
+      const status = document.querySelector("#foto-upload-status");
+      status.textContent = "Subiendo foto...";
+      const formData = new FormData();
+      formData.append("foto", file);
+      try {
+        const headers = {};
+        if (state.token) headers.Authorization = `Bearer ${state.token}`;
+        const response = await fetch(`/api/ordenes/${ordenId}/fotos`, {
+          method: "POST",
+          headers,
+          body: formData,
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({ detail: "Error inesperado." }));
+          throw new Error(String(payload.detail || "Error al subir foto."));
+        }
+        status.textContent = "";
+        await refresh();
+      } catch (error) {
+        status.textContent = error.message;
+        window.alert(error.message);
+      }
+    });
+  }
+
+  // Paso toggle
+  document.querySelectorAll(".paso-check").forEach((checkbox) => {
+    checkbox.addEventListener("change", async () => {
+      const pasoId = checkbox.dataset.pasoId;
+      checkbox.disabled = true;
+      try {
+        await apiFetch(`/api/ordenes/${ordenId}/pasos/${pasoId}/toggle`, { method: "POST" });
+        await refresh();
+      } catch (error) {
+        window.alert(error.message);
+        checkbox.checked = !checkbox.checked;
+        checkbox.disabled = false;
+      }
+    });
+  });
 }
 
 async function renderBiblioteca() {

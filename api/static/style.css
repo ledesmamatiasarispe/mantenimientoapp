@@ -145,6 +145,44 @@ button, input, textarea { font: inherit; }
 .section-title { margin: 0 0 10px; font-size: 15px; }
 .button-row { display: flex; gap: 10px; }
 
+/* Checklist de pasos */
+.pasos-lista { margin: 8px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.pasos-progreso { font-size: 13px; margin-bottom: 4px; }
+.paso-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.paso-item.completado span { text-decoration: line-through; color: var(--muted); }
+.paso-item input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; }
+.paso-item input:disabled { cursor: default; }
+
+/* Fotos adjuntas a la orden */
+#fotos-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.foto-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.foto-thumb img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
 @media (min-width: 760px) {
   .app-shell {
     width: min(100%, 880px);

@@ -41,6 +41,18 @@ class ProgramaAdjuntoItem(BaseModel):
     nombre: str
 
 
+class PasoItem(BaseModel):
+    id: int
+    posicion: int
+    descripcion: str
+    completado: bool = False
+
+
+class FotoOrdenItem(BaseModel):
+    id: int
+    nombre: str
+
+
 class ProgramaResumen(BaseModel):
     id: int
     descripcion: str
@@ -48,6 +60,7 @@ class ProgramaResumen(BaseModel):
     ultima_ejecucion: str
     proxima_ejecucion: str
     adjuntos: list[ProgramaAdjuntoItem]
+    pasos: list[PasoItem] = []
 
 
 class OrdenCard(BaseModel):
@@ -83,6 +96,7 @@ class OrdenDetail(OrdenCard):
     repuestos: list[RepuestoOrdenItem]
     programas: list[ProgramaResumen]
     colaboradores: list[ColaboradorItem] = []
+    fotos: list[FotoOrdenItem] = []
 
 
 class AgregarRepuestoOrdenRequest(BaseModel):
@@ -151,4 +165,5 @@ class ProgramaDetail(BaseModel):
     ultima_ejecucion: str
     proxima_ejecucion: str
     adjuntos: list[ProgramaAdjuntoItem]
+    pasos: list[PasoItem] = []
 

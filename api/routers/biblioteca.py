@@ -14,6 +14,7 @@ from api.models import (
     EquipoCard,
     EquipoDetail,
     HistorialOrdenItem,
+    PasoItem,
     ProgramaAdjuntoItem,
     ProgramaDetail,
     ProgramaResumen,
@@ -22,6 +23,30 @@ from api.models import (
 
 router = APIRouter(tags=["biblioteca"])
 ConnectionDep = Annotated[sqlite3.Connection, Depends(get_db)]
+
+
+def _pasos_for_programa(
+    connection: sqlite3.Connection,
+    programa_id: int,
+) -> list[PasoItem]:
+    rows = connection.execute(
+        """
+        SELECT id, posicion, descripcion
+        FROM programa_pasos
+        WHERE programa_id = ? AND activo = 1
+        ORDER BY posicion, id
+        """,
+        (programa_id,),
+    ).fetchall()
+    return [
+        PasoItem(
+            id=int(row["id"]),
+            posicion=int(row["posicion"]),
+            descripcion=str(row["descripcion"]),
+            completado=False,
+        )
+        for row in rows
+    ]
 
 
 def _adjuntos_for_programa(
@@ -75,6 +100,7 @@ def _programa_detail(connection: sqlite3.Connection, programa_id: int) -> Progra
         ultima_ejecucion=str(row["ultima_ejecucion"] or ""),
         proxima_ejecucion=str(row["proxima_ejecucion"] or ""),
         adjuntos=_adjuntos_for_programa(connection, programa_id),
+        pasos=_pasos_for_programa(connection, programa_id),
     )
 
 
@@ -188,6 +214,7 @@ def get_equipo(
                 ultima_ejecucion=str(item["ultima_ejecucion"] or ""),
                 proxima_ejecucion=str(item["proxima_ejecucion"] or ""),
                 adjuntos=_adjuntos_for_programa(connection, int(item["id"])),
+                pasos=_pasos_for_programa(connection, int(item["id"])),
             )
             for item in programas_rows
         ],

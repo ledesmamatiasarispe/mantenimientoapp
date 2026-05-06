@@ -914,3 +914,36 @@ class AlertaRepository:
                 (key, hasta),
             )
             conn.commit()
+
+
+class PasoRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def list_for_programa(self, programa_id: int) -> list[tuple[int, int, str, bool]]:
+        """Returns list of (id, posicion, descripcion, activo)."""
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, posicion, descripcion, activo
+                FROM programa_pasos
+                WHERE programa_id = ?
+                ORDER BY posicion, id
+                """,
+                (programa_id,),
+            ).fetchall()
+        return [(int(r[0]), int(r[1]), str(r[2]), bool(r[3])) for r in rows]
+
+    def create(self, programa_id: int, descripcion: str, posicion: int) -> int:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            cur = conn.execute(
+                "INSERT INTO programa_pasos (programa_id, descripcion, posicion) VALUES (?, ?, ?)",
+                (programa_id, descripcion.strip(), posicion),
+            )
+            conn.commit()
+            return cur.lastrowid or 0
+
+    def delete(self, paso_id: int) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute("DELETE FROM programa_pasos WHERE id = ?", (paso_id,))
+            conn.commit()

@@ -47,6 +47,7 @@ from gestion_mantenimiento.data.repositories import (
     EquipoRepository,
     OrdenProgramaRepository,
     OrdenTrabajoRepository,
+    PasoRepository,
     ProgramaMantenimientoRepository,
     RepuestoOrdenRepository,
     RepuestoRepository,
@@ -2701,6 +2702,9 @@ class MantenimientosEquipoDialog(QDialog):
         btn_adjuntos = QPushButton("Adjuntos")
         btn_adjuntos.clicked.connect(self._abrir_adjuntos)
 
+        btn_pasos = QPushButton("Pasos")
+        btn_pasos.clicked.connect(self._abrir_pasos)
+
         btn_cerrar = QPushButton("Cerrar")
         btn_cerrar.clicked.connect(self.accept)
 
@@ -2708,6 +2712,7 @@ class MantenimientosEquipoDialog(QDialog):
         btn_bar.addWidget(btn_editar)
         btn_bar.addWidget(btn_elim)
         btn_bar.addWidget(btn_adjuntos)
+        btn_bar.addWidget(btn_pasos)
         btn_bar.addStretch()
         btn_bar.addWidget(btn_cerrar)
         layout.addLayout(btn_bar)
@@ -2790,6 +2795,128 @@ class MantenimientosEquipoDialog(QDialog):
         )
         if reply == QMessageBox.StandardButton.Yes:
             self._repo.delete(prog_id)
+            self._refresh()
+
+    def _abrir_pasos(self) -> None:
+        prog_id = self._selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa primero.")
+            return
+        selected = self._tabla.selectedItems()
+        row = self._tabla.row(selected[0])
+        desc = (self._tabla.item(row, 1) or QTableWidgetItem("")).text()
+        dlg = PasosDialog(self._db, prog_id, desc, parent=self)
+        dlg.exec()
+
+
+class PasosDialog(QDialog):
+    """Gestiona la lista de pasos (checklist) de un programa de mantenimiento."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        programa_id: int,
+        programa_desc: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._programa_id = programa_id
+        self._repo = PasoRepository(database_path)
+        self.setWindowTitle(f"Pasos — {programa_desc}")
+        self.setMinimumWidth(500)
+        self.resize(560, 400)
+        self._build()
+        self._refresh()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        self._tabla = _make_table(["#", "Posición", "Descripción", "Activo"])
+        self._tabla.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._tabla)
+
+        btn_bar = QHBoxLayout()
+        btn_nuevo = _primary_button("+ Agregar paso")
+        btn_elim  = _danger_button("Eliminar")
+        btn_cerrar = QPushButton("Cerrar")
+
+        btn_nuevo.clicked.connect(self._agregar)
+        btn_elim.clicked.connect(self._eliminar)
+        btn_cerrar.clicked.connect(self.accept)
+
+        btn_bar.addWidget(btn_nuevo)
+        btn_bar.addWidget(btn_elim)
+        btn_bar.addStretch()
+        btn_bar.addWidget(btn_cerrar)
+        layout.addLayout(btn_bar)
+
+    def _refresh(self) -> None:
+        pasos = self._repo.list_for_programa(self._programa_id)
+        self._tabla.setRowCount(0)
+        for paso_id, posicion, descripcion, activo in pasos:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+            self._tabla.setItem(row, 0, QTableWidgetItem(str(paso_id)))
+            self._tabla.setItem(row, 1, QTableWidgetItem(str(posicion)))
+            self._tabla.setItem(row, 2, QTableWidgetItem(descripcion))
+            self._tabla.setItem(row, 3, QTableWidgetItem("Sí" if activo else "No"))
+            item_id = self._tabla.item(row, 0)
+            if item_id:
+                item_id.setData(Qt.ItemDataRole.UserRole, paso_id)
+
+    def _selected_paso_id(self) -> int | None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return None
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        if item is None:
+            return None
+        val = item.data(Qt.ItemDataRole.UserRole)
+        return int(val) if val is not None else None
+
+    def _agregar(self) -> None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Nuevo paso")
+        dlg.resize(400, 160)
+        layout = QVBoxLayout(dlg)
+        form = QFormLayout()
+        desc_edit = QLineEdit()
+        pos_spin = QSpinBox()
+        pos_spin.setRange(0, 9999)
+        pos_spin.setValue(
+            max((p[1] for p in self._repo.list_for_programa(self._programa_id)), default=-1) + 1
+        )
+        form.addRow("Descripción *", desc_edit)
+        form.addRow("Posición", pos_spin)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            desc = desc_edit.text().strip()
+            if not desc:
+                QMessageBox.warning(self, "Error", "La descripción no puede estar vacía.")
+                return
+            self._repo.create(self._programa_id, desc, pos_spin.value())
+            self._refresh()
+
+    def _eliminar(self) -> None:
+        paso_id = self._selected_paso_id()
+        if paso_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un paso.")
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar este paso?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._repo.delete(paso_id)
             self._refresh()
 
 

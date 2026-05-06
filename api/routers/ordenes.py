@@ -1,25 +1,37 @@
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 
 from api.auth import CurrentTecnicoDep
-from api.database import get_db
+from api.database import get_db, resolve_database_path
 from api.models import (
     AgregarRepuestoOrdenRequest,
     ColaboradorItem,
     CompletarOrdenRequest,
     CrearOrdenRequest,
+    FotoOrdenItem,
     ObservacionRequest,
     OrdenCard,
     OrdenDetail,
+    PasoItem,
     ProgramaAdjuntoItem,
     ProgramaResumen,
     RepuestoOrdenItem,
 )
+
+
+def _fotos_dir(orden_id: int) -> Path:
+    db_path = resolve_database_path()
+    folder = db_path.parent / "orden_fotos" / str(orden_id)
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
 
 router = APIRouter(prefix="/api/ordenes", tags=["ordenes"])
 ConnectionDep = Annotated[sqlite3.Connection, Depends(get_db)]
@@ -109,6 +121,7 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
     ).fetchall()
     programas: list[ProgramaResumen] = []
     for row in program_rows:
+        programa_id = int(row["id"])
         adjuntos = connection.execute(
             """
             SELECT id, tipo, nombre
@@ -116,11 +129,26 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
             WHERE programa_id = ?
             ORDER BY tipo, nombre
             """,
-            (row["id"],),
+            (programa_id,),
+        ).fetchall()
+        paso_rows = connection.execute(
+            """
+            SELECT
+                pp.id,
+                pp.posicion,
+                pp.descripcion,
+                COALESCE(ope.completado, 0) AS completado
+            FROM programa_pasos pp
+            LEFT JOIN orden_paso_estado ope
+                ON ope.paso_id = pp.id AND ope.orden_id = ?
+            WHERE pp.programa_id = ? AND pp.activo = 1
+            ORDER BY pp.posicion, pp.id
+            """,
+            (orden_id, programa_id),
         ).fetchall()
         programas.append(
             ProgramaResumen(
-                id=int(row["id"]),
+                id=programa_id,
                 descripcion=str(row["descripcion"] or ""),
                 frecuencia_meses=int(row["frecuencia_meses"] or 0),
                 ultima_ejecucion=str(row["ultima_ejecucion"] or ""),
@@ -132,6 +160,15 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
                         nombre=str(adjunto["nombre"] or ""),
                     )
                     for adjunto in adjuntos
+                ],
+                pasos=[
+                    PasoItem(
+                        id=int(paso["id"]),
+                        posicion=int(paso["posicion"]),
+                        descripcion=str(paso["descripcion"]),
+                        completado=bool(paso["completado"]),
+                    )
+                    for paso in paso_rows
                 ],
             )
         )
@@ -157,6 +194,10 @@ def _get_orden_detail(connection: sqlite3.Connection, orden_id: int) -> OrdenDet
         """,
         (orden_id,),
     ).fetchall()
+    fotos = connection.execute(
+        "SELECT id, nombre FROM orden_adjuntos WHERE orden_id = ? ORDER BY id",
+        (orden_id,),
+    ).fetchall()
     return OrdenDetail(
         **_card_from_row(row).model_dump(),
         repuestos=[
@@ -171,6 +212,10 @@ def _get_orden_detail(connection: sqlite3.Connection, orden_id: int) -> OrdenDet
         ],
         programas=_programas_for_orden(connection, orden_id),
         colaboradores=_colaboradores_for_orden(connection, orden_id),
+        fotos=[
+            FotoOrdenItem(id=int(f["id"]), nombre=str(f["nombre"] or ""))
+            for f in fotos
+        ],
     )
 
 
@@ -455,6 +500,112 @@ def agregar_observacion(
         (merged, orden_id),
     )
     connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
+@router.post("/{orden_id}/fotos", response_model=OrdenDetail, status_code=201)
+async def subir_foto(
+    orden_id: int,
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+    foto: UploadFile = File(...),
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT estado FROM ordenes_trabajo WHERE id = ?", (orden_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) in ("COMPLETADA", "CANCELADA"):
+        raise HTTPException(status_code=409, detail="No se pueden agregar fotos a una orden cerrada.")
+
+    folder = _fotos_dir(orden_id)
+    suffix = Path(foto.filename or "foto.jpg").suffix or ".jpg"
+    # Nombre único con timestamp para evitar colisiones
+    nombre = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{foto.filename or 'foto'}"
+    ruta = folder / nombre
+    with ruta.open("wb") as f:
+        shutil.copyfileobj(foto.file, f)
+
+    connection.execute(
+        "INSERT INTO orden_adjuntos (orden_id, nombre, ruta) VALUES (?, ?, ?)",
+        (orden_id, foto.filename or nombre, str(ruta)),
+    )
+    connection.commit()
+
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
+@router.get("/{orden_id}/fotos/{foto_id}")
+def ver_foto(
+    orden_id: int,
+    foto_id: int,
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> FileResponse:
+    row = connection.execute(
+        "SELECT nombre, ruta FROM orden_adjuntos WHERE id = ? AND orden_id = ?",
+        (foto_id, orden_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Foto no encontrada.")
+    path = Path(str(row["ruta"]))
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="El archivo no existe en disco.")
+    return FileResponse(path, media_type="image/jpeg", filename=str(row["nombre"] or path.name))
+
+
+@router.post("/{orden_id}/pasos/{paso_id}/toggle", response_model=OrdenDetail)
+def toggle_paso(
+    orden_id: int,
+    paso_id: int,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT estado FROM ordenes_trabajo WHERE id = ?", (orden_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) in ("COMPLETADA", "CANCELADA"):
+        raise HTTPException(status_code=409, detail="La orden ya está cerrada.")
+
+    paso = connection.execute(
+        "SELECT id FROM programa_pasos WHERE id = ? AND activo = 1", (paso_id,)
+    ).fetchone()
+    if paso is None:
+        raise HTTPException(status_code=404, detail="Paso no encontrado.")
+
+    existing = connection.execute(
+        "SELECT completado FROM orden_paso_estado WHERE orden_id = ? AND paso_id = ?",
+        (orden_id, paso_id),
+    ).fetchone()
+
+    if existing is None:
+        connection.execute(
+            """
+            INSERT INTO orden_paso_estado (orden_id, paso_id, completado, tecnico_id, actualizado_en)
+            VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP)
+            """,
+            (orden_id, paso_id, current_tecnico.id),
+        )
+    else:
+        nuevo = 0 if int(existing["completado"]) else 1
+        connection.execute(
+            """
+            UPDATE orden_paso_estado
+            SET completado = ?, tecnico_id = ?, actualizado_en = CURRENT_TIMESTAMP
+            WHERE orden_id = ? AND paso_id = ?
+            """,
+            (nuevo, current_tecnico.id, orden_id, paso_id),
+        )
+    connection.commit()
+
     orden = _get_orden_detail(connection, orden_id)
     if orden is None:
         raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
