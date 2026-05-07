@@ -923,146 +923,160 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(_page_title("Programa de Mantenimiento"))
 
-        # ── Selector de mes ──────────────────────────────────────────────────
-        mes_bar = QFrame()
-        mes_bar.setObjectName("panel")
-        mes_layout = QHBoxLayout(mes_bar)
-        mes_layout.setContentsMargins(16, 10, 16, 10)
+        # ── Selector de máquina ──────────────────────────────────────────────
+        top_panel = QFrame()
+        top_panel.setObjectName("panel")
+        top_layout = QHBoxLayout(top_panel)
+        top_layout.setContentsMargins(16, 10, 16, 10)
 
-        mes_layout.addWidget(QLabel("Ver mes:"))
+        top_layout.addWidget(QLabel("Máquina:"))
+        self._prog_equipo_combo = QComboBox()
+        self._prog_equipo_combo.setMinimumWidth(260)
+        self._prog_equipo_combo.currentIndexChanged.connect(lambda: self._refresh_programas())
+        top_layout.addWidget(self._prog_equipo_combo)
+
+        top_layout.addSpacing(24)
+        top_layout.addWidget(QLabel("Mes ref.:"))
 
         self._prog_mes = QComboBox()
         for nombre in _MESES:
             self._prog_mes.addItem(nombre)
         self._prog_mes.setCurrentIndex(date.today().month - 1)
-        self._prog_mes.setFixedWidth(130)
+        self._prog_mes.setFixedWidth(120)
         self._prog_mes.currentIndexChanged.connect(lambda: self._refresh_programas())
+        top_layout.addWidget(self._prog_mes)
 
         self._prog_anio = QSpinBox()
         self._prog_anio.setRange(2000, 2100)
         self._prog_anio.setValue(date.today().year)
-        self._prog_anio.setFixedWidth(80)
+        self._prog_anio.setFixedWidth(76)
         self._prog_anio.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self._prog_anio.valueChanged.connect(lambda: self._refresh_programas())
+        top_layout.addWidget(self._prog_anio)
 
+        top_layout.addSpacing(20)
         leyenda_amarilla = QLabel("■ vence este mes")
         leyenda_amarilla.setStyleSheet("color: #b8860b; font-size: 12px;")
         leyenda_roja = QLabel("■ vencido")
         leyenda_roja.setStyleSheet("color: #b42318; font-size: 12px;")
+        top_layout.addWidget(leyenda_amarilla)
+        top_layout.addSpacing(10)
+        top_layout.addWidget(leyenda_roja)
+        top_layout.addStretch()
 
-        mes_layout.addWidget(self._prog_mes)
-        mes_layout.addWidget(self._prog_anio)
-        mes_layout.addSpacing(24)
-        mes_layout.addWidget(leyenda_amarilla)
-        mes_layout.addSpacing(12)
-        mes_layout.addWidget(leyenda_roja)
-        mes_layout.addStretch()
-        layout.addWidget(mes_bar)
+        self._prog_show_inactive = QCheckBox("Ver inactivas")
+        self._prog_show_inactive.stateChanged.connect(lambda: self._reload_equipo_combo())
+        top_layout.addWidget(self._prog_show_inactive)
+        layout.addWidget(top_panel)
 
-        # ── Barra de acciones ────────────────────────────────────────────────
-        topbar = QFrame()
-        topbar.setObjectName("topbar")
-        tb_layout = QHBoxLayout(topbar)
-        tb_layout.setContentsMargins(12, 8, 12, 8)
-
-        self._prog_show_inactive = QCheckBox("Mostrar máquinas inactivas")
-        self._prog_show_inactive.stateChanged.connect(lambda: self._refresh_programas())
-
-        btn_generar = _primary_button("Generar órdenes del mes")
-        btn_generar.clicked.connect(lambda: self._generar_ordenes_mes())
-
-        tb_layout.addStretch()
-        tb_layout.addWidget(self._prog_show_inactive)
-        tb_layout.addWidget(btn_generar)
-        layout.addWidget(topbar)
-
-        # ── Tabla (una fila por máquina) ─────────────────────────────────────
+        # ── Tabla de programas de la máquina seleccionada ────────────────────
         self._prog_table = _make_table(
-            ["Máquina", "Tipo", "Programas activos", "Próxima ejecución", "Días restantes"]
+            ["#", "Descripción", "Frecuencia (meses)", "Última ejecución", "Próxima ejecución", "Estado"]
         )
-        self._prog_table.doubleClicked.connect(self._open_mantenimientos_equipo)
+        self._prog_table.doubleClicked.connect(self._prog_editar)
         layout.addWidget(self._prog_table)
 
-        # ── Botón inferior ───────────────────────────────────────────────────
-        actions = QWidget()
-        actions.setObjectName("actionButtons")
-        act_layout = QHBoxLayout(actions)
-        act_layout.setContentsMargins(0, 0, 0, 0)
+        # ── Barra de acciones ────────────────────────────────────────────────
+        act_layout = QHBoxLayout()
+        btn_crear    = _primary_button("+ Nuevo")
+        btn_editar   = QPushButton("Editar")
+        btn_elim     = _danger_button("Eliminar")
+        btn_adjuntos = QPushButton("Adjuntos")
+        btn_pasos    = QPushButton("Pasos")
+        btn_generar  = _primary_button("Generar órdenes del mes")
 
-        btn_editar = _primary_button("Editar mantenimientos")
-        btn_editar.clicked.connect(self._open_mantenimientos_equipo)
+        btn_crear.clicked.connect(lambda: self._prog_crear())
+        btn_editar.clicked.connect(self._prog_editar)
+        btn_elim.clicked.connect(self._prog_eliminar)
+        btn_adjuntos.clicked.connect(self._prog_adjuntos)
+        btn_pasos.clicked.connect(self._prog_pasos)
+        btn_generar.clicked.connect(lambda: self._generar_ordenes_mes())
 
-        act_layout.addStretch()
+        act_layout.addWidget(btn_crear)
         act_layout.addWidget(btn_editar)
-        layout.addWidget(actions)
+        act_layout.addWidget(btn_elim)
+        act_layout.addWidget(btn_adjuntos)
+        act_layout.addWidget(btn_pasos)
+        act_layout.addStretch()
+        act_layout.addWidget(btn_generar)
+        layout.addLayout(act_layout)
 
         def refresh() -> None:
-            self._refresh_programas()
+            self._reload_equipo_combo()
 
         page._refresh = refresh  # type: ignore[attr-defined]
         return page
 
-    def _refresh_programas(self) -> None:
-        mes_sel  = self._prog_mes.currentIndex() + 1
-        anio_sel = self._prog_anio.value()
-        hoy = date.today()
-
+    def _reload_equipo_combo(self) -> None:
         solo_activos = not self._prog_show_inactive.isChecked()
         equipos = self._equipo_repo.list_all(solo_activos=solo_activos)
+        prev_id = self._prog_equipo_combo.currentData()
+        self._prog_equipo_combo.blockSignals(True)
+        self._prog_equipo_combo.clear()
+        for eq in equipos:
+            self._prog_equipo_combo.addItem(f"{eq.nombre}  ({eq.tipo_nombre})", eq.id)
+        # Restaurar selección anterior si sigue existiendo
+        if prev_id is not None:
+            idx = self._prog_equipo_combo.findData(prev_id)
+            if idx >= 0:
+                self._prog_equipo_combo.setCurrentIndex(idx)
+        self._prog_equipo_combo.blockSignals(False)
+        self._refresh_programas()
 
-        # Agrupar todos los programas por equipo_id
-        todos_programas = self._programa_repo.list_all()
-        por_equipo: dict[int, list] = {}
-        for p in todos_programas:
-            por_equipo.setdefault(p.equipo_id, []).append(p)
+    def _prog_selected_equipo_id(self) -> int | None:
+        data = self._prog_equipo_combo.currentData()
+        return int(data) if data is not None else None
+
+    def _prog_selected_prog_id(self) -> int | None:
+        selected = self._prog_table.selectedItems()
+        if not selected:
+            return None
+        row = self._prog_table.row(selected[0])
+        item = self._prog_table.item(row, 0)
+        if item is None:
+            return None
+        val = item.data(Qt.ItemDataRole.UserRole)
+        return int(val) if val is not None else None
+
+    def _refresh_programas(self) -> None:
+        equipo_id = self._prog_selected_equipo_id()
+        mes_sel   = self._prog_mes.currentIndex() + 1
+        anio_sel  = self._prog_anio.value()
+        hoy = date.today()
 
         tabla = self._prog_table
         tabla.setRowCount(0)
 
-        for eq in equipos:
-            progs = por_equipo.get(eq.id, [])
-            activos = [p for p in progs if p.activo]
+        if equipo_id is None:
+            return
 
-            # Fecha más próxima entre todos los programas de esta máquina
-            proximas: list[date] = []
-            for p in progs:
-                try:
-                    proximas.append(date.fromisoformat(p.proxima_ejecucion))
-                except ValueError:
-                    pass
+        todos = self._programa_repo.list_all()
+        programas = [p for p in todos if p.equipo_id == equipo_id]
 
-            proxima_str   = min(proximas).isoformat() if proximas else "—"
-            dias_restantes = ""
-            if proximas:
-                delta = (min(proximas) - hoy).days
-                if delta < 0:
-                    dias_restantes = f"{abs(delta)} días vencido"
-                elif delta == 0:
-                    dias_restantes = "Hoy"
-                else:
-                    dias_restantes = f"{delta} días"
-
+        for p in programas:
             row = tabla.rowCount()
             tabla.insertRow(row)
-            tabla.setItem(row, 0, QTableWidgetItem(eq.nombre))
-            tabla.setItem(row, 1, QTableWidgetItem(eq.tipo_nombre))
-            tabla.setItem(row, 2, QTableWidgetItem(str(len(activos)) if activos else "Sin programas"))
-            tabla.setItem(row, 3, QTableWidgetItem(proxima_str))
-            tabla.setItem(row, 4, QTableWidgetItem(dias_restantes))
+            tabla.setItem(row, 0, QTableWidgetItem(str(p.id)))
+            tabla.setItem(row, 1, QTableWidgetItem(p.descripcion))
+            tabla.setItem(row, 2, QTableWidgetItem(str(p.frecuencia_meses)))
+            tabla.setItem(row, 3, QTableWidgetItem(p.ultima_ejecucion))
+            tabla.setItem(row, 4, QTableWidgetItem(p.proxima_ejecucion))
+            tabla.setItem(row, 5, QTableWidgetItem("Activo" if p.activo else "Inactivo"))
 
-            # Guardar equipo_id en UserRole de la primera celda
             item0 = tabla.item(row, 0)
             if item0:
-                item0.setData(Qt.ItemDataRole.UserRole, eq.id)
+                item0.setData(Qt.ItemDataRole.UserRole, p.id)
 
-            # Color de fila según la fecha más próxima
+            # Coloreado
             color: QColor | None = None
-            if proximas:
-                nearest = min(proximas)
-                if nearest < hoy:
+            try:
+                proxima = date.fromisoformat(p.proxima_ejecucion)
+                if proxima < hoy:
                     color = QColor(str(self._current_theme.get("color_vencido", _COLOR_VENCIDO_DEFAULT)))
-                elif nearest.year == anio_sel and nearest.month == mes_sel:
+                elif proxima.year == anio_sel and proxima.month == mes_sel:
                     color = QColor(str(self._current_theme.get("color_vence_mes", _COLOR_VENCE_MES_DEFAULT)))
+            except ValueError:
+                pass
 
             if color is not None:
                 brush = QBrush(color)
@@ -1071,26 +1085,58 @@ class MainWindow(QMainWindow):
                     if it:
                         it.setBackground(brush)
 
-    def _open_mantenimientos_equipo(self) -> None:
-        selected = self._prog_table.selectedItems()
-        if not selected:
-            QMessageBox.information(self, "Sin selección", "Seleccione una máquina de la lista.")
-            return
-        row = self._prog_table.row(selected[0])
-        item = self._prog_table.item(row, 0)
-        if item is None:
-            return
-        equipo_id = item.data(Qt.ItemDataRole.UserRole)
-        equipo_nombre = item.text()
+    def _prog_crear(self) -> None:
+        equipo_id = self._prog_selected_equipo_id()
         if equipo_id is None:
+            QMessageBox.information(self, "Sin máquina", "Seleccione una máquina primero.")
             return
-        dlg = MantenimientosEquipoDialog(
-            self._db, equipo_id, equipo_nombre,
-            color_vencido=str(self._current_theme.get("color_vencido", _COLOR_VENCIDO_DEFAULT)),
-            parent=self,
+        dlg = ProgramaDialog(self._db, None, equipo_id_fijo=equipo_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_programas()
+
+    def _prog_editar(self) -> None:
+        prog_id = self._prog_selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa.")
+            return
+        dlg = ProgramaDialog(self._db, prog_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_programas()
+
+    def _prog_eliminar(self) -> None:
+        prog_id = self._prog_selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa.")
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar este programa de mantenimiento?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._programa_repo.delete(prog_id)
+            self._refresh_programas()
+
+    def _prog_adjuntos(self) -> None:
+        prog_id = self._prog_selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa.")
+            return
+        selected = self._prog_table.selectedItems()
+        row = self._prog_table.row(selected[0])
+        desc = (self._prog_table.item(row, 1) or QTableWidgetItem("")).text()
+        dlg = AdjuntosDialog(self._db, prog_id, desc, parent=self)
         dlg.exec()
-        self._refresh_programas()
+
+    def _prog_pasos(self) -> None:
+        prog_id = self._prog_selected_prog_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un programa.")
+            return
+        selected = self._prog_table.selectedItems()
+        row = self._prog_table.row(selected[0])
+        desc = (self._prog_table.item(row, 1) or QTableWidgetItem("")).text()
+        dlg = PasosDialog(self._db, prog_id, desc, parent=self)
+        dlg.exec()
 
     def _generar_ordenes_mes(self) -> None:
         mes_sel  = self._prog_mes.currentIndex() + 1
