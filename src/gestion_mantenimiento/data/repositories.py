@@ -808,6 +808,29 @@ class OrdenProgramaRepository:
             ).fetchone()
         return row[0] if row else None
 
+    def find_orden_completada_desde(
+        self, equipo_id: int, programa_ids: list[int], desde: str
+    ) -> int | None:
+        """Devuelve el id de una orden COMPLETADA vinculada al programa con fecha_cierre >= desde."""
+        if not programa_ids:
+            return None
+        placeholders = ",".join("?" * len(programa_ids))
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(
+                f"""
+                SELECT o.id
+                FROM ordenes_trabajo o
+                JOIN orden_programas op ON op.orden_id = o.id
+                WHERE o.equipo_id = ?
+                  AND o.estado = 'COMPLETADA'
+                  AND o.fecha_cierre >= ?
+                  AND op.programa_id IN ({placeholders})
+                LIMIT 1
+                """,
+                (equipo_id, desde, *programa_ids),
+            ).fetchone()
+        return row[0] if row else None
+
 
 class AdjuntoRepository:
     def __init__(self, database_path: Path) -> None:
