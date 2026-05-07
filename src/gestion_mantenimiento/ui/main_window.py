@@ -1200,7 +1200,7 @@ class MainWindow(QMainWindow):
         self._refresh_programas()
 
     def _auto_generar_ordenes(self) -> None:
-        """Genera automáticamente órdenes preventivas para programas vencidos o que vencen hoy."""
+        """Genera automáticamente órdenes preventivas para programas que vencen hoy o están vencidos."""
         hoy = date.today()
         programas = self._programa_repo.list_all(solo_activos=True)
         creadas = 0
@@ -1213,17 +1213,10 @@ class MainWindow(QMainWindow):
             except ValueError:
                 continue
             if proxima > hoy:
-                continue  # Aún no vence
-
-            # Hay una orden abierta: el trabajo está en curso, no hacer nada
-            if self._orden_programa_repo.find_orden_pendiente(p.equipo_id, [p.id]) is not None:
                 continue
 
-            # El trabajo ya fue completado en este ciclo: avanzar sin crear orden
-            if self._orden_programa_repo.find_orden_completada_desde(
-                p.equipo_id, [p.id], p.proxima_ejecucion
-            ) is not None:
-                self._programa_repo.advance_proxima(p.id, p.proxima_ejecucion, p.frecuencia_meses)
+            # Ya hay una orden abierta para este programa — no crear otra
+            if self._orden_programa_repo.find_orden_pendiente(p.equipo_id, [p.id]) is not None:
                 continue
 
             orden_data = OrdenTrabajoCreate(
@@ -1242,7 +1235,6 @@ class MainWindow(QMainWindow):
             )
             orden_id = self._orden_repo.create(orden_data)
             self._orden_programa_repo.link(orden_id, p.id)
-            self._programa_repo.advance_proxima(p.id, p.proxima_ejecucion, p.frecuencia_meses)
             creadas += 1
 
         if creadas > 0:
@@ -1987,10 +1979,12 @@ class OrdenTrabajoDialog(QDialog):
         super().__init__(parent)
         self._db = database_path
         self._orden_id = orden_id
+        self._initial_estado: str = ""
         self._repo = OrdenTrabajoRepository(database_path)
         self._repuesto_repo = RepuestoOrdenRepository(database_path)
         self._repuesto_catalog_repo = RepuestoRepository(database_path)
         self._orden_programa_repo = OrdenProgramaRepository(database_path)
+        self._programa_repo = ProgramaMantenimientoRepository(database_path)
         self._equipo_repo = EquipoRepository(database_path)
         self._tecnico_repo = TecnicoRepository(database_path)
         self.setWindowTitle("Orden de Trabajo")
@@ -2122,6 +2116,8 @@ class OrdenTrabajoDialog(QDialog):
         orden = self._repo.get_by_id(orden_id)
         if orden is None:
             return
+
+        self._initial_estado = orden.estado
 
         idx = self._equipo.findData(orden.equipo_id)
         if idx >= 0:
@@ -2304,6 +2300,21 @@ class OrdenTrabajoDialog(QDialog):
             else:
                 self._repo.update(self._orden_id, data)
                 orden_id = self._orden_id
+
+            # Al completar la orden, avanzar proxima_ejecucion de cada programa vinculado
+            if (
+                data.estado == "COMPLETADA"
+                and self._initial_estado != "COMPLETADA"
+                and self._orden_id is not None
+            ):
+                vinculos = self._orden_programa_repo.list_by_orden(self._orden_id)
+                for v in vinculos:
+                    programas = self._programa_repo.list_all()
+                    prog = next((p for p in programas if p.id == v.programa_id), None)
+                    if prog and prog.proxima_ejecucion:
+                        self._programa_repo.advance_proxima(
+                            prog.id, prog.proxima_ejecucion, prog.frecuencia_meses
+                        )
 
             # Save repuestos that don't have a rep_orden_id yet (new rows added in this session)
             for row in range(self._rep_table.rowCount()):
