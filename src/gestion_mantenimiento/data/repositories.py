@@ -306,7 +306,7 @@ class TecnicoRepository:
     def list_all(self, search: str = "", *, solo_activos: bool = False) -> list[Tecnico]:
         query = """
             SELECT id, nombre, apellido, COALESCE(legajo, ''), COALESCE(telefono, ''),
-                   COALESCE(especialidad, ''), activo
+                   COALESCE(especialidad, ''), activo, COALESCE(es_admin, 0)
             FROM tecnicos
         """
         conditions: list[str] = []
@@ -333,22 +333,23 @@ class TecnicoRepository:
         return [
             Tecnico(
                 id=r[0], nombre=r[1], apellido=r[2], legajo=r[3],
-                telefono=r[4], especialidad=r[5], activo=bool(r[6]),
+                telefono=r[4], especialidad=r[5], activo=bool(r[6]), es_admin=bool(r[7]),
             )
             for r in rows
         ]
 
     def create(
-        self, nombre: str, apellido: str, legajo: str, telefono: str, especialidad: str
+        self, nombre: str, apellido: str, legajo: str, telefono: str, especialidad: str,
+        *, es_admin: bool = False,
     ) -> int:
         with closing(sqlite3.connect(self.database_path)) as conn:
             cur = conn.execute(
                 """
-                INSERT INTO tecnicos (nombre, apellido, legajo, telefono, especialidad)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO tecnicos (nombre, apellido, legajo, telefono, especialidad, es_admin)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (nombre.strip(), apellido.strip(), legajo.strip(),
-                 telefono.strip(), especialidad.strip()),
+                 telefono.strip(), especialidad.strip(), int(es_admin)),
             )
             conn.commit()
             return cur.lastrowid or 0
@@ -362,18 +363,20 @@ class TecnicoRepository:
         telefono: str,
         especialidad: str,
         activo: bool,
+        *,
+        es_admin: bool = False,
     ) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute(
                 """
                 UPDATE tecnicos SET
                     nombre = ?, apellido = ?, legajo = ?, telefono = ?,
-                    especialidad = ?, activo = ?
+                    especialidad = ?, activo = ?, es_admin = ?
                 WHERE id = ?
                 """,
                 (
                     nombre.strip(), apellido.strip(), legajo.strip(),
-                    telefono.strip(), especialidad.strip(), int(activo), tecnico_id,
+                    telefono.strip(), especialidad.strip(), int(activo), int(es_admin), tecnico_id,
                 ),
             )
             conn.commit()
@@ -970,28 +973,58 @@ class PasoRepository:
     def __init__(self, database_path: Path) -> None:
         self.database_path = database_path
 
-    def list_for_programa(self, programa_id: int) -> list[tuple[int, int, str, bool]]:
-        """Returns list of (id, posicion, descripcion, activo)."""
+    def list_for_programa(
+        self, programa_id: int
+    ) -> list[tuple[int, int, str, bool, str, str, str]]:
+        """Returns list of (id, posicion, descripcion, activo, observaciones, adjunto_nombre, adjunto_ruta)."""
         with closing(sqlite3.connect(self.database_path)) as conn:
             rows = conn.execute(
                 """
-                SELECT id, posicion, descripcion, activo
+                SELECT id, posicion, descripcion, activo,
+                       COALESCE(observaciones,'') AS observaciones,
+                       COALESCE(adjunto_nombre,'') AS adjunto_nombre,
+                       COALESCE(adjunto_ruta,'') AS adjunto_ruta
                 FROM programa_pasos
                 WHERE programa_id = ?
                 ORDER BY posicion, id
                 """,
                 (programa_id,),
             ).fetchall()
-        return [(int(r[0]), int(r[1]), str(r[2]), bool(r[3])) for r in rows]
+        return [
+            (int(r[0]), int(r[1]), str(r[2]), bool(r[3]), str(r[4]), str(r[5]), str(r[6]))
+            for r in rows
+        ]
 
-    def create(self, programa_id: int, descripcion: str, posicion: int) -> int:
+    def create(
+        self, programa_id: int, descripcion: str, posicion: int, observaciones: str = ""
+    ) -> int:
         with closing(sqlite3.connect(self.database_path)) as conn:
             cur = conn.execute(
-                "INSERT INTO programa_pasos (programa_id, descripcion, posicion) VALUES (?, ?, ?)",
-                (programa_id, descripcion.strip(), posicion),
+                "INSERT INTO programa_pasos (programa_id, descripcion, posicion, observaciones) VALUES (?, ?, ?, ?)",
+                (programa_id, descripcion.strip(), posicion, observaciones),
             )
             conn.commit()
             return cur.lastrowid or 0
+
+    def update(
+        self,
+        paso_id: int,
+        descripcion: str,
+        posicion: int,
+        observaciones: str = "",
+        adjunto_nombre: str = "",
+        adjunto_ruta: str = "",
+    ) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                """UPDATE programa_pasos
+                   SET descripcion=?, posicion=?, observaciones=?,
+                       adjunto_nombre=?, adjunto_ruta=?
+                   WHERE id=?""",
+                (descripcion.strip(), posicion, observaciones,
+                 adjunto_nombre, adjunto_ruta, paso_id),
+            )
+            conn.commit()
 
     def delete(self, paso_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:

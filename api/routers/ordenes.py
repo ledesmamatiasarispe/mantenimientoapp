@@ -137,6 +137,8 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
                 pp.id,
                 pp.posicion,
                 pp.descripcion,
+                COALESCE(pp.adjunto_nombre, '') AS adjunto_nombre,
+                COALESCE(pp.observaciones, '') AS observaciones,
                 COALESCE(ope.completado, 0) AS completado
             FROM programa_pasos pp
             LEFT JOIN orden_paso_estado ope
@@ -167,6 +169,8 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
                         posicion=int(paso["posicion"]),
                         descripcion=str(paso["descripcion"]),
                         completado=bool(paso["completado"]),
+                        adjunto_nombre=str(paso["adjunto_nombre"]),
+                        observaciones=str(paso["observaciones"]),
                     )
                     for paso in paso_rows
                 ],
@@ -267,6 +271,7 @@ def list_ordenes(
     if solo_mis:
         query += " JOIN orden_colaboradores _oc ON _oc.orden_id = o.id AND _oc.tecnico_id = ?"
         params.insert(0, current_tecnico.id)
+        clauses.append("o.estado NOT IN ('COMPLETADA', 'CANCELADA')")
     if estado:
         clauses.append("o.estado = ?")
         params.append(estado)
@@ -348,6 +353,64 @@ def aceptar_orden(
     return orden
 
 
+@router.post("/{orden_id}/cancelar-aceptacion", response_model=OrdenDetail)
+def cancelar_aceptacion(
+    orden_id: int,
+    current_tecnico: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT id, estado, tecnico_id FROM ordenes_trabajo WHERE id = ?",
+        (orden_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    if str(row["estado"]) in ("COMPLETADA", "CANCELADA"):
+        raise HTTPException(status_code=409, detail="La orden ya está cerrada.")
+
+    ya_colabora = connection.execute(
+        "SELECT 1 FROM orden_colaboradores WHERE orden_id = ? AND tecnico_id = ?",
+        (orden_id, current_tecnico.id),
+    ).fetchone()
+    if not ya_colabora:
+        raise HTTPException(status_code=409, detail="No sos colaborador de esta orden.")
+
+    connection.execute(
+        "DELETE FROM orden_colaboradores WHERE orden_id = ? AND tecnico_id = ?",
+        (orden_id, current_tecnico.id),
+    )
+
+    siguiente = connection.execute(
+        "SELECT tecnico_id FROM orden_colaboradores WHERE orden_id = ? ORDER BY creado_en LIMIT 1",
+        (orden_id,),
+    ).fetchone()
+
+    if siguiente is None:
+        connection.execute(
+            """
+            UPDATE ordenes_trabajo
+            SET estado = 'PENDIENTE', tecnico_id = NULL, actualizado_en = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (orden_id,),
+        )
+    elif int(row["tecnico_id"] or 0) == current_tecnico.id:
+        connection.execute(
+            """
+            UPDATE ordenes_trabajo
+            SET tecnico_id = ?, actualizado_en = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (int(siguiente["tecnico_id"]), orden_id),
+        )
+
+    connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
+
+
 @router.post("/{orden_id}/completar", response_model=OrdenDetail)
 def completar_orden(
     orden_id: int,
@@ -377,7 +440,7 @@ def completar_orden(
         UPDATE ordenes_trabajo
         SET
             estado = 'COMPLETADA',
-            fecha_cierre = date('now'),
+            fecha_cierre = datetime('now', 'localtime'),
             observaciones = ?,
             actualizado_en = CURRENT_TIMESTAMP
         WHERE id = ? AND estado = 'EN_PROGRESO'
@@ -558,6 +621,30 @@ def ver_foto(
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="El archivo no existe en disco.")
     return FileResponse(path, media_type="image/jpeg", filename=str(row["nombre"] or path.name))
+
+
+@router.delete("/{orden_id}/fotos/{foto_id}", response_model=OrdenDetail)
+def eliminar_foto(
+    orden_id: int,
+    foto_id: int,
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> OrdenDetail:
+    row = connection.execute(
+        "SELECT nombre, ruta FROM orden_adjuntos WHERE id = ? AND orden_id = ?",
+        (foto_id, orden_id),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Foto no encontrada.")
+    path = Path(str(row["ruta"]))
+    if path.exists() and path.is_file():
+        path.unlink()
+    connection.execute("DELETE FROM orden_adjuntos WHERE id = ?", (foto_id,))
+    connection.commit()
+    orden = _get_orden_detail(connection, orden_id)
+    if orden is None:
+        raise HTTPException(status_code=500, detail="Error interno al recuperar la orden.")
+    return orden
 
 
 @router.post("/{orden_id}/pasos/{paso_id}/toggle", response_model=OrdenDetail)

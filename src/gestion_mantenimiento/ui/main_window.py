@@ -1041,21 +1041,18 @@ class MainWindow(QMainWindow):
         btn_crear    = _primary_button("+ Nuevo")
         btn_editar   = QPushButton("Editar")
         btn_elim     = _danger_button("Eliminar")
-        btn_adjuntos = QPushButton("Adjuntos")
         btn_pasos    = QPushButton("Pasos")
         btn_generar  = _primary_button("Generar órdenes del mes")
 
         btn_crear.clicked.connect(lambda: self._prog_crear())
         btn_editar.clicked.connect(self._prog_editar)
         btn_elim.clicked.connect(self._prog_eliminar)
-        btn_adjuntos.clicked.connect(self._prog_adjuntos)
         btn_pasos.clicked.connect(self._prog_pasos)
         btn_generar.clicked.connect(lambda: self._generar_ordenes_mes())
 
         act_layout.addWidget(btn_crear)
         act_layout.addWidget(btn_editar)
         act_layout.addWidget(btn_elim)
-        act_layout.addWidget(btn_adjuntos)
         act_layout.addWidget(btn_pasos)
         act_layout.addStretch()
         act_layout.addWidget(btn_generar)
@@ -1305,7 +1302,7 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(_page_title("Cronograma de mantenimiento"))
 
-        # Selector de año
+        # Selector de año y equipo
         top_bar = QHBoxLayout()
         top_bar.addWidget(QLabel("Año:"))
         self._crono_year_combo = QComboBox()
@@ -1315,7 +1312,17 @@ class MainWindow(QMainWindow):
         self._crono_year_combo.setCurrentText(str(anio_actual))
         self._crono_year_combo.currentIndexChanged.connect(self._refresh_cronograma)
         top_bar.addWidget(self._crono_year_combo)
-        top_bar.addSpacing(24)
+        top_bar.addSpacing(16)
+
+        top_bar.addWidget(QLabel("Equipo:"))
+        self._crono_equipo_combo = QComboBox()
+        self._crono_equipo_combo.setMinimumWidth(200)
+        self._crono_equipo_combo.addItem("Todos", None)
+        for eq in self._equipo_repo.list_all(solo_activos=True):
+            self._crono_equipo_combo.addItem(eq.etiqueta, eq.id)
+        self._crono_equipo_combo.currentIndexChanged.connect(self._refresh_cronograma)
+        top_bar.addWidget(self._crono_equipo_combo)
+        top_bar.addSpacing(16)
 
         for color, texto in [
             ("#BDD7EE", "Planificado"),
@@ -1356,7 +1363,10 @@ class MainWindow(QMainWindow):
         import sqlite3 as _sqlite3
         from contextlib import closing as _closing
 
+        equipo_id_filtro = self._crono_equipo_combo.currentData()
         programas = self._programa_repo.list_all(solo_activos=True)
+        if equipo_id_filtro is not None:
+            programas = [p for p in programas if p.equipo_id == equipo_id_filtro]
         anio_str  = str(anio)
 
         # ── Proyección de meses planificados por frecuencia ──────────────────
@@ -2121,6 +2131,7 @@ class TecnicoDialog(QDialog):
         self._especialidad = QLineEdit()
         self._activo = QCheckBox("Activo")
         self._activo.setChecked(True)
+        self._es_admin = QCheckBox("Administrador web")
 
         form.addRow("Nombre *", self._nombre)
         form.addRow("Apellido *", self._apellido)
@@ -2128,6 +2139,7 @@ class TecnicoDialog(QDialog):
         form.addRow("Teléfono", self._telefono)
         form.addRow("Especialidad", self._especialidad)
         form.addRow("", self._activo)
+        form.addRow("", self._es_admin)
 
         layout.addLayout(form)
 
@@ -2149,6 +2161,9 @@ class TecnicoDialog(QDialog):
         self._telefono.setText(tec.telefono)
         self._especialidad.setText(tec.especialidad)
         self._activo.setChecked(tec.activo)
+        self._es_admin.setChecked(tec.es_admin)
+        if tec.es_admin:
+            self._es_admin.setEnabled(False)
 
     def _save(self) -> None:
         nombre = self._nombre.text().strip()
@@ -2162,12 +2177,14 @@ class TecnicoDialog(QDialog):
                 self._repo.create(
                     nombre, apellido, self._legajo.text().strip(),
                     self._telefono.text().strip(), self._especialidad.text().strip(),
+                    es_admin=self._es_admin.isChecked(),
                 )
             else:
                 self._repo.update(
                     self._tecnico_id, nombre, apellido,
                     self._legajo.text().strip(), self._telefono.text().strip(),
                     self._especialidad.text().strip(), self._activo.isChecked(),
+                    es_admin=self._es_admin.isChecked(),
                 )
             self.accept()
         except Exception as exc:
@@ -3141,9 +3158,6 @@ class MantenimientosEquipoDialog(QDialog):
         btn_editar.clicked.connect(self._editar)
         btn_elim.clicked.connect(self._eliminar)
 
-        btn_adjuntos = QPushButton("Adjuntos")
-        btn_adjuntos.clicked.connect(self._abrir_adjuntos)
-
         btn_pasos = QPushButton("Pasos")
         btn_pasos.clicked.connect(self._abrir_pasos)
 
@@ -3153,7 +3167,6 @@ class MantenimientosEquipoDialog(QDialog):
         btn_bar.addWidget(btn_crear)
         btn_bar.addWidget(btn_editar)
         btn_bar.addWidget(btn_elim)
-        btn_bar.addWidget(btn_adjuntos)
         btn_bar.addWidget(btn_pasos)
         btn_bar.addStretch()
         btn_bar.addWidget(btn_cerrar)
@@ -3275,20 +3288,25 @@ class PasosDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
-        self._tabla = _make_table(["#", "Posición", "Descripción", "Activo"])
+        self._tabla = _make_table(["#", "Pos.", "Descripción", "Observaciones", "Adjunto"])
         self._tabla.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self._tabla.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self._tabla.doubleClicked.connect(self._editar)
         layout.addWidget(self._tabla)
 
         btn_bar = QHBoxLayout()
         btn_nuevo = _primary_button("+ Agregar paso")
+        btn_editar = QPushButton("Editar")
         btn_elim  = _danger_button("Eliminar")
         btn_cerrar = QPushButton("Cerrar")
 
         btn_nuevo.clicked.connect(self._agregar)
+        btn_editar.clicked.connect(self._editar)
         btn_elim.clicked.connect(self._eliminar)
         btn_cerrar.clicked.connect(self.accept)
 
         btn_bar.addWidget(btn_nuevo)
+        btn_bar.addWidget(btn_editar)
         btn_bar.addWidget(btn_elim)
         btn_bar.addStretch()
         btn_bar.addWidget(btn_cerrar)
@@ -3297,13 +3315,14 @@ class PasosDialog(QDialog):
     def _refresh(self) -> None:
         pasos = self._repo.list_for_programa(self._programa_id)
         self._tabla.setRowCount(0)
-        for paso_id, posicion, descripcion, activo in pasos:
+        for paso_id, posicion, descripcion, activo, observaciones, adjunto_nombre, _adjunto_ruta in pasos:
             row = self._tabla.rowCount()
             self._tabla.insertRow(row)
             self._tabla.setItem(row, 0, QTableWidgetItem(str(paso_id)))
             self._tabla.setItem(row, 1, QTableWidgetItem(str(posicion)))
             self._tabla.setItem(row, 2, QTableWidgetItem(descripcion))
-            self._tabla.setItem(row, 3, QTableWidgetItem("Sí" if activo else "No"))
+            self._tabla.setItem(row, 3, QTableWidgetItem(observaciones))
+            self._tabla.setItem(row, 4, QTableWidgetItem(adjunto_nombre or ""))
             item_id = self._tabla.item(row, 0)
             if item_id:
                 item_id.setData(Qt.ItemDataRole.UserRole, paso_id)
@@ -3319,34 +3338,125 @@ class PasosDialog(QDialog):
         val = item.data(Qt.ItemDataRole.UserRole)
         return int(val) if val is not None else None
 
-    def _agregar(self) -> None:
+    def _paso_dialog(
+        self,
+        titulo: str,
+        desc: str = "",
+        pos: int = 0,
+        obs: str = "",
+        adj_nombre: str = "",
+        adj_ruta: str = "",
+    ) -> tuple[str, int, str, str, str] | None:
+        """Abre el diálogo de edición de paso. Retorna (desc, pos, obs, adj_nombre, adj_ruta) o None."""
         dlg = QDialog(self)
-        dlg.setWindowTitle("Nuevo paso")
-        dlg.resize(400, 160)
+        dlg.setWindowTitle(titulo)
+        dlg.setMinimumWidth(460)
+        dlg.resize(480, 340)
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
-        desc_edit = QLineEdit()
+
+        desc_edit = QLineEdit(desc)
         pos_spin = QSpinBox()
         pos_spin.setRange(0, 9999)
-        pos_spin.setValue(
-            max((p[1] for p in self._repo.list_for_programa(self._programa_id)), default=-1) + 1
-        )
+        pos_spin.setValue(pos)
+        obs_edit = QLineEdit()
+        obs_edit.setText(obs)
+
+        adj_label = QLabel(adj_nombre or "Sin adjunto")
+        adj_label.setStyleSheet("color: gray;")
+        adj_path_holder: list[str] = [adj_ruta]
+        adj_name_holder: list[str] = [adj_nombre]
+
+        btn_adj = QPushButton("Seleccionar archivo…")
+
+        def _pick_file() -> None:
+            ruta, _ = QFileDialog.getOpenFileName(dlg, "Seleccionar adjunto")
+            if ruta:
+                adj_path_holder[0] = ruta
+                adj_name_holder[0] = Path(ruta).name
+                adj_label.setText(adj_name_holder[0])
+
+        btn_ver_adj = QPushButton("Ver")
+        btn_ver_adj.setEnabled(bool(adj_ruta and Path(adj_ruta).exists()))
+
+        def _ver_adjunto() -> None:
+            ruta = adj_path_holder[0]
+            if ruta and Path(ruta).exists():
+                QDesktopServices.openUrl(QUrl.fromLocalFile(ruta))
+            else:
+                QMessageBox.warning(dlg, "Adjunto", "El archivo no existe en disco.")
+
+        btn_adj.clicked.connect(_pick_file)
+        btn_ver_adj.clicked.connect(_ver_adjunto)
+
+        def _on_file_picked() -> None:
+            _pick_file()
+            btn_ver_adj.setEnabled(bool(adj_path_holder[0] and Path(adj_path_holder[0]).exists()))
+
+        btn_adj.clicked.disconnect(_pick_file)
+        btn_adj.clicked.connect(_on_file_picked)
+
+        adj_row = QHBoxLayout()
+        adj_row.addWidget(adj_label)
+        adj_row.addWidget(btn_ver_adj)
+        adj_row.addWidget(btn_adj)
+
         form.addRow("Descripción *", desc_edit)
         form.addRow("Posición", pos_spin)
+        form.addRow("Observaciones", obs_edit)
+        form.addRow("Adjunto", adj_row)
         layout.addLayout(form)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            desc = desc_edit.text().strip()
-            if not desc:
-                QMessageBox.warning(self, "Error", "La descripción no puede estar vacía.")
-                return
-            self._repo.create(self._programa_id, desc, pos_spin.value())
-            self._refresh()
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+        d = desc_edit.text().strip()
+        if not d:
+            QMessageBox.warning(self, "Error", "La descripción no puede estar vacía.")
+            return None
+        return d, pos_spin.value(), obs_edit.text().strip(), adj_name_holder[0], adj_path_holder[0]
+
+    def _agregar(self) -> None:
+        next_pos = max((p[1] for p in self._repo.list_for_programa(self._programa_id)), default=-1) + 1
+        result = self._paso_dialog("Nuevo paso", pos=next_pos)
+        if result is None:
+            return
+        desc, pos, obs, adj_nombre, adj_ruta = result
+        self._repo.create(self._programa_id, desc, pos, obs)
+        self._refresh()
+
+    def _editar(self) -> None:
+        paso_id = self._selected_paso_id()
+        if paso_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccione un paso.")
+            return
+        pasos = self._repo.list_for_programa(self._programa_id)
+        data = next((p for p in pasos if p[0] == paso_id), None)
+        if data is None:
+            return
+        _id, pos, desc, _activo, obs, adj_nombre, adj_ruta = data
+        result = self._paso_dialog("Editar paso", desc, pos, obs, adj_nombre, adj_ruta)
+        if result is None:
+            return
+        new_desc, new_pos, new_obs, new_adj_nombre, new_adj_ruta = result
+
+        # Si se seleccionó un nuevo archivo, copiarlo al directorio de adjuntos
+        if new_adj_ruta and new_adj_ruta != adj_ruta:
+            import shutil as _shutil
+            dest_dir = self._db.parent / "paso_adjuntos" / str(paso_id)
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / new_adj_nombre
+            _shutil.copy2(new_adj_ruta, dest)
+            new_adj_ruta = str(dest)
+
+        self._repo.update(paso_id, new_desc, new_pos, new_obs, new_adj_nombre, new_adj_ruta)
+        self._refresh()
 
     def _eliminar(self) -> None:
         paso_id = self._selected_paso_id()
@@ -3363,6 +3473,8 @@ class PasosDialog(QDialog):
 
 
 class ProgramaDialog(QDialog):
+    _last_frecuencia: int = 1
+
     def __init__(
         self,
         database_path: Path,
@@ -3402,7 +3514,7 @@ class ProgramaDialog(QDialog):
 
         self._frecuencia = QSpinBox()
         self._frecuencia.setRange(1, 120)
-        self._frecuencia.setValue(1)
+        self._frecuencia.setValue(ProgramaDialog._last_frecuencia if self._programa_id is None else 1)
         self._frecuencia.setSuffix(" meses")
         self._frecuencia.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
@@ -3410,11 +3522,8 @@ class ProgramaDialog(QDialog):
         self._ultima.setCalendarPopup(True)
         self._ultima.setDate(QDate.currentDate())
 
-        self._proxima = QDateEdit()
-        self._proxima.setCalendarPopup(True)
-        hoy = date.today()
-        proxima_default = hoy + timedelta(days=30)
-        self._proxima.setDate(QDate(proxima_default.year, proxima_default.month, proxima_default.day))
+        self._proxima_label = QLabel()
+        self._proxima_label.setStyleSheet("color: gray; padding: 2px 0;")
 
         self._activo = QCheckBox("Activo")
         self._activo.setChecked(True)
@@ -3423,7 +3532,7 @@ class ProgramaDialog(QDialog):
         form.addRow("Descripción *", self._descripcion)
         form.addRow("Frecuencia", self._frecuencia)
         form.addRow("Última ejecución", self._ultima)
-        form.addRow("Próxima ejecución", self._proxima)
+        form.addRow("Próxima ejecución", self._proxima_label)
         form.addRow("", self._activo)
 
         layout.addLayout(form)
@@ -3433,7 +3542,46 @@ class ProgramaDialog(QDialog):
         )
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
+
+        if self._programa_id is None:
+            self._btn_otra = buttons.addButton("Cargar otra", QDialogButtonBox.ButtonRole.ActionRole)
+            self._btn_otra.clicked.connect(self._guardar_y_nueva)
+
         layout.addWidget(buttons)
+
+        self._ultima.dateChanged.connect(self._actualizar_proxima)
+        self._frecuencia.valueChanged.connect(self._actualizar_proxima)
+        self._actualizar_proxima()
+
+    def _guardar_y_nueva(self) -> None:
+        equipo_id = self._equipo.currentData()
+        descripcion = self._descripcion.text().strip()
+        if equipo_id is None or not descripcion:
+            QMessageBox.warning(self, "Validación", "Equipo y descripción son requeridos.")
+            return
+        ProgramaDialog._last_frecuencia = self._frecuencia.value()
+        try:
+            self._repo.create(
+                equipo_id,
+                descripcion,
+                self._frecuencia.value(),
+                self._ultima.date().toString("yyyy-MM-dd"),
+                self._proxima_label.text(),
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+        self._descripcion.clear()
+        self._descripcion.setFocus()
+
+    def _actualizar_proxima(self) -> None:
+        ultima = self._ultima.date()
+        meses = self._frecuencia.value()
+        m = ultima.month() + meses
+        y = ultima.year() + (m - 1) // 12
+        m = (m - 1) % 12 + 1
+        d = min(ultima.day(), QDate(y, m, 1).daysInMonth())
+        self._proxima_label.setText(QDate(y, m, d).toString("yyyy-MM-dd"))
 
     def _load(self, programa_id: int) -> None:
         programas = self._repo.list_all()
@@ -3455,13 +3603,6 @@ class ProgramaDialog(QDialog):
             except ValueError:
                 pass
 
-        if prog.proxima_ejecucion:
-            try:
-                d = date.fromisoformat(prog.proxima_ejecucion)
-                self._proxima.setDate(QDate(d.year, d.month, d.day))
-            except ValueError:
-                pass
-
         self._activo.setChecked(prog.activo)
 
     def _save(self) -> None:
@@ -3472,6 +3613,8 @@ class ProgramaDialog(QDialog):
             QMessageBox.warning(self, "Validación", "Equipo y descripción son requeridos.")
             return
 
+        proxima_str = self._proxima_label.text()
+        ProgramaDialog._last_frecuencia = self._frecuencia.value()
         try:
             if self._programa_id is None:
                 self._repo.create(
@@ -3479,7 +3622,7 @@ class ProgramaDialog(QDialog):
                     descripcion,
                     self._frecuencia.value(),
                     self._ultima.date().toString("yyyy-MM-dd"),
-                    self._proxima.date().toString("yyyy-MM-dd"),
+                    proxima_str,
                 )
             else:
                 self._repo.update(
@@ -3488,7 +3631,7 @@ class ProgramaDialog(QDialog):
                     descripcion,
                     self._frecuencia.value(),
                     self._ultima.date().toString("yyyy-MM-dd"),
-                    self._proxima.date().toString("yyyy-MM-dd"),
+                    proxima_str,
                     self._activo.isChecked(),
                 )
             self.accept()

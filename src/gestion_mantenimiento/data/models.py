@@ -43,6 +43,7 @@ class Tecnico:
     telefono: str
     especialidad: str
     activo: bool
+    es_admin: bool = False
 
     @property
     def nombre_completo(self) -> str:

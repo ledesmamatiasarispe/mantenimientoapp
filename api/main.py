@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.auth import router as auth_router
 from api.database import initialize_api_database
+from api.routers.admin import router as admin_router
 from api.routers.biblioteca import router as biblioteca_router
 from api.routers.ordenes import router as ordenes_router
 
@@ -35,10 +36,15 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(ordenes_router)
     app.include_router(biblioteca_router)
+    app.include_router(admin_router)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
+        return FileResponse(INDEX_FILE, headers={"Cache-Control": "no-store"})
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa_fallback(path: str) -> FileResponse:
         return FileResponse(INDEX_FILE, headers={"Cache-Control": "no-store"})
 
     @app.middleware("http")

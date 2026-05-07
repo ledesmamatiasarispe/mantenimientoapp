@@ -43,6 +43,7 @@ def _serialize_tecnico(row: sqlite3.Row) -> TecnicoPublic:
         legajo=str(row["legajo"] or ""),
         telefono=str(row["telefono"] or ""),
         especialidad=str(row["especialidad"] or ""),
+        es_admin=bool(row["es_admin"]) if "es_admin" in row.keys() else False,
     )
 
 
@@ -61,6 +62,7 @@ def authenticate_tecnico(
             legajo,
             telefono,
             especialidad,
+            es_admin,
             password_hash,
             activo
         FROM tecnicos
@@ -99,7 +101,7 @@ def get_current_tecnico(token: TokenDep, connection: ConnectionDep) -> TecnicoPu
 
     row = connection.execute(
         """
-        SELECT id, nombre, apellido, legajo, telefono, especialidad, activo
+        SELECT id, nombre, apellido, legajo, telefono, especialidad, es_admin, activo
         FROM tecnicos
         WHERE id = ?
         """,
@@ -111,6 +113,18 @@ def get_current_tecnico(token: TokenDep, connection: ConnectionDep) -> TecnicoPu
 
 
 CurrentTecnicoDep = Annotated[TecnicoPublic, Depends(get_current_tecnico)]
+
+
+def _require_admin(current: CurrentTecnicoDep) -> TecnicoPublic:
+    if not current.es_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso de administrador requerido.",
+        )
+    return current
+
+
+AdminTecnicoDep = Annotated[TecnicoPublic, Depends(_require_admin)]
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -125,6 +139,16 @@ def login(payload: LoginRequest, connection: ConnectionDep) -> TokenResponse:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales inválidas.",
         )
+    if not tecnico.es_admin:
+        hay_admins = connection.execute(
+            "SELECT 1 FROM tecnicos WHERE es_admin = 1 AND activo = 1 LIMIT 1"
+        ).fetchone()
+        if hay_admins is None:
+            connection.execute(
+                "UPDATE tecnicos SET es_admin = 1 WHERE id = ?", (tecnico.id,)
+            )
+            connection.commit()
+            tecnico = tecnico.model_copy(update={"es_admin": True})
     return TokenResponse(
         access_token=create_access_token(tecnico=tecnico),
         token_type="bearer",

@@ -7,6 +7,7 @@ echo Iniciando API de tecnicos...
 echo.
 echo Acceder desde el celular (misma red WiFi):
 echo   http://mantenimiento:54321
+echo   o por IP: http://192.168.0.116:54321
 echo.
 echo Presiona Ctrl+C para detener.
 echo.

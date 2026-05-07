@@ -10,6 +10,7 @@ class TecnicoPublic(BaseModel):
     legajo: str
     telefono: str
     especialidad: str
+    es_admin: bool = False
 
     @property
     def nombre_completo(self) -> str:
@@ -46,6 +47,8 @@ class PasoItem(BaseModel):
     posicion: int
     descripcion: str
     completado: bool = False
+    adjunto_nombre: str = ""
+    observaciones: str = ""
 
 
 class FotoOrdenItem(BaseModel):
@@ -158,6 +161,8 @@ class EquipoDetail(EquipoCard):
 
 class CronogramaFila(BaseModel):
     programa_id: int
+    equipo_id: int
+    equipo_nombre: str
     etiqueta: str          # "Equipo — Descripción"
     meses: dict[str, str]  # "1".."12" → "planned" | "activa" | "completada"
 
@@ -172,4 +177,138 @@ class ProgramaDetail(BaseModel):
     proxima_ejecucion: str
     adjuntos: list[ProgramaAdjuntoItem]
     pasos: list[PasoItem] = []
+
+
+# ── Admin models ──────────────────────────────────────────────────────────────
+
+class TipoEquipoItem(BaseModel):
+    id: int
+    nombre: str
+    activo: bool
+
+
+class TipoEquipoRequest(BaseModel):
+    nombre: str
+    activo: bool = True
+
+
+class AdminEquipoItem(BaseModel):
+    id: int
+    nombre: str
+    tipo_id: int | None
+    tipo_nombre: str
+    numero_serie: str
+    marca: str
+    modelo: str
+    ubicacion: str
+    fecha_adquisicion: str
+    observaciones: str
+    activo: bool
+
+
+class AdminEquipoRequest(BaseModel):
+    nombre: str
+    tipo_id: int | None = None
+    numero_serie: str = ""
+    marca: str = ""
+    modelo: str = ""
+    ubicacion: str = ""
+    fecha_adquisicion: str = ""
+    observaciones: str = ""
+    activo: bool = True
+
+
+class AdminProgramaItem(BaseModel):
+    id: int
+    equipo_id: int
+    equipo_nombre: str
+    descripcion: str
+    frecuencia_meses: int
+    ultima_ejecucion: str
+    proxima_ejecucion: str
+    activo: bool
+
+
+class AdminProgramaRequest(BaseModel):
+    equipo_id: int
+    descripcion: str
+    frecuencia_meses: int
+    ultima_ejecucion: str
+    activo: bool = True
+
+
+class AdminRepuestoItem(BaseModel):
+    id: int
+    nombre: str
+    observaciones: str
+    stock_actual: float
+    stock_minimo: float
+    activo: bool
+
+
+class AdminRepuestoRequest(BaseModel):
+    nombre: str
+    observaciones: str = ""
+    stock_actual: float = 0
+    stock_minimo: float = 0
+    activo: bool = True
+
+
+class AdminTecnicoItem(BaseModel):
+    id: int
+    nombre: str
+    apellido: str
+    legajo: str
+    telefono: str
+    especialidad: str
+    activo: bool
+
+
+class AdminTecnicoCreate(BaseModel):
+    nombre: str
+    apellido: str
+    legajo: str
+    telefono: str = ""
+    especialidad: str = ""
+    password: str
+
+
+class AdminTecnicoUpdate(BaseModel):
+    nombre: str
+    apellido: str
+    legajo: str
+    telefono: str = ""
+    especialidad: str = ""
+    activo: bool = True
+
+
+class SetPasswordRequest(BaseModel):
+    password: str
+
+
+class AdminPasoItem(BaseModel):
+    id: int
+    posicion: int
+    descripcion: str
+    observaciones: str
+    adjunto_nombre: str
+    activo: bool
+
+
+class AdminPasoRequest(BaseModel):
+    descripcion: str
+    posicion: int = 0
+    observaciones: str = ""
+
+
+class AdminOrdenRequest(BaseModel):
+    equipo_id: int
+    tipo: str
+    descripcion: str = ""
+    fecha_apertura: str
+    fecha_cierre: str = ""
+    estado: str
+    tecnico_id: int | None = None
+    costo_mano_obra: float = 0
+    observaciones: str = ""
 

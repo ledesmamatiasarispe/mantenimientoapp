@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS tecnicos (
     telefono TEXT NOT NULL DEFAULT '',
     especialidad TEXT NOT NULL DEFAULT '',
     activo INTEGER NOT NULL DEFAULT 1,
+    es_admin INTEGER NOT NULL DEFAULT 0,
     creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -214,11 +215,14 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_repuestos(connection)
         _migrate_repuestos_orden_repuesto_id(connection)
         _migrate_tecnicos_password_hash(connection)
+        _migrate_tecnicos_es_admin(connection)
         _migrate_orden_colaboradores(connection)
         _migrate_orden_programas(connection)
         _migrate_programa_adjuntos(connection)
         _migrate_orden_adjuntos(connection)
         _migrate_programa_pasos(connection)
+        _migrate_programa_pasos_observaciones(connection)
+        _migrate_programa_pasos_adjunto(connection)
         _migrate_orden_paso_estado(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
@@ -316,6 +320,15 @@ def _migrate_tecnicos_password_hash(connection: sqlite3.Connection) -> None:
         )
 
 
+def _migrate_tecnicos_es_admin(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "tecnicos"):
+        return
+    if "es_admin" not in _table_columns(connection, "tecnicos"):
+        connection.execute(
+            "ALTER TABLE tecnicos ADD COLUMN es_admin INTEGER NOT NULL DEFAULT 0"
+        )
+
+
 def _migrate_orden_adjuntos(connection: sqlite3.Connection) -> None:
     connection.execute(
         """
@@ -351,6 +364,29 @@ def _migrate_programa_pasos(connection: sqlite3.Connection) -> None:
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_programa_pasos_programa_id ON programa_pasos(programa_id)"
     )
+
+
+def _migrate_programa_pasos_observaciones(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "programa_pasos"):
+        return
+    if "observaciones" not in _table_columns(connection, "programa_pasos"):
+        connection.execute(
+            "ALTER TABLE programa_pasos ADD COLUMN observaciones TEXT NOT NULL DEFAULT ''"
+        )
+
+
+def _migrate_programa_pasos_adjunto(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "programa_pasos"):
+        return
+    cols = _table_columns(connection, "programa_pasos")
+    if "adjunto_nombre" not in cols:
+        connection.execute(
+            "ALTER TABLE programa_pasos ADD COLUMN adjunto_nombre TEXT NOT NULL DEFAULT ''"
+        )
+    if "adjunto_ruta" not in cols:
+        connection.execute(
+            "ALTER TABLE programa_pasos ADD COLUMN adjunto_ruta TEXT NOT NULL DEFAULT ''"
+        )
 
 
 def _migrate_orden_paso_estado(connection: sqlite3.Connection) -> None:

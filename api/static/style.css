@@ -67,6 +67,7 @@ button, input, textarea { font: inherit; }
 .button.primary { background: var(--primary); color: #fff; }
 .button.success { background: var(--success); color: #fff; }
 .button.secondary { background: var(--surface-soft); color: var(--text); }
+.button.danger { background: #dc2626; color: #fff; }
 
 .error { color: var(--danger); font-size: 14px; margin-top: 12px; }
 
@@ -156,9 +157,24 @@ button, input, textarea { font: inherit; }
   font-size: 14px;
   line-height: 1.4;
 }
-.paso-item.completado span { text-decoration: line-through; color: var(--muted); }
+.paso-item.completado span { color: #15803d; font-weight: 500; }
 .paso-item input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; }
 .paso-item input:disabled { cursor: default; }
+.paso-fila { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+.paso-fila .paso-item { flex: 1; }
+.paso-detalle {
+  margin: 2px 0 4px 24px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border-left: 3px solid var(--primary, #2563eb);
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.paso-detalle-titulo { font-weight: 600; }
+.paso-adjunto-link { color: var(--primary, #2563eb); text-decoration: none; font-size: 13px; }
 
 /* Fotos adjuntas a la orden */
 #fotos-lista {
@@ -166,6 +182,28 @@ button, input, textarea { font: inherit; }
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 8px;
+}
+.foto-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+.foto-item .eliminar-foto-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #fff;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  line-height: 22px;
+  text-align: center;
+  cursor: pointer;
 }
 .foto-thumb {
   display: flex;
@@ -234,6 +272,34 @@ button, input, textarea { font: inherit; }
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-table th {
+  text-align: left;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.admin-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.admin-table tr:last-child td { border-bottom: none; }
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 15px;
+  line-height: 1;
+  text-decoration: none;
 }
 
 @media (min-width: 760px) {
