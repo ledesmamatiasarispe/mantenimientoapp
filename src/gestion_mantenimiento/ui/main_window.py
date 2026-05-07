@@ -1370,39 +1370,65 @@ class MainWindow(QMainWindow):
         COLOR_ACTIVA     = QColor("#FFE699")  # amarillo    — orden abierta
         COLOR_COMPLETADA = QColor("#C6EFCE")  # verde claro — completada
         COLOR_COMP_HOY   = QColor("#70AD47")  # verde oscuro — completada mes actual
+        COLOR_SEP        = QColor("#4A4A4A")  # gris oscuro  — separador entre máquinas
         hoy = date.today()
+
+        # Agrupar programas por equipo para insertar separadores
+        grupos: list[list] = []  # lista de grupos, cada grupo es lista de programas
+        for prog in programas:
+            if not grupos or grupos[-1][0].equipo_id != prog.equipo_id:
+                grupos.append([])
+            grupos[-1].append(prog)
+
+        # Calcular número total de filas (programas + separadores entre grupos)
+        n_separadores = max(0, len(grupos) - 1)
+        total_rows = len(programas) + n_separadores
 
         tabla = self._crono_tabla
         tabla.clear()
         tabla.setColumnCount(13)
-        tabla.setRowCount(len(programas))
+        tabla.setRowCount(total_rows)
         tabla.setHorizontalHeaderLabels(["Máquina — Mantenimiento"] + _MESES)
         tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for col in range(1, 13):
             tabla.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
-        for row, prog in enumerate(programas):
-            etiqueta = f"{prog.equipo_nombre}  —  {prog.descripcion}"
-            tabla.setItem(row, 0, QTableWidgetItem(etiqueta))
+        tabla_row = 0
+        for g_idx, grupo in enumerate(grupos):
+            # Separador entre máquinas (excepto antes del primer grupo)
+            if g_idx > 0:
+                tabla.setRowHeight(tabla_row, 5)
+                for col in range(13):
+                    sep_item = QTableWidgetItem("")
+                    sep_item.setBackground(QBrush(COLOR_SEP))
+                    sep_item.setFlags(Qt.ItemFlag.NoItemFlags)
+                    tabla.setItem(tabla_row, col, sep_item)
+                tabla_row += 1
 
-            for mes in range(1, 13):
-                es_hoy = (anio == hoy.year and mes == hoy.month)
-                if mes in completadas.get(prog.id, set()):
-                    color = COLOR_COMP_HOY if es_hoy else COLOR_COMPLETADA
-                    label = "✔"
-                elif mes in activas.get(prog.id, set()):
-                    color = COLOR_ACTIVA
-                    label = "⏳"
-                elif mes in planned.get(prog.id, set()):
-                    color = COLOR_PLANNED
-                    label = "·"
-                else:
-                    tabla.setItem(row, mes, QTableWidgetItem(""))
-                    continue
-                item = QTableWidgetItem(label)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                item.setBackground(QBrush(color))
-                tabla.setItem(row, mes, item)
+            for prog in grupo:
+                etiqueta = f"{prog.equipo_nombre}  —  {prog.descripcion}"
+                tabla.setItem(tabla_row, 0, QTableWidgetItem(etiqueta))
+
+                for mes in range(1, 13):
+                    es_hoy = (anio == hoy.year and mes == hoy.month)
+                    if mes in completadas.get(prog.id, set()):
+                        color = COLOR_COMP_HOY if es_hoy else COLOR_COMPLETADA
+                        label = "✔"
+                    elif mes in activas.get(prog.id, set()):
+                        color = COLOR_ACTIVA
+                        label = "⏳"
+                    elif mes in planned.get(prog.id, set()):
+                        color = COLOR_PLANNED
+                        label = "·"
+                    else:
+                        tabla.setItem(tabla_row, mes, QTableWidgetItem(""))
+                        continue
+                    item = QTableWidgetItem(label)
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    item.setBackground(QBrush(color))
+                    tabla.setItem(tabla_row, mes, item)
+
+                tabla_row += 1
 
     # ── Técnicos ─────────────────────────────────────────────────────────────
 
