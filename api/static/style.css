@@ -183,6 +183,59 @@ button, input, textarea { font: inherit; }
   border: 1px solid var(--border);
 }
 
+/* Cronograma */
+.crono-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+.crono-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+  white-space: nowrap;
+}
+.crono-table th, .crono-table td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: center;
+}
+.crono-label-header, .crono-label {
+  text-align: left;
+  min-width: 160px;
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  font-weight: normal;
+}
+.crono-label-header { font-weight: bold; }
+.crono-table th { background: var(--surface-soft); font-weight: 600; }
+.mes-hoy { background: var(--primary); color: #fff; }
+
+.crono-planned    { background: #BDD7EE; }
+.crono-activa     { background: #FFE699; }
+.crono-completada { background: #C6EFCE; }
+.crono-hoy.crono-completada { background: #70AD47; color: #fff; }
+.crono-hoy.crono-activa     { background: #f0b429; }
+.crono-hoy.crono-planned    { background: #6baed6; color: #fff; }
+
+.crono-leyenda {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  padding: 8px 16px;
+  flex-wrap: wrap;
+  color: var(--muted);
+}
+.crono-dot { font-size: 16px; }
+.crono-anio-select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
 @media (min-width: 760px) {
   .app-shell {
     width: min(100%, 880px);

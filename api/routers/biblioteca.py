@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import calendar
 import mimetypes
 import sqlite3
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from api.auth import CurrentTecnicoDep
 from api.database import get_db
 from api.models import (
+    CronogramaFila,
     EquipoCard,
     EquipoDetail,
     HistorialOrdenItem,
@@ -332,3 +335,102 @@ def get_historial_equipo(
             )
         )
     return items
+
+
+@router.get("/api/cronograma", response_model=list[CronogramaFila])
+def get_cronograma(
+    _: CurrentTecnicoDep,
+    connection: ConnectionDep,
+    anio: int = Query(default=0),
+) -> list[CronogramaFila]:
+    if anio == 0:
+        anio = date.today().year
+    anio_str = str(anio)
+
+    programas = connection.execute(
+        """
+        SELECT p.id, p.frecuencia_meses, p.proxima_ejecucion,
+               e.nombre AS equipo_nombre,
+               COALESCE(p.descripcion, '') AS descripcion
+        FROM programas_mantenimiento p
+        JOIN equipos e ON e.id = p.equipo_id
+        WHERE p.activo = 1
+        ORDER BY e.nombre, p.descripcion
+        """
+    ).fetchall()
+
+    # Órdenes del año vinculadas a programas
+    orden_rows = connection.execute(
+        """
+        SELECT
+            op.programa_id,
+            o.estado,
+            CAST(strftime('%m', o.fecha_apertura) AS INTEGER) AS mes_ap,
+            CAST(strftime('%m',
+                COALESCE(NULLIF(o.fecha_cierre,''), o.fecha_apertura)) AS INTEGER) AS mes_ci
+        FROM ordenes_trabajo o
+        JOIN orden_programas op ON op.orden_id = o.id
+        WHERE strftime('%Y', o.fecha_apertura) = ?
+           OR strftime('%Y', o.fecha_cierre)   = ?
+        """,
+        (anio_str, anio_str),
+    ).fetchall()
+
+    from collections import defaultdict
+    activas:     dict[int, set[int]] = defaultdict(set)
+    completadas: dict[int, set[int]] = defaultdict(set)
+    for prog_id, estado, mes_ap, mes_ci in orden_rows:
+        if estado == "COMPLETADA":
+            if mes_ci:
+                completadas[int(prog_id)].add(int(mes_ci))
+        elif estado in ("PENDIENTE", "EN_PROGRESO"):
+            if mes_ap:
+                activas[int(prog_id)].add(int(mes_ap))
+
+    def _planned_months(proxima_str: str, freq: int) -> set[int]:
+        try:
+            proxima = date.fromisoformat(proxima_str)
+        except ValueError:
+            return set()
+        freq = max(1, freq)
+        cur = proxima
+        while True:
+            pm = cur.month - freq
+            py = cur.year + (pm - 1) // 12
+            pm = ((pm - 1) % 12) + 1
+            last = calendar.monthrange(py, pm)[1]
+            prev = cur.replace(year=py, month=pm, day=min(cur.day, last))
+            if prev.year < anio:
+                break
+            cur = prev
+        result: set[int] = set()
+        while cur.year <= anio:
+            if cur.year == anio:
+                result.add(cur.month)
+            nm = cur.month + freq
+            ny = cur.year + (nm - 1) // 12
+            nm = ((nm - 1) % 12) + 1
+            last = calendar.monthrange(ny, nm)[1]
+            cur = cur.replace(year=ny, month=nm, day=min(cur.day, last))
+        return result
+
+    filas: list[CronogramaFila] = []
+    for row in programas:
+        prog_id  = int(row["id"])
+        freq     = int(row["frecuencia_meses"] or 1)
+        proxima  = str(row["proxima_ejecucion"] or "")
+        planned  = _planned_months(proxima, freq)
+
+        meses: dict[str, str] = {}
+        for mes in range(1, 13):
+            if mes in completadas.get(prog_id, set()):
+                meses[str(mes)] = "completada"
+            elif mes in activas.get(prog_id, set()):
+                meses[str(mes)] = "activa"
+            elif mes in planned:
+                meses[str(mes)] = "planned"
+
+        etiqueta = f"{row['equipo_nombre']} — {row['descripcion']}"
+        filas.append(CronogramaFila(programa_id=prog_id, etiqueta=etiqueta, meses=meses))
+
+    return filas

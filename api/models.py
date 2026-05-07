@@ -156,6 +156,12 @@ class EquipoDetail(EquipoCard):
     programas: list[ProgramaResumen]
 
 
+class CronogramaFila(BaseModel):
+    programa_id: int
+    etiqueta: str          # "Equipo — Descripción"
+    meses: dict[str, str]  # "1".."12" → "planned" | "activa" | "completada"
+
+
 class ProgramaDetail(BaseModel):
     id: int
     equipo_id: int

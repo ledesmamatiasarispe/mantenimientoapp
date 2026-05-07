@@ -2,6 +2,7 @@ const state = {
   token: localStorage.getItem("gm_token") || "",
   tecnico: JSON.parse(localStorage.getItem("gm_tecnico") || "null"),
   tab: "pendientes",
+  cronogramaAnio: new Date().getFullYear(),
 };
 
 function setAuth(token, tecnico) {
@@ -61,6 +62,7 @@ function layout(content, active = "ordenes") {
     <nav class="bottom-nav">
       <a class="nav-link ${active === "ordenes" ? "active" : ""}" href="#ordenes">Órdenes</a>
       <a class="nav-link ${active === "biblioteca" ? "active" : ""}" href="#biblioteca">Biblioteca</a>
+      <a class="nav-link ${active === "cronograma" ? "active" : ""}" href="#cronograma">Cronograma</a>
     </nav>
   `;
 }
@@ -638,6 +640,64 @@ async function renderNuevaOrden() {
   });
 }
 
+const _MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+async function renderCronograma() {
+  renderLoading("Cargando cronograma...");
+  const anioActual = new Date().getFullYear();
+  const anio = state.cronogramaAnio ?? anioActual;
+
+  const filas = await apiFetch(`/api/cronograma?anio=${anio}`);
+  const mesHoy = new Date().getMonth() + 1;
+
+  const optsAnio = [];
+  for (let y = anioActual - 2; y <= anioActual + 4; y++) {
+    optsAnio.push(`<option value="${y}" ${y === anio ? "selected" : ""}>${y}</option>`);
+  }
+
+  const headerCols = _MESES_CORTOS.map((m, i) => `<th class="${i + 1 === mesHoy && anio === anioActual ? "mes-hoy" : ""}">${m}</th>`).join("");
+
+  const bodyRows = filas.map((fila) => {
+    const celdas = _MESES_CORTOS.map((_, i) => {
+      const mes = i + 1;
+      const estado = fila.meses[String(mes)];
+      const esHoy = mes === mesHoy && anio === anioActual;
+      if (estado === "completada") return `<td class="crono-completada ${esHoy ? "crono-hoy" : ""}">✔</td>`;
+      if (estado === "activa")     return `<td class="crono-activa ${esHoy ? "crono-hoy" : ""}">⏳</td>`;
+      if (estado === "planned")    return `<td class="crono-planned ${esHoy ? "crono-hoy" : ""}">·</td>`;
+      return `<td class="${esHoy ? "crono-hoy" : ""}"></td>`;
+    }).join("");
+    return `<tr><td class="crono-label">${escapeHtml(fila.etiqueta)}</td>${celdas}</tr>`;
+  }).join("");
+
+  document.querySelector("#app").innerHTML = layout(`
+    <div class="topbar">
+      <div>
+        <h1>Cronograma</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="crono-anio" class="crono-anio-select">${optsAnio.join("")}</select>
+      </div>
+    </div>
+    <div class="crono-leyenda">
+      <span class="crono-dot crono-planned">·</span> Planificado
+      <span class="crono-dot crono-activa">⏳</span> Abierta
+      <span class="crono-dot crono-completada">✔</span> Completada
+    </div>
+    <div class="crono-scroll">
+      <table class="crono-table">
+        <thead><tr><th class="crono-label-header">Mantenimiento</th>${headerCols}</tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+  `, "cronograma");
+
+  document.querySelector("#crono-anio").addEventListener("change", (e) => {
+    state.cronogramaAnio = Number(e.target.value);
+    renderCronograma();
+  });
+}
+
 async function handleLoginSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -679,6 +739,10 @@ async function render() {
   }
   if (path === "biblioteca") {
     await renderBiblioteca();
+    return;
+  }
+  if (path === "cronograma") {
+    await renderCronograma();
     return;
   }
   if (path.startsWith("equipo/")) {
