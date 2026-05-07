@@ -1626,22 +1626,9 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QListWidget, QListWidgetItem
         self._nav_list_widget = QListWidget()
         self._nav_list_widget.setDragDropMode(QListWidget.DragDropMode.InternalMove)
-        self._nav_list_widget.setFixedHeight(240)
+        self._nav_list_widget.setMinimumHeight(len(_NAV_ITEMS) * 30 + 8)
         self._nav_list_widget.setToolTip("Arrastrá para reordenar · Tildá para mostrar u ocultar")
-
-        _labels = {key: label for label, key in _NAV_ITEMS}
-        for key, visible in self._load_nav_settings():
-            item = QListWidgetItem(_labels.get(key, key))
-            item.setData(Qt.ItemDataRole.UserRole, key)
-            item.setFlags(
-                Qt.ItemFlag.ItemIsEnabled
-                | Qt.ItemFlag.ItemIsSelectable
-                | Qt.ItemFlag.ItemIsUserCheckable
-                | Qt.ItemFlag.ItemIsDragEnabled
-                | Qt.ItemFlag.ItemIsDropEnabled
-            )
-            item.setCheckState(Qt.CheckState.Checked if visible else Qt.CheckState.Unchecked)
-            self._nav_list_widget.addItem(item)
+        self._reload_nav_list_widget()
 
         nav_btn_row = QHBoxLayout()
         btn_nav_up   = QPushButton("↑ Subir")
@@ -1716,9 +1703,32 @@ class MainWindow(QMainWindow):
         btn_row.addWidget(btn_save)
         layout.addLayout(btn_row)
 
+        def _refresh_opciones() -> None:
+            self._reload_nav_list_widget()
+
+        page._refresh = _refresh_opciones  # type: ignore[attr-defined]
+
         scroll.setWidget(content)
         outer.addWidget(scroll)
         return page
+
+    def _reload_nav_list_widget(self) -> None:
+        from PySide6.QtWidgets import QListWidgetItem
+        lw = self._nav_list_widget
+        lw.clear()
+        _labels = {key: label for label, key in _NAV_ITEMS}
+        for key, visible in self._load_nav_settings():
+            item = QListWidgetItem(_labels.get(key, key))
+            item.setData(Qt.ItemDataRole.UserRole, key)
+            item.setFlags(
+                Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemIsSelectable
+                | Qt.ItemFlag.ItemIsUserCheckable
+                | Qt.ItemFlag.ItemIsDragEnabled
+                | Qt.ItemFlag.ItemIsDropEnabled
+            )
+            item.setCheckState(Qt.CheckState.Checked if visible else Qt.CheckState.Unchecked)
+            lw.addItem(item)
 
     def _opciones_save_nav(self) -> None:
         lw = self._nav_list_widget
