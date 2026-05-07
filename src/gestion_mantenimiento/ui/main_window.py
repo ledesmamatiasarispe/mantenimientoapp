@@ -233,6 +233,11 @@ class MainWindow(QMainWindow):
         self._alertas_timer = QTimer(self)
         self._alertas_timer.timeout.connect(self._refresh_alertas_badge)
         self._alertas_timer.start(5 * 60 * 1000)
+        # Generación automática: al inicio y luego cada 24 horas
+        self._auto_generar_ordenes()
+        self._auto_gen_timer = QTimer(self)
+        self._auto_gen_timer.timeout.connect(self._auto_generar_ordenes)
+        self._auto_gen_timer.start(24 * 60 * 60 * 1000)
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -1193,6 +1198,54 @@ class MainWindow(QMainWindow):
             partes = ["No hay máquinas con mantenimientos que venzan este mes."]
         QMessageBox.information(self, "Generar órdenes", "\n".join(partes))
         self._refresh_programas()
+
+    def _auto_generar_ordenes(self) -> None:
+        """Genera automáticamente órdenes preventivas para programas vencidos o que vencen hoy."""
+        hoy = date.today()
+        programas = self._programa_repo.list_all(solo_activos=True)
+        creadas = 0
+
+        for p in programas:
+            if not p.proxima_ejecucion:
+                continue
+            try:
+                proxima = date.fromisoformat(p.proxima_ejecucion)
+            except ValueError:
+                continue
+            if proxima > hoy:
+                continue  # Aún no vence
+
+            # ¿Ya existe una orden pendiente o en progreso para este programa?
+            existing = self._orden_programa_repo.find_orden_pendiente(
+                p.equipo_id, [p.id]
+            )
+            if existing is not None:
+                # Orden ya existe — solo avanzar la fecha si está vencida
+                if proxima < hoy:
+                    self._programa_repo.advance_proxima(p.id, p.proxima_ejecucion, p.frecuencia_meses)
+                continue
+
+            orden_data = OrdenTrabajoCreate(
+                equipo_id=p.equipo_id,
+                tipo="PREVENTIVO",
+                descripcion=f"Mantenimiento preventivo — {p.descripcion}",
+                fecha_apertura=hoy.isoformat(),
+                fecha_cierre="",
+                estado="PENDIENTE",
+                tecnico_id=None,
+                costo_mano_obra=0.0,
+                observaciones=(
+                    f"Generada automáticamente. Programa: {p.descripcion} "
+                    f"(frecuencia: {p.frecuencia_meses} meses)"
+                ),
+            )
+            orden_id = self._orden_repo.create(orden_data)
+            self._orden_programa_repo.link(orden_id, p.id)
+            self._programa_repo.advance_proxima(p.id, p.proxima_ejecucion, p.frecuencia_meses)
+            creadas += 1
+
+        if creadas > 0:
+            self._refresh_alertas_badge()
 
     # ── Cronograma ───────────────────────────────────────────────────────────
 

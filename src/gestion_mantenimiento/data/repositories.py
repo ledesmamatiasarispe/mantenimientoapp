@@ -696,6 +696,33 @@ class ProgramaMantenimientoRepository:
             )
             conn.commit()
 
+    def advance_proxima(self, programa_id: int, desde: str, frecuencia_meses: int) -> str:
+        """Avanza proxima_ejecucion en frecuencia_meses meses y devuelve la nueva fecha."""
+        try:
+            d = date.fromisoformat(desde)
+        except ValueError:
+            return desde
+        # Calcular nueva fecha respetando fin de mes
+        new_month = d.month + frecuencia_meses
+        new_year  = d.year + (new_month - 1) // 12
+        new_month = ((new_month - 1) % 12) + 1
+        # Preservar día o truncar al fin del mes destino
+        import calendar
+        last_day = calendar.monthrange(new_year, new_month)[1]
+        nueva = d.replace(year=new_year, month=new_month, day=min(d.day, last_day))
+        nueva_str = nueva.isoformat()
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                """
+                UPDATE programas_mantenimiento
+                SET proxima_ejecucion = ?, actualizado_en = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (nueva_str, programa_id),
+            )
+            conn.commit()
+        return nueva_str
+
     def delete(self, programa_id: int) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute(
