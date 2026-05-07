@@ -1215,18 +1215,14 @@ class MainWindow(QMainWindow):
             if proxima > hoy:
                 continue  # Aún no vence
 
-            # ¿Ya existe una orden pendiente o en progreso?
+            # Hay una orden abierta: el trabajo está en curso, no hacer nada
             if self._orden_programa_repo.find_orden_pendiente(p.equipo_id, [p.id]) is not None:
-                # Hay una orden abierta — solo avanzar fecha si ya venció
-                if proxima < hoy:
-                    self._programa_repo.advance_proxima(p.id, p.proxima_ejecucion, p.frecuencia_meses)
                 continue
 
-            # ¿Ya existe una orden COMPLETADA que cubre este ciclo?
+            # El trabajo ya fue completado en este ciclo: avanzar sin crear orden
             if self._orden_programa_repo.find_orden_completada_desde(
                 p.equipo_id, [p.id], p.proxima_ejecucion
             ) is not None:
-                # El trabajo ya fue hecho — solo avanzar la fecha al siguiente ciclo
                 self._programa_repo.advance_proxima(p.id, p.proxima_ejecucion, p.frecuencia_meses)
                 continue
 
