@@ -130,6 +130,7 @@ _NAV_ITEMS = [
     ("Repuestos", "repuestos"),
     ("Órdenes de Trabajo", "ordenes"),
     ("Programa Mantenimiento", "programa"),
+    ("Cronograma", "cronograma"),
     ("Técnicos", "tecnicos"),
     ("Opciones", "opciones"),
 ]
@@ -388,6 +389,7 @@ class MainWindow(QMainWindow):
             "repuestos": self._build_repuestos_page,
             "ordenes": self._build_ordenes_page,
             "programa": self._build_programa_page,
+            "cronograma": self._build_cronograma_page,
             "tecnicos": self._build_tecnicos_page,
             "opciones": self._build_opciones_page,
         }
@@ -1145,6 +1147,133 @@ class MainWindow(QMainWindow):
             partes = ["No hay máquinas con mantenimientos que venzan este mes."]
         QMessageBox.information(self, "Generar órdenes", "\n".join(partes))
         self._refresh_programas()
+
+    # ── Cronograma ───────────────────────────────────────────────────────────
+
+    def _build_cronograma_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        layout.addWidget(_page_title("Cronograma de mantenimiento"))
+
+        # Selector de año
+        top_bar = QHBoxLayout()
+        top_bar.addWidget(QLabel("Año:"))
+        self._crono_year_combo = QComboBox()
+        anio_actual = date.today().year
+        for y in range(anio_actual - 2, anio_actual + 5):
+            self._crono_year_combo.addItem(str(y), y)
+        self._crono_year_combo.setCurrentText(str(anio_actual))
+        self._crono_year_combo.currentIndexChanged.connect(self._refresh_cronograma)
+        top_bar.addWidget(self._crono_year_combo)
+        top_bar.addStretch()
+        layout.addLayout(top_bar)
+
+        # Tabla de cronograma
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        self._crono_tabla = QTableWidget()
+        self._crono_tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._crono_tabla.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self._crono_tabla.verticalHeader().setVisible(False)
+        scroll.setWidget(self._crono_tabla)
+        layout.addWidget(scroll)
+
+        def _refresh(self_page: QWidget = page) -> None:
+            self._refresh_cronograma()
+
+        page._refresh = _refresh  # type: ignore[attr-defined]
+        return page
+
+    def _refresh_cronograma(self) -> None:
+        anio = self._crono_year_combo.currentData()
+        if anio is None:
+            return
+
+        equipo_repo = EquipoRepository(self._db)
+        prog_repo   = ProgramaMantenimientoRepository(self._db)
+
+        equipos  = [e for e in equipo_repo.list_all() if e.activo]
+        programas = prog_repo.list_all(solo_activos=True)
+
+        # Agrupar programas por equipo y por mes de proxima_ejecucion dentro del año
+        # Un programa aparece en el mes de su proxima_ejecucion si cae en el año seleccionado.
+        # También calculamos recurrencias: a partir de proxima_ejecucion cada frecuencia_meses.
+        from collections import defaultdict
+        # equipo_id → set of month numbers (1-12) with planned maintenance
+        planned: dict[int, set[int]] = defaultdict(set)
+
+        for prog in programas:
+            if not prog.proxima_ejecucion:
+                continue
+            try:
+                proxima = date.fromisoformat(prog.proxima_ejecucion)
+            except ValueError:
+                continue
+            freq = max(1, prog.frecuencia_meses)
+            # Proyectar desde la proxima hacia adelante para todo el año
+            # También proyectar hacia atrás desde proxima para cubrir meses anteriores
+            # Rango: buscar cuál es la primera ocurrencia que cae dentro del año
+            # Retroceder hasta el inicio del año
+            cur = proxima
+            # Retroceder mientras aún estemos dentro o antes del año
+            while True:
+                prev_month = cur.month - freq
+                prev_year  = cur.year + (prev_month - 1) // 12
+                prev_month = ((prev_month - 1) % 12) + 1
+                prev = cur.replace(year=prev_year, month=prev_month, day=min(cur.day, 28))
+                if prev.year < anio:
+                    break
+                cur = prev
+            # Ahora avanzar por el año seleccionado
+            while cur.year <= anio:
+                if cur.year == anio:
+                    planned[prog.equipo_id].add(cur.month)
+                next_month = cur.month + freq
+                next_year  = cur.year + (next_month - 1) // 12
+                next_month = ((next_month - 1) % 12) + 1
+                try:
+                    cur = cur.replace(year=next_year, month=next_month)
+                except ValueError:
+                    cur = cur.replace(year=next_year, month=next_month, day=28)
+
+        # Construir tabla
+        tabla = self._crono_tabla
+        tabla.clear()
+        tabla.setColumnCount(13)  # col 0 = equipo, col 1-12 = meses
+        tabla.setRowCount(len(equipos))
+
+        headers = ["Equipo"] + _MESES
+        tabla.setHorizontalHeaderLabels(headers)
+        tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for col in range(1, 13):
+            tabla.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+
+        color_ok  = QColor("#C6EFCE")   # verde claro
+        color_none = QColor(0, 0, 0, 0)  # transparente
+
+        hoy = date.today()
+
+        for row, equipo in enumerate(equipos):
+            nombre_item = QTableWidgetItem(equipo.nombre)
+            tabla.setItem(row, 0, nombre_item)
+            meses_planificados = planned.get(equipo.id, set())
+            for mes in range(1, 13):
+                if mes in meses_planificados:
+                    # Resaltar el mes actual con un tono más oscuro
+                    if anio == hoy.year and mes == hoy.month:
+                        cell_color = QColor("#70AD47")
+                    else:
+                        cell_color = color_ok
+                    item = QTableWidgetItem("✔")
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    item.setBackground(QBrush(cell_color))
+                else:
+                    item = QTableWidgetItem("")
+                    item.setBackground(QBrush(color_none))
+                tabla.setItem(row, mes, item)
 
     # ── Técnicos ─────────────────────────────────────────────────────────────
 
