@@ -277,12 +277,12 @@ class MainWindow(QMainWindow):
         layout.addSpacing(16)
 
         self._nav_buttons: dict[str, QPushButton] = {}
-        for label, key in _NAV_ITEMS:
-            btn = QPushButton(label, sidebar)
-            btn.setObjectName("navButton")
-            btn.clicked.connect(lambda checked, k=key: self._navigate(k))
-            layout.addWidget(btn)
-            self._nav_buttons[key] = btn
+        self._nav_container = QWidget(sidebar)
+        self._nav_layout = QVBoxLayout(self._nav_container)
+        self._nav_layout.setContentsMargins(0, 0, 0, 0)
+        self._nav_layout.setSpacing(4)
+        layout.addWidget(self._nav_container)
+        self._rebuild_nav_buttons()
 
         layout.addStretch()
 
@@ -385,6 +385,61 @@ class MainWindow(QMainWindow):
         self._stack.setCurrentWidget(page)
         if hasattr(page, "_refresh"):
             page._refresh()  # type: ignore[attr-defined]
+
+    # ── Nav settings (order + visibility) ────────────────────────────────────
+
+    def _load_nav_settings(self) -> list[tuple[str, bool]]:
+        """Returns ordered list of (key, visible). Missing keys appended at end as visible."""
+        from gestion_mantenimiento.data.paths import get_settings_path
+        import json as _json
+        path = get_settings_path()
+        saved: list[dict] = []
+        if path.exists():
+            try:
+                data = _json.loads(path.read_text(encoding="utf-8"))
+                saved = data.get("nav_items", [])
+            except Exception:
+                pass
+        saved_keys = {item["key"] for item in saved if isinstance(item, dict)}
+        result = [
+            (item["key"], bool(item.get("visible", True)))
+            for item in saved
+            if isinstance(item, dict) and item.get("key") in {k for _, k in _NAV_ITEMS}
+        ]
+        for _, key in _NAV_ITEMS:
+            if key not in saved_keys:
+                result.append((key, True))
+        return result
+
+    def _save_nav_settings(self, items: list[tuple[str, bool]]) -> None:
+        from gestion_mantenimiento.data.paths import get_settings_path
+        import json as _json
+        path = get_settings_path()
+        try:
+            data: dict = _json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        except Exception:
+            data = {}
+        data["nav_items"] = [{"key": k, "visible": v} for k, v in items]
+        path.write_text(_json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def _rebuild_nav_buttons(self) -> None:
+        """Clears and rebuilds sidebar nav buttons from saved order/visibility settings."""
+        _labels = {key: label for label, key in _NAV_ITEMS}
+        # Remove all widgets from nav layout
+        while self._nav_layout.count():
+            item = self._nav_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._nav_buttons.clear()
+
+        for key, visible in self._load_nav_settings():
+            label = _labels.get(key, key)
+            btn = QPushButton(label, self._nav_container)
+            btn.setObjectName("navButton")
+            btn.clicked.connect(lambda checked, k=key: self._navigate(k))
+            btn.setVisible(visible)
+            self._nav_layout.addWidget(btn)
+            self._nav_buttons[key] = btn
 
     def _build_page(self, key: str) -> QWidget:
         builders = {
@@ -1563,10 +1618,66 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(24, 24, 24, 32)
         layout.setSpacing(16)
 
-        layout.addWidget(_page_title("Opciones de apariencia"))
+        layout.addWidget(_page_title("Opciones"))
+
+        # ── Pestañas del menú ────────────────────────────────────────────────
+        layout.addWidget(_section_title("Pestañas del menú lateral"))
+
+        from PySide6.QtWidgets import QListWidget, QListWidgetItem
+        self._nav_list_widget = QListWidget()
+        self._nav_list_widget.setDragDropMode(QListWidget.DragDropMode.InternalMove)
+        self._nav_list_widget.setFixedHeight(240)
+        self._nav_list_widget.setToolTip("Arrastrá para reordenar · Tildá para mostrar u ocultar")
+
+        _labels = {key: label for label, key in _NAV_ITEMS}
+        for key, visible in self._load_nav_settings():
+            item = QListWidgetItem(_labels.get(key, key))
+            item.setData(Qt.ItemDataRole.UserRole, key)
+            item.setFlags(
+                Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemIsSelectable
+                | Qt.ItemFlag.ItemIsUserCheckable
+                | Qt.ItemFlag.ItemIsDragEnabled
+                | Qt.ItemFlag.ItemIsDropEnabled
+            )
+            item.setCheckState(Qt.CheckState.Checked if visible else Qt.CheckState.Unchecked)
+            self._nav_list_widget.addItem(item)
+
+        nav_btn_row = QHBoxLayout()
+        btn_nav_up   = QPushButton("↑ Subir")
+        btn_nav_down = QPushButton("↓ Bajar")
+        btn_nav_save = _primary_button("Aplicar")
+
+        def _nav_move(delta: int) -> None:
+            lw = self._nav_list_widget
+            row = lw.currentRow()
+            if row < 0:
+                return
+            target = row + delta
+            if target < 0 or target >= lw.count():
+                return
+            item = lw.takeItem(row)
+            lw.insertItem(target, item)
+            lw.setCurrentRow(target)
+
+        btn_nav_up.clicked.connect(lambda: _nav_move(-1))
+        btn_nav_down.clicked.connect(lambda: _nav_move(1))
+        btn_nav_save.clicked.connect(self._opciones_save_nav)
+
+        nav_btn_row.addWidget(btn_nav_up)
+        nav_btn_row.addWidget(btn_nav_down)
+        nav_btn_row.addStretch()
+        nav_btn_row.addWidget(btn_nav_save)
+
+        layout.addWidget(self._nav_list_widget)
+        layout.addLayout(nav_btn_row)
+
+        # ── Apariencia ───────────────────────────────────────────────────────
+        layout.addWidget(_section_title("Apariencia"))
 
         # ── Tipografía ───────────────────────────────────────────────────────
         layout.addWidget(_section_title("Tipografía"))
+
         tipo_form = QFormLayout()
         self._opciones_font_size = QSpinBox()
         self._opciones_font_size.setRange(10, 22)
@@ -1608,6 +1719,24 @@ class MainWindow(QMainWindow):
         scroll.setWidget(content)
         outer.addWidget(scroll)
         return page
+
+    def _opciones_save_nav(self) -> None:
+        lw = self._nav_list_widget
+        items: list[tuple[str, bool]] = []
+        for i in range(lw.count()):
+            item = lw.item(i)
+            if item is None:
+                continue
+            key = item.data(Qt.ItemDataRole.UserRole)
+            visible = item.checkState() == Qt.CheckState.Checked
+            items.append((key, visible))
+        self._save_nav_settings(items)
+        self._rebuild_nav_buttons()
+        # Navegar a la primera pestaña visible para no quedar en una oculta
+        for key, visible in items:
+            if visible:
+                self._navigate(key)
+                break
 
     def _opciones_pick_color(self, key: str) -> None:
         current = QColor(str(self._current_theme.get(key, "#000000")))
