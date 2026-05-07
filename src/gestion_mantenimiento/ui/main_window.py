@@ -1260,6 +1260,19 @@ class MainWindow(QMainWindow):
         self._crono_year_combo.setCurrentText(str(anio_actual))
         self._crono_year_combo.currentIndexChanged.connect(self._refresh_cronograma)
         top_bar.addWidget(self._crono_year_combo)
+        top_bar.addSpacing(24)
+
+        for color, texto in [
+            ("#BDD7EE", "Planificado"),
+            ("#FFE699", "Orden abierta"),
+            ("#C6EFCE", "Completado"),
+        ]:
+            lbl = QLabel(f"■ {texto}")
+            lbl.setStyleSheet(f"color: {color}; font-size: 13px; "
+                              f"-webkit-text-stroke: 0.6px #555; font-weight: bold;")
+            top_bar.addWidget(lbl)
+            top_bar.addSpacing(8)
+
         top_bar.addStretch()
         layout.addLayout(top_bar)
 
@@ -1284,19 +1297,16 @@ class MainWindow(QMainWindow):
         if anio is None:
             return
 
-        equipo_repo = EquipoRepository(self._db)
-        prog_repo   = ProgramaMantenimientoRepository(self._db)
-
-        equipos  = [e for e in equipo_repo.list_all() if e.activo]
-        programas = prog_repo.list_all(solo_activos=True)
-
-        # Agrupar programas por equipo y por mes de proxima_ejecucion dentro del año
-        # Un programa aparece en el mes de su proxima_ejecucion si cae en el año seleccionado.
-        # También calculamos recurrencias: a partir de proxima_ejecucion cada frecuencia_meses.
         from collections import defaultdict
-        # equipo_id → set of month numbers (1-12) with planned maintenance
-        planned: dict[int, set[int]] = defaultdict(set)
+        import sqlite3 as _sqlite3
+        from contextlib import closing as _closing
 
+        programas = self._programa_repo.list_all(solo_activos=True)
+        anio_str  = str(anio)
+
+        # ── Proyección de meses planificados por frecuencia ──────────────────
+        # programa_id → set[month]
+        planned: dict[int, set[int]] = defaultdict(set)
         for prog in programas:
             if not prog.proxima_ejecucion:
                 continue
@@ -1305,66 +1315,93 @@ class MainWindow(QMainWindow):
             except ValueError:
                 continue
             freq = max(1, prog.frecuencia_meses)
-            # Proyectar desde la proxima hacia adelante para todo el año
-            # También proyectar hacia atrás desde proxima para cubrir meses anteriores
-            # Rango: buscar cuál es la primera ocurrencia que cae dentro del año
-            # Retroceder hasta el inicio del año
             cur = proxima
-            # Retroceder mientras aún estemos dentro o antes del año
             while True:
-                prev_month = cur.month - freq
-                prev_year  = cur.year + (prev_month - 1) // 12
-                prev_month = ((prev_month - 1) % 12) + 1
-                prev = cur.replace(year=prev_year, month=prev_month, day=min(cur.day, 28))
+                pm = cur.month - freq
+                py = cur.year + (pm - 1) // 12
+                pm = ((pm - 1) % 12) + 1
+                prev = cur.replace(year=py, month=pm, day=min(cur.day, 28))
                 if prev.year < anio:
                     break
                 cur = prev
-            # Ahora avanzar por el año seleccionado
             while cur.year <= anio:
                 if cur.year == anio:
-                    planned[prog.equipo_id].add(cur.month)
-                next_month = cur.month + freq
-                next_year  = cur.year + (next_month - 1) // 12
-                next_month = ((next_month - 1) % 12) + 1
+                    planned[prog.id].add(cur.month)
+                nm = cur.month + freq
+                ny = cur.year + (nm - 1) // 12
+                nm = ((nm - 1) % 12) + 1
                 try:
-                    cur = cur.replace(year=next_year, month=next_month)
+                    cur = cur.replace(year=ny, month=nm)
                 except ValueError:
-                    cur = cur.replace(year=next_year, month=next_month, day=28)
+                    cur = cur.replace(year=ny, month=nm, day=28)
 
-        # Construir tabla
+        # ── Órdenes reales del año vinculadas a cada programa ─────────────────
+        # programa_id → set[month]
+        activas:     dict[int, set[int]] = defaultdict(set)
+        completadas: dict[int, set[int]] = defaultdict(set)
+
+        with _closing(_sqlite3.connect(self._db)) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    op.programa_id,
+                    o.estado,
+                    CAST(strftime('%m', o.fecha_apertura) AS INTEGER) AS mes_ap,
+                    CAST(strftime('%m', COALESCE(NULLIF(o.fecha_cierre,''), o.fecha_apertura))
+                         AS INTEGER) AS mes_ci
+                FROM ordenes_trabajo o
+                JOIN orden_programas op ON op.orden_id = o.id
+                WHERE strftime('%Y', o.fecha_apertura) = ?
+                   OR strftime('%Y', o.fecha_cierre)   = ?
+                """,
+                (anio_str, anio_str),
+            ).fetchall()
+
+        for prog_id, estado, mes_ap, mes_ci in rows:
+            if estado == "COMPLETADA":
+                if mes_ci:
+                    completadas[prog_id].add(mes_ci)
+            elif estado in ("PENDIENTE", "EN_PROGRESO"):
+                if mes_ap:
+                    activas[prog_id].add(mes_ap)
+
+        # ── Construir tabla ───────────────────────────────────────────────────
+        COLOR_PLANNED    = QColor("#BDD7EE")  # azul claro  — planificado
+        COLOR_ACTIVA     = QColor("#FFE699")  # amarillo    — orden abierta
+        COLOR_COMPLETADA = QColor("#C6EFCE")  # verde claro — completada
+        COLOR_COMP_HOY   = QColor("#70AD47")  # verde oscuro — completada mes actual
+        hoy = date.today()
+
         tabla = self._crono_tabla
         tabla.clear()
-        tabla.setColumnCount(13)  # col 0 = equipo, col 1-12 = meses
-        tabla.setRowCount(len(equipos))
-
-        headers = ["Equipo"] + _MESES
-        tabla.setHorizontalHeaderLabels(headers)
+        tabla.setColumnCount(13)
+        tabla.setRowCount(len(programas))
+        tabla.setHorizontalHeaderLabels(["Máquina — Mantenimiento"] + _MESES)
         tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for col in range(1, 13):
             tabla.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
-        color_ok  = QColor("#C6EFCE")   # verde claro
-        color_none = QColor(0, 0, 0, 0)  # transparente
+        for row, prog in enumerate(programas):
+            etiqueta = f"{prog.equipo_nombre}  —  {prog.descripcion}"
+            tabla.setItem(row, 0, QTableWidgetItem(etiqueta))
 
-        hoy = date.today()
-
-        for row, equipo in enumerate(equipos):
-            nombre_item = QTableWidgetItem(equipo.nombre)
-            tabla.setItem(row, 0, nombre_item)
-            meses_planificados = planned.get(equipo.id, set())
             for mes in range(1, 13):
-                if mes in meses_planificados:
-                    # Resaltar el mes actual con un tono más oscuro
-                    if anio == hoy.year and mes == hoy.month:
-                        cell_color = QColor("#70AD47")
-                    else:
-                        cell_color = color_ok
-                    item = QTableWidgetItem("✔")
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    item.setBackground(QBrush(cell_color))
+                es_hoy = (anio == hoy.year and mes == hoy.month)
+                if mes in completadas.get(prog.id, set()):
+                    color = COLOR_COMP_HOY if es_hoy else COLOR_COMPLETADA
+                    label = "✔"
+                elif mes in activas.get(prog.id, set()):
+                    color = COLOR_ACTIVA
+                    label = "⏳"
+                elif mes in planned.get(prog.id, set()):
+                    color = COLOR_PLANNED
+                    label = "·"
                 else:
-                    item = QTableWidgetItem("")
-                    item.setBackground(QBrush(color_none))
+                    tabla.setItem(row, mes, QTableWidgetItem(""))
+                    continue
+                item = QTableWidgetItem(label)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item.setBackground(QBrush(color))
                 tabla.setItem(row, mes, item)
 
     # ── Técnicos ─────────────────────────────────────────────────────────────
