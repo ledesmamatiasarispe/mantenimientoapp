@@ -69,301 +69,300 @@ DARK_THEME: dict[str, str | int] = {
 
 STYLE_TEMPLATE = """
 /* ── Base ─────────────────────────────────────────────────────────────── */
-QWidget {{
+QWidget {
     background: __APP_BACKGROUND__;
     color: __TEXT_COLOR__;
     font-family: "__FONT_FAMILY__", "San Francisco", Arial, sans-serif;
     font-size: __BASE_FONT_SIZE__px;
-}}
+}
 
-QDialog {{
+QDialog {
     background: __APP_BACKGROUND__;
-}}
+}
 
 /* ── Menú ─────────────────────────────────────────────────────────────── */
-QMenuBar {{
+QMenuBar {
     background: __MENU_BACKGROUND__;
     border-bottom: 1px solid __BORDER_COLOR__;
     color: __TEXT_COLOR__;
-}}
+}
 
-QMenuBar::item:selected {{
+QMenuBar::item:selected {
     background: __ACCENT_COLOR__;
     color: __PRIMARY_BUTTON_TEXT__;
     border-radius: 4px;
-}}
+}
 
-QMenu {{
+QMenu {
     background: __PANEL_BACKGROUND__;
     color: __TEXT_COLOR__;
     border: 1px solid __BORDER_COLOR__;
     padding: 4px;
-}}
+}
 
-QMenu::item {{
+QMenu::item {
     padding: 6px 24px 6px 12px;
     border-radius: 4px;
-}}
+}
 
-QMenu::item:selected {{
+QMenu::item:selected {
     background: __ACCENT_COLOR__;
     color: __PRIMARY_BUTTON_TEXT__;
-}}
+}
 
-QMenu::separator {{
+QMenu::separator {
     height: 1px;
     background: __BORDER_COLOR__;
     margin: 4px 8px;
-}}
+}
 
 /* ── Botones ──────────────────────────────────────────────────────────── */
-QPushButton {{
+QPushButton {
     min-height: 34px;
     border: 1px solid __BORDER_COLOR__;
     border-radius: 8px;
     background: __PANEL_BACKGROUND__;
     color: __TEXT_COLOR__;
     padding: 0 12px;
-}}
+}
 
-QPushButton:hover {{
+QPushButton:hover {
     border-color: __ACCENT_COLOR__;
-}}
+}
 
-QPushButton:pressed {{
+QPushButton:pressed {
     background: __BORDER_COLOR__;
-}}
+}
 
-QPushButton:disabled {{
+QPushButton:disabled {
     color: __DISABLED_TEXT__;
     border-color: __BORDER_COLOR__;
-}}
+}
 
-QPushButton#primaryButton {{
+QPushButton#primaryButton {
     border-color: __ACCENT_COLOR__;
     background: __ACCENT_COLOR__;
     color: __PRIMARY_BUTTON_TEXT__;
-}}
+}
 
-QPushButton#primaryButton:hover {{
+QPushButton#primaryButton:hover {
     background: __ACCENT_COLOR__;
     border-color: __ACCENT_COLOR__;
-}}
+}
 
-QPushButton#dangerButton {{
+QPushButton#dangerButton {
     border-color: __DANGER_COLOR__;
     color: __DANGER_COLOR__;
     background: __PANEL_BACKGROUND__;
-}}
+}
 
 /* ── Inputs ───────────────────────────────────────────────────────────── */
-QLineEdit {{
+QLineEdit {
     min-height: 34px;
     border: 1px solid __BORDER_COLOR__;
     border-radius: 8px;
     background: __INPUT_BACKGROUND__;
     color: __TEXT_COLOR__;
     padding: 0 12px;
-}}
+}
 
-QLineEdit:focus {{
+QLineEdit:focus {
     border-color: __ACCENT_COLOR__;
-}}
+}
 
 QComboBox,
 QDateEdit,
 QDoubleSpinBox,
-QSpinBox {{
+QSpinBox {
     min-height: 34px;
     border: 1px solid __BORDER_COLOR__;
     border-radius: 8px;
     background: __INPUT_BACKGROUND__;
     color: __TEXT_COLOR__;
     padding: 0 8px;
-}}
+}
 
 QTextEdit,
-QListWidget {{
+QListWidget {
     border: 1px solid __BORDER_COLOR__;
     border-radius: 8px;
     background: __INPUT_BACKGROUND__;
     color: __TEXT_COLOR__;
     padding: 6px 8px;
-}}
+}
 
 QComboBox:focus, QDateEdit:focus,
-QDoubleSpinBox:focus, QSpinBox:focus {{
+QDoubleSpinBox:focus, QSpinBox:focus {
     border-color: __ACCENT_COLOR__;
-}}
+}
 
 /* Botón desplegable del ComboBox/DateEdit */
-QComboBox::drop-down, QDateEdit::drop-down {{
+QComboBox::drop-down, QDateEdit::drop-down {
     border: none;
     width: 24px;
-}}
+}
 
 /* Lista desplegable (crítica para dark mode) */
 QComboBox QAbstractItemView,
-QAbstractItemView {{
+QAbstractItemView {
     background: __INPUT_BACKGROUND__;
     color: __TEXT_COLOR__;
     border: 1px solid __BORDER_COLOR__;
     selection-background-color: __ACCENT_COLOR__;
     selection-color: __PRIMARY_BUTTON_TEXT__;
-    outline: none;
-}}
+}
 
-QComboBox QAbstractItemView::item {{
+QComboBox QAbstractItemView::item {
     padding: 6px 8px;
     min-height: 28px;
-}}
+}
 
-QComboBox QAbstractItemView::item:hover {{
+QComboBox QAbstractItemView::item:hover {
     background: __NAV_ACTIVE_BG__;
     color: __TEXT_COLOR__;
-}}
+}
 
 /* SpinBox buttons */
 QAbstractSpinBox::up-button,
-QAbstractSpinBox::down-button {{
+QAbstractSpinBox::down-button {
     background: __INPUT_BACKGROUND__;
     border: none;
-}}
+}
 
 /* ── Scrollbars ───────────────────────────────────────────────────────── */
-QScrollBar:vertical {{
+QScrollBar:vertical {
     background: __APP_BACKGROUND__;
     width: 8px;
     border: none;
-}}
+}
 
-QScrollBar::handle:vertical {{
+QScrollBar::handle:vertical {
     background: __BORDER_COLOR__;
     border-radius: 4px;
     min-height: 24px;
-}}
+}
 
-QScrollBar::handle:vertical:hover {{
+QScrollBar::handle:vertical:hover {
     background: __MUTED_TEXT__;
-}}
+}
 
 QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {{
+QScrollBar::sub-line:vertical {
     height: 0px;
-}}
+}
 
-QScrollBar:horizontal {{
+QScrollBar:horizontal {
     background: __APP_BACKGROUND__;
     height: 8px;
     border: none;
-}}
+}
 
-QScrollBar::handle:horizontal {{
+QScrollBar::handle:horizontal {
     background: __BORDER_COLOR__;
     border-radius: 4px;
     min-width: 24px;
-}}
+}
 
-QScrollBar::handle:horizontal:hover {{
+QScrollBar::handle:horizontal:hover {
     background: __MUTED_TEXT__;
-}}
+}
 
 QScrollBar::add-line:horizontal,
-QScrollBar::sub-line:horizontal {{
+QScrollBar::sub-line:horizontal {
     width: 0px;
-}}
+}
 
 /* ── Tooltip ──────────────────────────────────────────────────────────── */
-QToolTip {{
+QToolTip {
     background: __PANEL_BACKGROUND__;
     color: __TEXT_COLOR__;
     border: 1px solid __BORDER_COLOR__;
     padding: 4px 8px;
-}}
+}
 
 /* ── Checkbox ─────────────────────────────────────────────────────────── */
-QCheckBox {{
+QCheckBox {
     background: transparent;
     spacing: 8px;
     color: __TEXT_COLOR__;
-}}
+}
 
-QCheckBox::indicator {{
+QCheckBox::indicator {
     width: 18px;
     height: 18px;
     border: 2px solid __BORDER_COLOR__;
     border-radius: 4px;
     background: __INPUT_BACKGROUND__;
-}}
+}
 
-QCheckBox::indicator:hover {{
+QCheckBox::indicator:hover {
     border-color: __ACCENT_COLOR__;
-}}
+}
 
-QCheckBox::indicator:checked {{
+QCheckBox::indicator:checked {
     border-color: __ACCENT_COLOR__;
     background: __ACCENT_COLOR__;
-}}
+}
 
-QCheckBox::indicator:disabled {{
+QCheckBox::indicator:disabled {
     border-color: __BORDER_COLOR__;
     background: __APP_BACKGROUND__;
-}}
+}
 
 /* ── Frames y paneles ─────────────────────────────────────────────────── */
-QTabWidget::pane {{
+QTabWidget::pane {
     border: none;
-}}
+}
 
-QScrollArea {{
+QScrollArea {
     border: none;
     background: transparent;
-}}
+}
 
-QFrame#sidebar {{
+QFrame#sidebar {
     background: __SIDEBAR_BACKGROUND__;
-}}
+}
 
 QFrame#topbar,
 QFrame#panel,
-QFrame#metric {{
+QFrame#metric {
     background: __PANEL_BACKGROUND__;
     border: 1px solid __BORDER_COLOR__;
-}}
+}
 
-QFrame#topbar {{
+QFrame#topbar {
     border-left: none;
     border-right: none;
     border-top: none;
-}}
+}
 
 QFrame#panel,
-QFrame#metric {{
+QFrame#metric {
     border-radius: 8px;
-}}
+}
 
-QFrame#panelHeader {{
+QFrame#panelHeader {
     min-height: 56px;
     background: __PANEL_HEADER_BACKGROUND__;
     border-bottom: 1px solid __BORDER_COLOR__;
-}}
+}
 
 /* ── Labels ───────────────────────────────────────────────────────────── */
-QLabel#brand {{
+QLabel#brand {
     background: transparent;
     color: __BRAND_TEXT__;
     font-size: 15px;
     font-weight: 700;
-}}
+}
 
-QLabel#sidebarSubtitle {{
+QLabel#sidebarSubtitle {
     background: transparent;
     color: __SIDEBAR_SUBTITLE_TEXT__;
     font-size: 12px;
-}}
+}
 
 QPushButton#navButton,
-QPushButton#navButtonActive {{
+QPushButton#navButtonActive {
     min-height: 36px;
     border: none;
     border-radius: 8px;
@@ -371,47 +370,47 @@ QPushButton#navButtonActive {{
     text-align: left;
     padding-left: 12px;
     background: transparent;
-}}
+}
 
 QPushButton#navButton:hover,
-QPushButton#navButtonActive {{
+QPushButton#navButtonActive {
     background: __SIDEBAR_HOVER_BACKGROUND__;
     color: __SIDEBAR_ACTIVE_TEXT__;
-}}
+}
 
-QLabel#pageTitle {{
+QLabel#pageTitle {
     background: transparent;
     color: __PAGE_TITLE_TEXT__;
     font-size: 20px;
     font-weight: 700;
-}}
+}
 
-QLabel#sectionTitle {{
+QLabel#sectionTitle {
     background: transparent;
     color: __SECTION_TITLE_TEXT__;
     font-size: 16px;
     font-weight: 700;
-}}
+}
 
-QLabel#muted {{
+QLabel#muted {
     background: transparent;
     color: __MUTED_TEXT__;
     font-size: 12px;
-}}
+}
 
-QLabel#metricValue {{
+QLabel#metricValue {
     background: transparent;
     color: __METRIC_VALUE_TEXT__;
     font-size: 24px;
     font-weight: 700;
-}}
+}
 
-QWidget#actionButtons {{
+QWidget#actionButtons {
     background: transparent;
-}}
+}
 
 /* ── Tabla ────────────────────────────────────────────────────────────── */
-QTableWidget {{
+QTableWidget {
     background: __PANEL_BACKGROUND__;
     alternate-background-color: __TABLE_ALT_BACKGROUND__;
     color: __TEXT_COLOR__;
@@ -419,20 +418,20 @@ QTableWidget {{
     gridline-color: __BORDER_COLOR__;
     selection-background-color: __ACCENT_COLOR__;
     selection-color: __PRIMARY_BUTTON_TEXT__;
-}}
+}
 
-QTableWidget::item {{
+QTableWidget::item {
     padding: 4px;
     color: __TEXT_COLOR__;
     border: none;
-}}
+}
 
-QTableWidget::item:selected {{
+QTableWidget::item:selected {
     background: __ACCENT_COLOR__;
     color: __PRIMARY_BUTTON_TEXT__;
-}}
+}
 
-QHeaderView::section {{
+QHeaderView::section {
     background: __TABLE_HEADER_BACKGROUND__;
     color: __TABLE_HEADER_TEXT__;
     border: none;
@@ -440,16 +439,16 @@ QHeaderView::section {{
     padding: 10px;
     font-size: 12px;
     font-weight: 700;
-}}
+}
 
-QHeaderView::section:checked {{
+QHeaderView::section:checked {
     background: __ACCENT_COLOR__;
-}}
+}
 
 /* ── DialogButtonBox ──────────────────────────────────────────────────── */
-QDialogButtonBox QPushButton {{
+QDialogButtonBox QPushButton {
     min-width: 80px;
-}}
+}
 """
 
 
