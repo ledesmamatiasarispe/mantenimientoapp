@@ -1330,8 +1330,7 @@ class MainWindow(QMainWindow):
             ("#C6EFCE", "Completado"),
         ]:
             lbl = QLabel(f"■ {texto}")
-            lbl.setStyleSheet(f"color: {color}; font-size: 13px; "
-                              f"-webkit-text-stroke: 0.6px #555; font-weight: bold;")
+            lbl.setStyleSheet(f"color: {color}; font-size: 13px; font-weight: bold;")
             top_bar.addWidget(lbl)
             top_bar.addSpacing(8)
 
