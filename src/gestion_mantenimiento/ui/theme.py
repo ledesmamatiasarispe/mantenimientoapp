@@ -442,7 +442,7 @@ QHeaderView::section {
 }
 
 QHeaderView::section:checked {
-    background: __ACCENT_COLOR__;
+    background: __TABLE_HEADER_BACKGROUND__;
 }
 
 /* ── DialogButtonBox ──────────────────────────────────────────────────── */

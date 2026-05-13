@@ -3,8 +3,18 @@ from __future__ import annotations
 from datetime import date, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QTimer, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices
+from PySide6.QtCharts import (
+    QBarCategoryAxis,
+    QBarSeries,
+    QBarSet,
+    QChart,
+    QChartView,
+    QPieSlice,
+    QPieSeries,
+    QValueAxis,
+)
+from PySide6.QtCore import QDate, QMargins, Qt, QTimer, QUrl
+from PySide6.QtGui import QBrush, QColor, QDesktopServices, QPainter, QPalette
 from PySide6.QtWidgets import QColorDialog, QFileDialog
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
@@ -29,6 +39,8 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QSplitter,
     QStackedWidget,
+    QStyle,
+    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -202,6 +214,29 @@ def _make_table(headers: list[str], parent: QWidget | None = None) -> QTableWidg
     return table
 
 
+class _ColorItemDelegate(QStyledItemDelegate):
+    """Pinta el BackgroundRole sobre el fondo CSS. Si la fila está seleccionada,
+    deja que Qt muestre el resaltado de selección normal."""
+    def paint(self, painter, option, index) -> None:
+        super().paint(painter, option, index)
+        bg = index.data(Qt.ItemDataRole.BackgroundRole)
+        if not (isinstance(bg, QBrush) and bg.style() != Qt.BrushStyle.NoBrush):
+            return
+        if option.state & QStyle.StateFlag.State_Selected:
+            return
+        painter.save()
+        painter.fillRect(option.rect, bg)
+        text = index.data(Qt.ItemDataRole.DisplayRole)
+        if text:
+            fg = index.data(Qt.ItemDataRole.ForegroundRole)
+            color = fg.color() if isinstance(fg, QBrush) else option.palette.color(QPalette.ColorRole.Text)
+            painter.setPen(color)
+            a = index.data(Qt.ItemDataRole.TextAlignmentRole)
+            align = Qt.AlignmentFlag(a) if a else (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            painter.drawText(option.rect.adjusted(4, 0, -4, 0), align, str(text))
+        painter.restore()
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self, database_path: Path, theme_mode: str = "light",
@@ -365,6 +400,9 @@ class MainWindow(QMainWindow):
             widget.setPalette(palette)
             widget.update()
         self._update_opciones_colors()
+        if hasattr(self, "_dash_chart_tipo_view"):
+            self._refresh_chart_tipo()
+            self._refresh_chart_mes()
 
     def _update_opciones_colors(self) -> None:
         for key, btn in self._opciones_btns.items():
@@ -469,6 +507,21 @@ class MainWindow(QMainWindow):
         self._dash_metrics_row.setSpacing(12)
         layout.addLayout(self._dash_metrics_row)
 
+        charts_row = QHBoxLayout()
+        charts_row.setSpacing(12)
+
+        self._dash_chart_tipo_view = QChartView()
+        self._dash_chart_tipo_view.setMinimumHeight(220)
+        self._dash_chart_tipo_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        self._dash_chart_mes_view = QChartView()
+        self._dash_chart_mes_view.setMinimumHeight(220)
+        self._dash_chart_mes_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        charts_row.addWidget(self._dash_chart_tipo_view, 1)
+        charts_row.addWidget(self._dash_chart_mes_view, 2)
+        layout.addLayout(charts_row)
+
         layout.addWidget(_section_title("Próximos mantenimientos programados"))
 
         self._dash_tabla_proximos = _make_table(
@@ -543,6 +596,97 @@ class MainWindow(QMainWindow):
             tabla2.setItem(row, 3, QTableWidgetItem(_ESTADOS_LABELS.get(o.estado, o.estado)))
             tabla2.setItem(row, 4, QTableWidgetItem(o.fecha_apertura))
             tabla2.setItem(row, 5, QTableWidgetItem(o.tecnico_nombre))
+
+        self._refresh_chart_tipo()
+        self._refresh_chart_mes()
+
+    def _refresh_chart_tipo(self) -> None:
+        theme = self._current_theme
+        bg = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+
+        conteos = self._orden_repo.count_by_tipo()
+        series = QPieSeries()
+        tipo_colors = {
+            "PREVENTIVO": "#0e6b52",
+            "CORRECTIVO": "#d97706",
+            "MEJORA": "#3b82f6",
+        }
+        tipo_labels = {
+            "PREVENTIVO": "Preventivo",
+            "CORRECTIVO": "Correctivo",
+            "MEJORA": "Mejora",
+        }
+        for tipo, color in tipo_colors.items():
+            count = conteos.get(tipo, 0)
+            slc = series.append(f"{tipo_labels[tipo]}\n{count}", count if count > 0 else 0)
+            slc.setColor(QColor(color))
+            slc.setLabelColor(text_color)
+        series.setHoleSize(0.45)
+        series.setLabelsVisible(True)
+        series.setLabelsPosition(QPieSlice.LabelPosition.LabelOutside)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Órdenes por tipo")
+        chart.setBackgroundBrush(QBrush(bg))
+        chart.setTitleBrush(QBrush(text_color))
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+        chart.legend().setLabelColor(text_color)
+        chart.setMargins(QMargins(4, 4, 4, 4))
+        self._dash_chart_tipo_view.setChart(chart)
+        self._dash_chart_tipo_view.setBackgroundBrush(QBrush(bg))
+
+    def _refresh_chart_mes(self) -> None:
+        theme = self._current_theme
+        bg = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+        accent = str(theme.get("accent_color", "#0e6b52"))
+
+        data = self._orden_repo.count_by_month(12)
+        months_map: dict[str, int] = dict(data)
+        today = date.today()
+        labels: list[str] = []
+        values: list[int] = []
+        for i in range(11, -1, -1):
+            m = today.month - i
+            y = today.year + (m - 1) // 12
+            m = ((m - 1) % 12) + 1
+            key = f"{y}-{m:02d}"
+            labels.append(f"{m:02d}/{str(y)[2:]}")
+            values.append(months_map.get(key, 0))
+
+        bar_set = QBarSet("Órdenes")
+        bar_set.setColor(QColor(accent))
+        for v in values:
+            bar_set.append(v)
+
+        series = QBarSeries()
+        series.append(bar_set)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        axis_x.setLabelsColor(text_color)
+
+        axis_y = QValueAxis()
+        axis_y.setLabelFormat("%d")
+        axis_y.setLabelsColor(text_color)
+        axis_y.setTickCount(5)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Órdenes por mes (últimos 12 meses)")
+        chart.setBackgroundBrush(QBrush(bg))
+        chart.setTitleBrush(QBrush(text_color))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_x)
+        series.attachAxis(axis_y)
+        chart.legend().setVisible(False)
+        chart.setMargins(QMargins(4, 4, 4, 4))
+        self._dash_chart_mes_view.setChart(chart)
+        self._dash_chart_mes_view.setBackgroundBrush(QBrush(bg))
 
     # ── Tipos de Máquina ──────────────────────────────────────────────────────
 
@@ -1033,6 +1177,7 @@ class MainWindow(QMainWindow):
         self._prog_table = _make_table(
             ["#", "Descripción", "Frecuencia (meses)", "Última ejecución", "Próxima ejecución", "Estado"]
         )
+        self._prog_table.setItemDelegate(_ColorItemDelegate(self._prog_table))
         self._prog_table.doubleClicked.connect(self._prog_editar)
         layout.addWidget(self._prog_table)
 
@@ -1344,6 +1489,7 @@ class MainWindow(QMainWindow):
         self._crono_tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._crono_tabla.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self._crono_tabla.verticalHeader().setVisible(False)
+        self._crono_tabla.setItemDelegate(_ColorItemDelegate(self._crono_tabla))
         scroll.setWidget(self._crono_tabla)
         layout.addWidget(scroll)
 

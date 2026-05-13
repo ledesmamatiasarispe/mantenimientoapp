@@ -546,6 +546,27 @@ class OrdenTrabajoRepository:
             ).fetchall()
         return {r[0]: r[1] for r in rows}
 
+    def count_by_tipo(self) -> dict[str, int]:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            rows = conn.execute(
+                "SELECT tipo, COUNT(*) FROM ordenes_trabajo GROUP BY tipo"
+            ).fetchall()
+        return {r[0]: r[1] for r in rows}
+
+    def count_by_month(self, months: int = 12) -> list[tuple[str, int]]:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT strftime('%Y-%m', fecha_apertura) AS mes, COUNT(*)
+                FROM ordenes_trabajo
+                WHERE fecha_apertura >= date('now', ? || ' months')
+                GROUP BY mes
+                ORDER BY mes
+                """,
+                (f"-{months}",),
+            ).fetchall()
+        return [(r[0], r[1]) for r in rows]
+
 
 class RepuestoOrdenRepository:
     def __init__(self, database_path: Path) -> None:
