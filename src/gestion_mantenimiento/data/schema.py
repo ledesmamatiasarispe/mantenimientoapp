@@ -173,6 +173,63 @@ CREATE INDEX IF NOT EXISTS idx_ordenes_fecha_apertura ON ordenes_trabajo(fecha_a
 CREATE INDEX IF NOT EXISTS idx_repuestos_orden_id ON repuestos_orden(orden_id);
 CREATE INDEX IF NOT EXISTS idx_programas_equipo_id ON programas_mantenimiento(equipo_id);
 CREATE INDEX IF NOT EXISTS idx_programas_proxima ON programas_mantenimiento(proxima_ejecucion);
+
+CREATE TABLE IF NOT EXISTS medidores (
+    id INTEGER PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    nro_medidor TEXT NOT NULL DEFAULT '',
+    nro_cliente TEXT NOT NULL DEFAULT '',
+    descripcion TEXT NOT NULL DEFAULT '',
+    activo INTEGER NOT NULL DEFAULT 1,
+    creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS facturas_electricas (
+    id INTEGER PRIMARY KEY,
+    medidor_id INTEGER NOT NULL,
+    periodo TEXT NOT NULL,
+    tipo_tarifa TEXT NOT NULL DEFAULT 'T3'
+        CHECK (tipo_tarifa IN ('T1', 'T2', 'T3')),
+    nro_lsp TEXT NOT NULL DEFAULT '',
+    fecha_factura TEXT NOT NULL DEFAULT '',
+    fecha_vto1 TEXT NOT NULL DEFAULT '',
+    fecha_vto2 TEXT NOT NULL DEFAULT '',
+    cap_convenida_kw REAL NOT NULL DEFAULT 0,
+    cap_adquirida_kw REAL NOT NULL DEFAULT 0,
+    tangente_fi REAL NOT NULL DEFAULT 0,
+    kwh_punta REAL NOT NULL DEFAULT 0,
+    kwh_valle_noc REAL NOT NULL DEFAULT 0,
+    kwh_restantes REAL NOT NULL DEFAULT 0,
+    kvar_reactiva REAL NOT NULL DEFAULT 0,
+    drp_kw REAL NOT NULL DEFAULT 0,
+    drfp_kw REAL NOT NULL DEFAULT 0,
+    cargo_fijo REAL NOT NULL DEFAULT 0,
+    importe_cap_convenida REAL NOT NULL DEFAULT 0,
+    importe_cap_adquirida REAL NOT NULL DEFAULT 0,
+    importe_kwh_punta REAL NOT NULL DEFAULT 0,
+    importe_kwh_valle_noc REAL NOT NULL DEFAULT 0,
+    importe_kwh_restantes REAL NOT NULL DEFAULT 0,
+    recargo_reactiva REAL NOT NULL DEFAULT 0,
+    ley_7290 REAL NOT NULL DEFAULT 0,
+    iva_27 REAL NOT NULL DEFAULT 0,
+    contrib_art34 REAL NOT NULL DEFAULT 0,
+    contrib_provincial REAL NOT NULL DEFAULT 0,
+    percep_iva REAL NOT NULL DEFAULT 0,
+    cestab REAL NOT NULL DEFAULT 0,
+    tasa_mun_ap REAL NOT NULL DEFAULT 0,
+    bonificaciones REAL NOT NULL DEFAULT 0,
+    acpot REAL NOT NULL DEFAULT 0,
+    iva_otros REAL NOT NULL DEFAULT 0,
+    importe REAL NOT NULL DEFAULT 0,
+    observaciones TEXT NOT NULL DEFAULT '',
+    creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (medidor_id, periodo),
+    FOREIGN KEY (medidor_id) REFERENCES medidores(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_facturas_electricas_medidor ON facturas_electricas(medidor_id);
+CREATE INDEX IF NOT EXISTS idx_facturas_electricas_periodo ON facturas_electricas(periodo);
 """
 
 SEED_SQL = """
@@ -224,6 +281,9 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_programa_pasos_observaciones(connection)
         _migrate_programa_pasos_adjunto(connection)
         _migrate_orden_paso_estado(connection)
+        _migrate_medidores(connection)
+        _migrate_facturas_electricas(connection)
+        _migrate_facturas_electricas_v2(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
@@ -473,6 +533,133 @@ def _migrate_programa_adjuntos(connection: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_programa_adjuntos_programa_id"
         " ON programa_adjuntos(programa_id)"
     )
+
+
+def _migrate_medidores(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS medidores (
+            id INTEGER PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            nro_medidor TEXT NOT NULL DEFAULT '',
+            nro_cliente TEXT NOT NULL DEFAULT '',
+            descripcion TEXT NOT NULL DEFAULT '',
+            activo INTEGER NOT NULL DEFAULT 1,
+            creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    # Agregar columnas a DBs anteriores
+    if _table_exists(connection, "medidores"):
+        cols = _table_columns(connection, "medidores")
+        for col, defn in [("nro_medidor", "TEXT NOT NULL DEFAULT ''"),
+                          ("nro_cliente",  "TEXT NOT NULL DEFAULT ''")]:
+            if col not in cols:
+                connection.execute(
+                    f"ALTER TABLE medidores ADD COLUMN {col} {defn}"
+                )
+
+
+def _migrate_facturas_electricas(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS facturas_electricas (
+            id INTEGER PRIMARY KEY,
+            medidor_id INTEGER NOT NULL,
+            periodo TEXT NOT NULL,
+            tipo_tarifa TEXT NOT NULL DEFAULT 'T3'
+                CHECK (tipo_tarifa IN ('T1', 'T2', 'T3')),
+            nro_lsp TEXT NOT NULL DEFAULT '',
+            fecha_factura TEXT NOT NULL DEFAULT '',
+            fecha_vto1 TEXT NOT NULL DEFAULT '',
+            fecha_vto2 TEXT NOT NULL DEFAULT '',
+            cap_convenida_kw REAL NOT NULL DEFAULT 0,
+            cap_adquirida_kw REAL NOT NULL DEFAULT 0,
+            tangente_fi REAL NOT NULL DEFAULT 0,
+            kwh_punta REAL NOT NULL DEFAULT 0,
+            kwh_valle_noc REAL NOT NULL DEFAULT 0,
+            kwh_restantes REAL NOT NULL DEFAULT 0,
+            kvar_reactiva REAL NOT NULL DEFAULT 0,
+            drp_kw REAL NOT NULL DEFAULT 0,
+            drfp_kw REAL NOT NULL DEFAULT 0,
+            cargo_fijo REAL NOT NULL DEFAULT 0,
+            importe_cap_convenida REAL NOT NULL DEFAULT 0,
+            importe_cap_adquirida REAL NOT NULL DEFAULT 0,
+            importe_kwh_punta REAL NOT NULL DEFAULT 0,
+            importe_kwh_valle_noc REAL NOT NULL DEFAULT 0,
+            importe_kwh_restantes REAL NOT NULL DEFAULT 0,
+            recargo_reactiva REAL NOT NULL DEFAULT 0,
+            ley_7290 REAL NOT NULL DEFAULT 0,
+            iva_27 REAL NOT NULL DEFAULT 0,
+            contrib_art34 REAL NOT NULL DEFAULT 0,
+            contrib_provincial REAL NOT NULL DEFAULT 0,
+            percep_iva REAL NOT NULL DEFAULT 0,
+            cestab REAL NOT NULL DEFAULT 0,
+            tasa_mun_ap REAL NOT NULL DEFAULT 0,
+            bonificaciones REAL NOT NULL DEFAULT 0,
+            acpot REAL NOT NULL DEFAULT 0,
+            iva_otros REAL NOT NULL DEFAULT 0,
+            importe REAL NOT NULL DEFAULT 0,
+            observaciones TEXT NOT NULL DEFAULT '',
+            creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (medidor_id, periodo),
+            FOREIGN KEY (medidor_id) REFERENCES medidores(id)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_facturas_electricas_medidor"
+        " ON facturas_electricas(medidor_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_facturas_electricas_periodo"
+        " ON facturas_electricas(periodo)"
+    )
+
+
+def _migrate_facturas_electricas_v2(connection: sqlite3.Connection) -> None:
+    """Migra tablas de facturas creadas con schemas anteriores al schema EDESUR completo."""
+    if not _table_exists(connection, "facturas_electricas"):
+        return
+    cols = _table_columns(connection, "facturas_electricas")
+    nuevas = [
+        ("tipo_tarifa",           "TEXT NOT NULL DEFAULT 'T3'"),
+        ("nro_lsp",               "TEXT NOT NULL DEFAULT ''"),
+        ("fecha_vto1",            "TEXT NOT NULL DEFAULT ''"),
+        ("fecha_vto2",            "TEXT NOT NULL DEFAULT ''"),
+        ("cap_convenida_kw",      "REAL NOT NULL DEFAULT 0"),
+        ("cap_adquirida_kw",      "REAL NOT NULL DEFAULT 0"),
+        ("tangente_fi",           "REAL NOT NULL DEFAULT 0"),
+        ("kwh_punta",             "REAL NOT NULL DEFAULT 0"),
+        ("kwh_valle_noc",         "REAL NOT NULL DEFAULT 0"),
+        ("kwh_restantes",         "REAL NOT NULL DEFAULT 0"),
+        ("kvar_reactiva",         "REAL NOT NULL DEFAULT 0"),
+        ("drp_kw",                "REAL NOT NULL DEFAULT 0"),
+        ("drfp_kw",               "REAL NOT NULL DEFAULT 0"),
+        ("cargo_fijo",            "REAL NOT NULL DEFAULT 0"),
+        ("importe_cap_convenida", "REAL NOT NULL DEFAULT 0"),
+        ("importe_cap_adquirida", "REAL NOT NULL DEFAULT 0"),
+        ("importe_kwh_punta",     "REAL NOT NULL DEFAULT 0"),
+        ("importe_kwh_valle_noc", "REAL NOT NULL DEFAULT 0"),
+        ("importe_kwh_restantes", "REAL NOT NULL DEFAULT 0"),
+        ("recargo_reactiva",      "REAL NOT NULL DEFAULT 0"),
+        ("ley_7290",              "REAL NOT NULL DEFAULT 0"),
+        ("iva_27",                "REAL NOT NULL DEFAULT 0"),
+        ("contrib_art34",         "REAL NOT NULL DEFAULT 0"),
+        ("contrib_provincial",    "REAL NOT NULL DEFAULT 0"),
+        ("percep_iva",            "REAL NOT NULL DEFAULT 0"),
+        ("cestab",                "REAL NOT NULL DEFAULT 0"),
+        ("tasa_mun_ap",           "REAL NOT NULL DEFAULT 0"),
+        ("bonificaciones",        "REAL NOT NULL DEFAULT 0"),
+        ("acpot",                 "REAL NOT NULL DEFAULT 0"),
+        ("iva_otros",             "REAL NOT NULL DEFAULT 0"),
+    ]
+    for col, defn in nuevas:
+        if col not in cols:
+            connection.execute(
+                f"ALTER TABLE facturas_electricas ADD COLUMN {col} {defn}"
+            )
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:

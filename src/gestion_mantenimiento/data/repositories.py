@@ -1051,3 +1051,238 @@ class PasoRepository:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute("DELETE FROM programa_pasos WHERE id = ?", (paso_id,))
             conn.commit()
+
+
+class MedidorRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def _row(self, r: tuple) -> "Medidor":
+        from gestion_mantenimiento.data.models import Medidor
+        return Medidor(id=r[0], nombre=r[1], nro_medidor=r[2],
+                       nro_cliente=r[3], descripcion=r[4], activo=bool(r[5]))
+
+    def list_all(self, *, solo_activos: bool = False) -> list["Medidor"]:
+        q = ("SELECT id, nombre, COALESCE(nro_medidor,''), COALESCE(nro_cliente,''),"
+             " COALESCE(descripcion,''), activo FROM medidores")
+        if solo_activos:
+            q += " WHERE activo = 1"
+        q += " ORDER BY nombre"
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            return [self._row(r) for r in conn.execute(q).fetchall()]
+
+    def get_by_id(self, medidor_id: int) -> "Medidor | None":
+        q = ("SELECT id, nombre, COALESCE(nro_medidor,''), COALESCE(nro_cliente,''),"
+             " COALESCE(descripcion,''), activo FROM medidores WHERE id = ?")
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(q, (medidor_id,)).fetchone()
+        return self._row(row) if row else None
+
+    def create(self, nombre: str, nro_medidor: str, nro_cliente: str, descripcion: str) -> int:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            cur = conn.execute(
+                "INSERT INTO medidores (nombre, nro_medidor, nro_cliente, descripcion)"
+                " VALUES (?, ?, ?, ?)",
+                (nombre.strip(), nro_medidor.strip(), nro_cliente.strip(), descripcion.strip()),
+            )
+            conn.commit()
+            return cur.lastrowid or 0
+
+    def update(self, medidor_id: int, nombre: str, nro_medidor: str,
+               nro_cliente: str, descripcion: str, activo: bool) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                "UPDATE medidores SET nombre=?, nro_medidor=?, nro_cliente=?,"
+                " descripcion=?, activo=? WHERE id=?",
+                (nombre.strip(), nro_medidor.strip(), nro_cliente.strip(),
+                 descripcion.strip(), int(activo), medidor_id),
+            )
+            conn.commit()
+
+    def delete(self, medidor_id: int) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute("DELETE FROM medidores WHERE id = ?", (medidor_id,))
+            conn.commit()
+
+
+class FacturaElectricaRepository:
+    _COLS = (
+        "fe.id", "fe.medidor_id", "COALESCE(m.nombre,'')",
+        "fe.periodo", "COALESCE(fe.tipo_tarifa,'T3')", "COALESCE(fe.nro_lsp,'')",
+        "COALESCE(fe.fecha_factura,'')", "COALESCE(fe.fecha_vto1,'')", "COALESCE(fe.fecha_vto2,'')",
+        "COALESCE(fe.cap_convenida_kw,0)", "COALESCE(fe.cap_adquirida_kw,0)",
+        "COALESCE(fe.tangente_fi,0)",
+        "COALESCE(fe.kwh_punta,0)", "COALESCE(fe.kwh_valle_noc,0)", "COALESCE(fe.kwh_restantes,0)",
+        "COALESCE(fe.kvar_reactiva,0)",
+        "COALESCE(fe.drp_kw,0)",
+        "COALESCE(fe.drfp_kw,0)",
+        "COALESCE(fe.cargo_fijo,0)", "COALESCE(fe.importe_cap_convenida,0)",
+        "COALESCE(fe.importe_cap_adquirida,0)", "COALESCE(fe.importe_kwh_punta,0)",
+        "COALESCE(fe.importe_kwh_valle_noc,0)", "COALESCE(fe.importe_kwh_restantes,0)",
+        "COALESCE(fe.recargo_reactiva,0)",
+        "COALESCE(fe.ley_7290,0)", "COALESCE(fe.iva_27,0)", "COALESCE(fe.contrib_art34,0)",
+        "COALESCE(fe.contrib_provincial,0)", "COALESCE(fe.percep_iva,0)",
+        "COALESCE(fe.cestab,0)", "COALESCE(fe.tasa_mun_ap,0)",
+        "COALESCE(fe.bonificaciones,0)", "COALESCE(fe.acpot,0)", "COALESCE(fe.iva_otros,0)",
+        "COALESCE(fe.importe,0)", "COALESCE(fe.observaciones,'')",
+    )
+
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = database_path
+
+    def _row_to_model(self, r: tuple) -> "FacturaElectrica":
+        from gestion_mantenimiento.data.models import FacturaElectrica
+        return FacturaElectrica(
+            id=int(r[0]), medidor_id=int(r[1]), medidor_nombre=str(r[2]),
+            periodo=str(r[3]), tipo_tarifa=str(r[4]), nro_lsp=str(r[5]),
+            fecha_factura=str(r[6]), fecha_vto1=str(r[7]), fecha_vto2=str(r[8]),
+            cap_convenida_kw=float(r[9]), cap_adquirida_kw=float(r[10]),
+            tangente_fi=float(r[11]),
+            kwh_punta=float(r[12]), kwh_valle_noc=float(r[13]), kwh_restantes=float(r[14]),
+            kvar_reactiva=float(r[15]),
+            drp_kw=float(r[16]),
+            drfp_kw=float(r[17]),
+            cargo_fijo=float(r[18]), importe_cap_convenida=float(r[19]),
+            importe_cap_adquirida=float(r[20]), importe_kwh_punta=float(r[21]),
+            importe_kwh_valle_noc=float(r[22]), importe_kwh_restantes=float(r[23]),
+            recargo_reactiva=float(r[24]),
+            ley_7290=float(r[25]), iva_27=float(r[26]), contrib_art34=float(r[27]),
+            contrib_provincial=float(r[28]), percep_iva=float(r[29]),
+            cestab=float(r[30]), tasa_mun_ap=float(r[31]),
+            bonificaciones=float(r[32]), acpot=float(r[33]), iva_otros=float(r[34]),
+            importe=float(r[35]), observaciones=str(r[36]),
+        )
+
+    def _base_query(self) -> str:
+        return (f"SELECT {', '.join(self._COLS)}"
+                " FROM facturas_electricas fe"
+                " LEFT JOIN medidores m ON m.id = fe.medidor_id")
+
+    def list_by_medidor(self, medidor_id: int, anio: int | None = None) -> list["FacturaElectrica"]:
+        q = self._base_query() + " WHERE fe.medidor_id = ?"
+        params: list[object] = [medidor_id]
+        if anio is not None:
+            q += " AND fe.periodo LIKE ?"
+            params.append(f"{anio}-%")
+        q += " ORDER BY fe.periodo"
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            return [self._row_to_model(r) for r in conn.execute(q, params).fetchall()]
+
+    def get_by_id(self, factura_id: int) -> "FacturaElectrica | None":
+        q = self._base_query() + " WHERE fe.id = ?"
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(q, (factura_id,)).fetchone()
+        return self._row_to_model(row) if row else None
+
+    def _fields_values(self, *, medidor_id: int | None = None, **kw: object) -> tuple[str, tuple]:
+        cols = [
+            "periodo", "tipo_tarifa", "nro_lsp",
+            "fecha_factura", "fecha_vto1", "fecha_vto2",
+            "cap_convenida_kw", "cap_adquirida_kw", "tangente_fi",
+            "kwh_punta", "kwh_valle_noc", "kwh_restantes", "kvar_reactiva",
+            "drp_kw", "drfp_kw",
+            "cargo_fijo", "importe_cap_convenida", "importe_cap_adquirida",
+            "importe_kwh_punta", "importe_kwh_valle_noc", "importe_kwh_restantes",
+            "recargo_reactiva",
+            "ley_7290", "iva_27", "contrib_art34", "contrib_provincial", "percep_iva",
+            "cestab", "tasa_mun_ap", "bonificaciones", "acpot", "iva_otros",
+            "importe", "observaciones",
+        ]
+        vals = tuple(kw[c] for c in cols)
+        if medidor_id is not None:
+            cols = ["medidor_id"] + cols
+            vals = (medidor_id,) + vals
+        return cols, vals
+
+    def create(self, medidor_id: int, **kw: object) -> int:
+        cols, vals = self._fields_values(medidor_id=medidor_id, **kw)
+        placeholders = ",".join("?" * len(cols))
+        sql = f"INSERT INTO facturas_electricas ({','.join(cols)}) VALUES ({placeholders})"
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            cur = conn.execute(sql, vals)
+            conn.commit()
+            return cur.lastrowid or 0
+
+    def create_or_update(self, medidor_id: int, **kw: object) -> tuple[int, bool]:
+        """Inserta o actualiza si ya existe el período para ese medidor.
+        Devuelve (id, creada) donde creada=True si fue nueva, False si se actualizó."""
+        periodo = str(kw.get("periodo", ""))
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            existing = conn.execute(
+                "SELECT id FROM facturas_electricas WHERE medidor_id=? AND periodo=?",
+                (medidor_id, periodo),
+            ).fetchone()
+            if existing is None:
+                cols, vals = self._fields_values(medidor_id=medidor_id, **kw)
+                placeholders = ",".join("?" * len(cols))
+                cur = conn.execute(
+                    f"INSERT INTO facturas_electricas ({','.join(cols)}) VALUES ({placeholders})",
+                    vals,
+                )
+                conn.commit()
+                return cur.lastrowid or 0, True
+            else:
+                factura_id = int(existing[0])
+                cols, vals = self._fields_values(**kw)
+                set_clause = ", ".join(f"{c}=?" for c in cols)
+                conn.execute(
+                    f"UPDATE facturas_electricas SET {set_clause},"
+                    " actualizado_en=CURRENT_TIMESTAMP WHERE id=?",
+                    vals + (factura_id,),
+                )
+                conn.commit()
+                return factura_id, False
+
+    def update(self, factura_id: int, **kw: object) -> None:
+        cols, vals = self._fields_values(**kw)
+        set_clause = ", ".join(f"{c}=?" for c in cols)
+        sql = (f"UPDATE facturas_electricas SET {set_clause},"
+               " actualizado_en=CURRENT_TIMESTAMP WHERE id=?")
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(sql, vals + (factura_id,))
+            conn.commit()
+
+    def delete(self, factura_id: int) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute("DELETE FROM facturas_electricas WHERE id = ?", (factura_id,))
+            conn.commit()
+
+    def totales_anio(self, medidor_id: int, anio: int) -> dict[str, float]:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    COALESCE(SUM(kwh_punta + kwh_valle_noc + kwh_restantes), 0),
+                    COALESCE(SUM(importe), 0),
+                    COALESCE(SUM(ley_7290 + iva_27 + contrib_art34
+                                 + contrib_provincial + percep_iva), 0),
+                    COALESCE(SUM(cargo_fijo + importe_cap_convenida + importe_cap_adquirida
+                                 + importe_kwh_punta + importe_kwh_valle_noc
+                                 + importe_kwh_restantes + recargo_reactiva), 0),
+                    COUNT(*),
+                    COALESCE(MAX(drp_kw), 0),
+                    COALESCE(MAX(drfp_kw), 0),
+                    COALESCE(MAX(kwh_punta + kwh_valle_noc + kwh_restantes), 0)
+                FROM facturas_electricas
+                WHERE medidor_id = ? AND periodo LIKE ?
+                """,
+                (medidor_id, f"{anio}-%"),
+            ).fetchone()
+        total_kwh = float(row[0]); total_imp = float(row[1])
+        total_imp_fiscal = float(row[2]); subtotal_neto = float(row[3])
+        count = int(row[4])
+        return {
+            "kwh": total_kwh,
+            "importe": total_imp,
+            "impuestos": total_imp_fiscal,
+            "subtotal": subtotal_neto,
+            "promedio_mensual": total_imp / count if count else 0.0,
+            "costo_kwh": total_imp / total_kwh if total_kwh else 0.0,
+            "max_drp_kw": float(row[5]),
+            "max_drfp_kw": float(row[6]),
+            "max_kwh_mes": float(row[7]),
+        }
+
+    def por_mes(self, medidor_id: int, anio: int) -> dict[int, "FacturaElectrica"]:
+        return {int(f.periodo.split("-")[1]): f
+                for f in self.list_by_medidor(medidor_id, anio)}

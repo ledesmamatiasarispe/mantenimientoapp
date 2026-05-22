@@ -9,12 +9,15 @@ from PySide6.QtCharts import (
     QBarSet,
     QChart,
     QChartView,
+    QLineSeries,
     QPieSlice,
     QPieSeries,
+    QScatterSeries,
     QValueAxis,
 )
-from PySide6.QtCore import QDate, QMargins, Qt, QTimer, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices, QPainter, QPalette
+from PySide6.QtCore import QDate, QMargins, Qt, QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import QBrush, QColor, QCursor, QDesktopServices, QPainter, QPalette
+from PySide6.QtWidgets import QToolTip
 from PySide6.QtWidgets import QColorDialog, QFileDialog
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
@@ -57,6 +60,8 @@ from gestion_mantenimiento.data.repositories import (
     AdjuntoRepository,
     AlertaRepository,
     EquipoRepository,
+    FacturaElectricaRepository,
+    MedidorRepository,
     OrdenProgramaRepository,
     OrdenTrabajoRepository,
     PasoRepository,
@@ -144,6 +149,7 @@ _NAV_ITEMS = [
     ("Programa Mantenimiento", "programa"),
     ("Cronograma", "cronograma"),
     ("Técnicos", "tecnicos"),
+    ("Electricidad", "electricidad"),
     ("Opciones", "opciones"),
 ]
 
@@ -258,6 +264,8 @@ class MainWindow(QMainWindow):
         self._orden_programa_repo = OrdenProgramaRepository(database_path)
         self._adjunto_repo = AdjuntoRepository(database_path)
         self._alerta_repo = AlertaRepository(database_path)
+        self._medidor_repo = MedidorRepository(database_path)
+        self._factura_repo = FacturaElectricaRepository(database_path)
 
         self.setWindowTitle(f"Gestión Mantenimiento v{__version__}")
         self.resize(1280, 800)
@@ -489,6 +497,7 @@ class MainWindow(QMainWindow):
             "programa": self._build_programa_page,
             "cronograma": self._build_cronograma_page,
             "tecnicos": self._build_tecnicos_page,
+            "electricidad": self._build_electricidad_page,
             "opciones": self._build_opciones_page,
         }
         return builders[key]()
@@ -1756,6 +1765,638 @@ class MainWindow(QMainWindow):
             except Exception as exc:
                 QMessageBox.critical(self, "Error", str(exc))
 
+    # ── Electricidad ──────────────────────────────────────────────────────────
+
+    def _build_electricidad_page(self) -> QWidget:
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        layout.addWidget(_page_title("Control de Gasto Eléctrico — EDESUR"))
+
+        # ── Barra superior ────────────────────────────────────────────────────
+        top = QFrame()
+        top.setObjectName("topbar")
+        top_layout = QHBoxLayout(top)
+        top_layout.setContentsMargins(12, 8, 12, 8)
+
+        top_layout.addWidget(QLabel("Medidor:"))
+        self._elec_medidor_combo = QComboBox()
+        self._elec_medidor_combo.setMinimumWidth(220)
+        self._elec_medidor_combo.currentIndexChanged.connect(lambda: self._refresh_electricidad())
+        top_layout.addWidget(self._elec_medidor_combo)
+
+        top_layout.addSpacing(16)
+        top_layout.addWidget(QLabel("Año:"))
+        self._elec_anio_combo = QComboBox()
+        from datetime import date as _date
+        _anio_actual = _date.today().year
+        for y in range(_anio_actual - 4, _anio_actual + 2):
+            self._elec_anio_combo.addItem(str(y), y)
+        self._elec_anio_combo.setCurrentText(str(_anio_actual))
+        self._elec_anio_combo.currentIndexChanged.connect(lambda: self._refresh_electricidad())
+        top_layout.addWidget(self._elec_anio_combo)
+        top_layout.addStretch()
+        btn_descargar = _primary_button("Descargar de EDESUR")
+        btn_descargar.setToolTip("Descarga la última factura directamente desde el portal EDESUR")
+        btn_descargar.clicked.connect(self._elec_descargar_edesur)
+        top_layout.addWidget(btn_descargar)
+
+        btn_config_edesur = QPushButton("Acceso EDESUR")
+        btn_config_edesur.setToolTip("Configurar usuario y contraseña del portal EDESUR")
+        btn_config_edesur.clicked.connect(self._elec_configurar_edesur)
+        top_layout.addWidget(btn_config_edesur)
+
+        btn_medidores = QPushButton("Gestionar medidores")
+        btn_medidores.clicked.connect(self._gestionar_medidores)
+        top_layout.addWidget(btn_medidores)
+        layout.addWidget(top)
+
+        # ── Métricas ──────────────────────────────────────────────────────────
+        self._elec_metrics_row = QHBoxLayout()
+        self._elec_metrics_row.setSpacing(12)
+        layout.addLayout(self._elec_metrics_row)
+
+        # ── Gráfico de barras ─────────────────────────────────────────────────
+        self._elec_chart_view = QChartView()
+        self._elec_chart_view.setMinimumHeight(190)
+        self._elec_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        layout.addWidget(self._elec_chart_view)
+
+        # ── Tabla ─────────────────────────────────────────────────────────────
+        layout.addWidget(_section_title("Facturas registradas"))
+        self._elec_table = _make_table([
+            "ID", "Período", "Tarifa", "N° Factura",
+            "kWh total", "kVAR", "cos φ", "Subtotal", "IVA + IIBB", "Total",
+            "Vto 1", "Vto 2",
+        ])
+        self._elec_table.setColumnHidden(0, True)
+        hdr = self._elec_table.horizontalHeader()
+        hdr.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setStretchLastSection(True)  # última columna (Vto 2) absorbe el espacio sobrante
+        # altura para ver 12 filas sin scroll interno
+        self._elec_table.setMinimumHeight(12 * 28 + 32)
+        self._elec_table.doubleClicked.connect(self._elec_editar)
+        layout.addWidget(self._elec_table)
+
+        # ── Análisis comparativo ───────────────────────────────────────────────
+        layout.addWidget(_section_title("Análisis comparativo — todos los meses registrados"))
+
+        for attr, titulo in [
+            ("_elec_chart_energia", "Consumo energético (kWh)"),
+            ("_elec_chart_demanda", "Demanda máxima 15 min (kW)"),
+            ("_elec_chart_cosphi",  "Factor de potencia cos φ"),
+            ("_elec_chart_kvar",    "Energía reactiva (kVAR)"),
+        ]:
+            cv = QChartView()
+            cv.setFixedHeight(220)
+            cv.setRenderHint(QPainter.RenderHint.Antialiasing)
+            setattr(self, attr, cv)
+            layout.addWidget(cv)
+
+        # ── Acciones ──────────────────────────────────────────────────────────
+        act_layout = QHBoxLayout()
+        btn_nueva = _primary_button("+ Nueva factura")
+        btn_editar = QPushButton("Editar")
+        btn_elim = _danger_button("Eliminar")
+        btn_bulk = QPushButton("Importar varios PDFs...")
+        btn_nueva.clicked.connect(self._elec_nueva)
+        btn_editar.clicked.connect(self._elec_editar)
+        btn_elim.clicked.connect(self._elec_eliminar)
+        btn_bulk.clicked.connect(self._elec_importar_masivo)
+        act_layout.addWidget(btn_nueva)
+        act_layout.addWidget(btn_editar)
+        act_layout.addWidget(btn_bulk)
+        act_layout.addStretch()
+        act_layout.addWidget(btn_elim)
+        layout.addLayout(act_layout)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+        def refresh() -> None:
+            self._reload_elec_medidor_combo()
+
+        page._refresh = refresh  # type: ignore[attr-defined]
+        return page
+
+    def _reload_elec_medidor_combo(self) -> None:
+        prev_id = self._elec_medidor_combo.currentData()
+        self._elec_medidor_combo.blockSignals(True)
+        self._elec_medidor_combo.clear()
+        for m in self._medidor_repo.list_all():
+            label = m.nombre if m.activo else f"{m.nombre} (inactivo)"
+            self._elec_medidor_combo.addItem(label, m.id)
+        if prev_id is not None:
+            idx = self._elec_medidor_combo.findData(prev_id)
+            if idx >= 0:
+                self._elec_medidor_combo.setCurrentIndex(idx)
+        self._elec_medidor_combo.blockSignals(False)
+        self._refresh_electricidad()
+
+    def _refresh_electricidad(self) -> None:
+        medidor_id: int | None = self._elec_medidor_combo.currentData()
+        anio: int = self._elec_anio_combo.currentData() or 0
+
+        while self._elec_metrics_row.count():
+            item = self._elec_metrics_row.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if medidor_id is None:
+            self._elec_table.setRowCount(0)
+            self._elec_chart_view.setChart(QChart())
+            return
+
+        totales = self._factura_repo.totales_anio(medidor_id, anio)
+        for titulo, valor in [
+            ("kWh total año", f"{totales['kwh']:,.1f}"),
+            ("kWh máx. mensual", f"{totales['max_kwh_mes']:,.1f}"),
+            ("DRP máx. año", f"{totales['max_drp_kw']:,.1f} kW"),
+            ("DRFP máx. año", f"{totales['max_drfp_kw']:,.1f} kW"),
+            ("Total facturado", f"$ {totales['importe']:,.2f}"),
+            ("Costo promedio", f"$ {totales['costo_kwh']:,.4f}/kWh"),
+        ]:
+            self._elec_metrics_row.addWidget(_metric_widget(titulo, valor))
+        self._elec_metrics_row.addStretch()
+
+        # Tabla
+        facturas = self._factura_repo.list_by_medidor(medidor_id, anio)
+        tabla = self._elec_table
+        tabla.setRowCount(0)
+        from datetime import date as _date
+        hoy = _date.today().isoformat()
+        for f in facturas:
+            row = tabla.rowCount()
+            tabla.insertRow(row)
+            anio_f, mes_f = f.periodo.split("-")
+            periodo_label = f"{_MESES[int(mes_f) - 1]} {anio_f}"
+            tabla.setItem(row, 0, QTableWidgetItem(str(f.id)))
+            tabla.setItem(row, 1, QTableWidgetItem(periodo_label))
+            tabla.setItem(row, 2, QTableWidgetItem(f.tipo_tarifa))
+            tabla.setItem(row, 3, QTableWidgetItem(f.nro_lsp))
+            tabla.setItem(row, 4, QTableWidgetItem(f"{f.kwh_total:,.1f} kWh"))
+            # kVAR y cos φ — solo si tienen datos
+            kvar_txt = f"{f.kvar_reactiva:,.0f}" if f.kvar_reactiva else "—"
+            tabla.setItem(row, 5, QTableWidgetItem(kvar_txt))
+            cos_txt = f"{f.cos_phi:.4f}" if f.tangente_fi else "—"
+            item_cos = QTableWidgetItem(cos_txt)
+            # Resaltar en rojo si cos φ < 0.85 (límite típico de penalización EDESUR)
+            if f.tangente_fi and f.cos_phi < 0.85:
+                item_cos.setForeground(QBrush(QColor("#e53e3e")))
+            tabla.setItem(row, 6, item_cos)
+            tabla.setItem(row, 7, QTableWidgetItem(f"$ {f.subtotal_neto:,.2f}"))
+            tabla.setItem(row, 8, QTableWidgetItem(f"$ {f.subtotal_impuestos:,.2f}"))
+            item_total = QTableWidgetItem(f"$ {f.importe:,.2f}")
+            item_total.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            tabla.setItem(row, 9, item_total)
+            # Vencimientos — resaltar si ya venció
+            for col, vto in [(10, f.fecha_vto1), (11, f.fecha_vto2)]:
+                it = QTableWidgetItem(vto)
+                if vto and vto < hoy:
+                    it.setForeground(QBrush(QColor("#e53e3e")))
+                tabla.setItem(row, col, it)
+            item_id = tabla.item(row, 0)
+            if item_id:
+                item_id.setData(Qt.ItemDataRole.UserRole, f.id)
+
+        self._refresh_elec_chart(medidor_id, anio)
+        self._refresh_elec_chart_energia(medidor_id)
+        self._refresh_elec_chart_demanda(medidor_id)
+        self._refresh_elec_chart_cosphi(medidor_id)
+        self._refresh_elec_chart_kvar(medidor_id)
+
+    def _refresh_elec_chart(self, medidor_id: int, anio: int) -> None:
+        theme = self._current_theme
+        bg = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+
+        por_mes = self._factura_repo.por_mes(medidor_id, anio)
+
+        set_subtotal = QBarSet("Subtotal s/imp.")
+        set_subtotal.setColor(QColor("#3b82f6"))
+        set_impuestos = QBarSet("Impuestos")
+        set_impuestos.setColor(QColor("#f87171"))
+        labels: list[str] = []
+        for mes in range(1, 13):
+            f = por_mes.get(mes)
+            set_subtotal.append(f.subtotal_neto if f else 0.0)
+            set_impuestos.append(f.subtotal_impuestos if f else 0.0)
+            labels.append(_MESES[mes - 1][:3])
+
+        series = QBarSeries()
+        series.append(set_subtotal)
+        series.append(set_impuestos)
+        self._hover_barras(series, labels, self._elec_chart_view, "$")
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        axis_x.setLabelsColor(text_color)
+
+        axis_y = QValueAxis()
+        axis_y.setLabelFormat("$%.0f")
+        axis_y.setLabelsColor(text_color)
+        axis_y.setTickCount(5)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle(f"Composición del gasto mensual — {anio}")
+        chart.setBackgroundBrush(QBrush(bg))
+        chart.setTitleBrush(QBrush(text_color))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_x)
+        series.attachAxis(axis_y)
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+        chart.legend().setLabelColor(text_color)
+        chart.setMargins(QMargins(4, 4, 4, 4))
+        self._elec_chart_view.setChart(chart)
+        self._elec_chart_view.setBackgroundBrush(QBrush(bg))
+
+    def _refresh_elec_chart_energia(self, medidor_id: int) -> None:
+        """Barras apiladas de kWh (punta / valle / restantes) — todos los meses."""
+        theme = self._current_theme
+        bg = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+
+        todas = self._factura_repo.list_by_medidor(medidor_id)
+        if not todas:
+            self._elec_chart_energia.setChart(QChart())
+            return
+
+        set_punta    = QBarSet("Punta");    set_punta.setColor(QColor("#f87171"))
+        set_valle    = QBarSet("Valle Noc."); set_valle.setColor(QColor("#60a5fa"))
+        set_rest     = QBarSet("Restantes"); set_rest.setColor(QColor("#34d399"))
+        labels: list[str] = []
+
+        for f in todas:
+            anio_f, mes_f = f.periodo.split("-")
+            labels.append(f"{_MESES[int(mes_f)-1][:3]}\n{anio_f[2:]}")
+            set_punta.append(f.kwh_punta)
+            set_valle.append(f.kwh_valle_noc)
+            set_rest.append(f.kwh_restantes)
+
+        series = QBarSeries()
+        series.append(set_punta)
+        series.append(set_valle)
+        series.append(set_rest)
+        self._hover_barras(series, labels, self._elec_chart_energia, "kWh")
+
+        axis_x = QBarCategoryAxis(); axis_x.append(labels); axis_x.setLabelsColor(text_color)
+        axis_y = QValueAxis(); axis_y.setLabelFormat("%.0f kWh"); axis_y.setLabelsColor(text_color); axis_y.setTickCount(5)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Consumo energético mensual (kWh)")
+        chart.setBackgroundBrush(QBrush(bg)); chart.setTitleBrush(QBrush(text_color))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_x); series.attachAxis(axis_y)
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+        chart.legend().setLabelColor(text_color)
+        chart.setMargins(QMargins(4, 4, 4, 4))
+        self._elec_chart_energia.setChart(chart)
+        self._elec_chart_energia.setBackgroundBrush(QBrush(bg))
+
+    def _refresh_elec_chart_demanda(self, medidor_id: int) -> None:
+        """Barras de DRP y DRFP — demanda máxima en 15 min por mes."""
+        theme = self._current_theme
+        bg = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+
+        todas = self._factura_repo.list_by_medidor(medidor_id)
+        con_datos = [f for f in todas if f.drp_kw > 0 or f.drfp_kw > 0]
+        if not con_datos:
+            self._elec_chart_demanda.setChart(QChart())
+            return
+
+        set_drp  = QBarSet("DRP — En punta");       set_drp.setColor(QColor("#f59e0b"))
+        set_drfp = QBarSet("DRFP — Fuera de punta"); set_drfp.setColor(QColor("#8b5cf6"))
+        labels: list[str] = []
+
+        for f in con_datos:
+            anio_f, mes_f = f.periodo.split("-")
+            labels.append(f"{_MESES[int(mes_f)-1][:3]}\n{anio_f[2:]}")
+            set_drp.append(f.drp_kw)
+            set_drfp.append(f.drfp_kw)
+
+        series = QBarSeries()
+        series.append(set_drp)
+        series.append(set_drfp)
+        self._hover_barras(series, labels, self._elec_chart_demanda, "kW")
+
+        axis_x = QBarCategoryAxis(); axis_x.append(labels); axis_x.setLabelsColor(text_color)
+        axis_y = QValueAxis(); axis_y.setLabelFormat("%.0f kW"); axis_y.setLabelsColor(text_color); axis_y.setTickCount(5)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Demanda máxima en 15 min (kW)")
+        chart.setBackgroundBrush(QBrush(bg)); chart.setTitleBrush(QBrush(text_color))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_x); series.attachAxis(axis_y)
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+        chart.legend().setLabelColor(text_color)
+        chart.setMargins(QMargins(4, 4, 4, 4))
+        self._elec_chart_demanda.setChart(chart)
+        self._elec_chart_demanda.setBackgroundBrush(QBrush(bg))
+
+    def _refresh_elec_chart_cosphi(self, medidor_id: int) -> None:
+        """Línea de cos φ mensual con umbral de penalización en 0.85."""
+        theme = self._current_theme
+        bg         = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+        accent     = str(theme.get("accent_color", "#0e6b52"))
+
+        todas = [f for f in self._factura_repo.list_by_medidor(medidor_id)
+                 if f.tangente_fi > 0]
+        if not todas:
+            self._elec_chart_cosphi.setChart(QChart())
+            return
+
+        serie = QLineSeries()
+        serie.setName("cos φ")
+        serie.setColor(QColor(accent))
+        p = serie.pen(); p.setWidth(2); serie.setPen(p)
+
+        umbral = QLineSeries()
+        umbral.setName("Límite 0.85")
+        umbral.setColor(QColor("#ef4444"))
+        p2 = umbral.pen(); p2.setWidth(1); p2.setStyle(Qt.PenStyle.DashLine); umbral.setPen(p2)
+
+        labels: list[str] = []
+        vals_phi: list[float] = []
+        for i, f in enumerate(todas):
+            anio_f, mes_f = f.periodo.split("-")
+            labels.append(f"{mes_f}/{anio_f[2:]}")
+            vals_phi.append(f.cos_phi)
+            serie.append(i, f.cos_phi)
+            umbral.append(i, 0.85)
+
+        # se conecta DESPUÉS de construir el chart (más abajo)
+
+        # Un solo eje X de categorías adjuntado a ambas series
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        axis_x.setLabelsColor(text_color)
+        axis_x.setLabelsAngle(-45)
+
+        vals = [f.cos_phi for f in todas]
+        ymin = max(0.5, min(vals) - 0.03)
+        ymax = min(1.01, max(vals) + 0.02)
+        axis_y = QValueAxis()
+        axis_y.setRange(ymin, ymax)
+        axis_y.setTickCount(6)
+        axis_y.setLabelFormat("%.4f")
+        axis_y.setLabelsColor(text_color)
+
+        chart = QChart()
+        chart.addSeries(serie)
+        chart.addSeries(umbral)
+        chart.setTitle("Factor de potencia  cos φ")
+        chart.setBackgroundBrush(QBrush(bg))
+        chart.setTitleBrush(QBrush(text_color))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        serie.attachAxis(axis_x)
+        serie.attachAxis(axis_y)
+        umbral.attachAxis(axis_x)
+        umbral.attachAxis(axis_y)
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+        chart.legend().setLabelColor(text_color)
+        chart.setMargins(QMargins(8, 8, 8, 4))
+        self._elec_chart_cosphi.setChart(chart)
+        self._elec_chart_cosphi.setBackgroundBrush(QBrush(bg))
+        self._hover_linea(serie, labels, vals_phi, self._elec_chart_cosphi, ".4f")
+
+    def _refresh_elec_chart_kvar(self, medidor_id: int) -> None:
+        """Barras de energía reactiva (kVAR) por mes."""
+        theme = self._current_theme
+        bg         = QColor(str(theme.get("panel_background", "#ffffff")))
+        text_color = QColor(str(theme.get("text_color", "#182026")))
+
+        todas = [f for f in self._factura_repo.list_by_medidor(medidor_id)
+                 if f.kvar_reactiva > 0]
+        if not todas:
+            self._elec_chart_kvar.setChart(QChart())
+            return
+
+        bar_set = QBarSet("kVAR reactiva")
+        bar_set.setColor(QColor("#a78bfa"))
+        labels: list[str] = []
+        for f in todas:
+            anio_f, mes_f = f.periodo.split("-")
+            labels.append(f"{_MESES[int(mes_f)-1][:3]}\n{anio_f[2:]}")
+            bar_set.append(f.kvar_reactiva)
+
+        series = QBarSeries()
+        series.append(bar_set)
+        self._hover_barras(series, labels, self._elec_chart_kvar, "kVAR")
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        axis_x.setLabelsColor(text_color)
+
+        axis_y = QValueAxis()
+        axis_y.setLabelFormat("%.0f")
+        axis_y.setLabelsColor(text_color)
+        axis_y.setTickCount(5)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Energía reactiva (kVAR)")
+        chart.setBackgroundBrush(QBrush(bg))
+        chart.setTitleBrush(QBrush(text_color))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_x)
+        series.attachAxis(axis_y)
+        chart.legend().setVisible(False)
+        chart.setMargins(QMargins(4, 4, 4, 4))
+        self._elec_chart_kvar.setChart(chart)
+        self._elec_chart_kvar.setBackgroundBrush(QBrush(bg))
+
+    def _elec_selected_id(self) -> int | None:
+        return self._selected_id(self._elec_table)
+
+    def _elec_importar_masivo(self) -> None:
+        medidor_id: int | None = self._elec_medidor_combo.currentData()
+        if medidor_id is None:
+            QMessageBox.information(
+                self, "Sin medidor",
+                "Seleccioná un medidor antes de importar facturas."
+            )
+            return
+
+        from pathlib import Path as _Path
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Seleccionar facturas EDESUR (PDF)",
+            str(_Path.home()),
+            "Archivos PDF (*.pdf *.PDF)",
+        )
+        if not paths:
+            return
+
+        dlg = _BulkImportDialog(
+            self._db, medidor_id, paths, parent=self
+        )
+        dlg.exec()
+        self._refresh_electricidad()
+
+    def _elec_nueva(self) -> None:
+        medidor_id: int | None = self._elec_medidor_combo.currentData()
+        if medidor_id is None:
+            QMessageBox.information(self, "Sin medidor", "Primero seleccioná o creá un medidor.")
+            return
+        anio: int = self._elec_anio_combo.currentData() or 0
+        dlg = FacturaElectricaDialog(self._db, medidor_id, anio, None, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_electricidad()
+
+    def _elec_editar(self) -> None:
+        factura_id = self._elec_selected_id()
+        if factura_id is None:
+            return
+        medidor_id: int | None = self._elec_medidor_combo.currentData()
+        anio: int = self._elec_anio_combo.currentData() or 0
+        dlg = FacturaElectricaDialog(self._db, medidor_id or 0, anio, factura_id, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_electricidad()
+
+    def _elec_eliminar(self) -> None:
+        factura_id = self._elec_selected_id()
+        if factura_id is None:
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar esta factura?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._factura_repo.delete(factura_id)
+            self._refresh_electricidad()
+
+    def _elec_configurar_edesur(self) -> None:
+        dlg = EdesurCredencialesDialog(parent=self)
+        dlg.exec()
+
+    def _elec_descargar_edesur(self) -> None:
+        from gestion_mantenimiento.services.edesur_scraper import cargar_credenciales
+
+        creds = cargar_credenciales()
+        if not creds.get("usuario") or not creds.get("clave"):
+            QMessageBox.information(
+                self, "Acceso EDESUR",
+                "Ingresá usuario y contraseña del portal EDESUR primero."
+            )
+            self._elec_configurar_edesur()
+            creds = cargar_credenciales()
+            if not creds.get("usuario"):
+                return
+
+        medidor_id: int | None = self._elec_medidor_combo.currentData()
+        anio: int = self._elec_anio_combo.currentData() or 0
+
+        # Diálogo de progreso
+        self._edesur_dlg = QDialog(self)
+        self._edesur_dlg.setWindowTitle("Obteniendo datos de EDESUR")
+        self._edesur_dlg.setMinimumWidth(460)
+        self._edesur_dlg.setWindowFlags(
+            self._edesur_dlg.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
+        )
+        vl = QVBoxLayout(self._edesur_dlg)
+        info = QLabel(
+            "Conectando al portal y descargando datos de factura\n"
+            "y consumo directamente desde la API de EDESUR..."
+        )
+        info.setWordWrap(True)
+        info.setObjectName("muted")
+        vl.addWidget(info)
+        self._edesur_status = QLabel("Iniciando...")
+        self._edesur_status.setWordWrap(True)
+        vl.addWidget(self._edesur_status)
+        btn_cancel = QPushButton("Cancelar")
+        vl.addWidget(btn_cancel)
+
+        self._edesur_worker = _DescargaEdesurWorker(
+            creds["usuario"], creds["clave"], parent=self
+        )
+        self._edesur_worker.progreso.connect(self._edesur_status.setText)
+        self._edesur_worker.listo.connect(
+            lambda res: self._on_edesur_ok(res, medidor_id, anio)
+        )
+        self._edesur_worker.fallo.connect(self._on_edesur_error)
+        btn_cancel.clicked.connect(self._edesur_worker.terminate)
+        btn_cancel.clicked.connect(self._edesur_dlg.reject)
+        self._edesur_worker.start()
+        self._edesur_dlg.exec()
+
+    def _on_edesur_ok(self, resultado, medidor_id: int | None, anio: int) -> None:
+        self._edesur_dlg.accept()
+        # Mostrar historial con links antes de abrir el formulario
+        hist_dlg = EdesurHistorialDialog(resultado, parent=self)
+        factura_elegida = hist_dlg.exec_get_choice()  # devuelve índice o None
+
+        indice = factura_elegida if factura_elegida is not None else 0
+        facturas = resultado.todas_facturas
+        if indice >= len(facturas):
+            return
+
+        # Si el usuario eligió una factura distinta a la ya cargada, recargar
+        if indice == 0:
+            r = resultado.resultado
+        else:
+            # Para facturas históricas, construir resultado minimal desde la lista
+            from gestion_mantenimiento.services.edesur_parser import FacturaParseResult
+            inv = facturas[indice]
+            def dmy(s: str) -> str:
+                try:
+                    d, m, y = s.strip().split("/")
+                    return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                except Exception:
+                    return ""
+            fecha = dmy(inv.get("issueDate", ""))
+            r = FacturaParseResult(
+                tipo_tarifa   = resultado.tipo_tarifa_api,
+                nro_lsp       = inv.get("number", ""),
+                nro_cliente   = resultado.nro_cliente,
+                nro_medidor   = resultado.nro_medidor_api,
+                periodo       = fecha[:7],
+                fecha_factura = fecha,
+                fecha_vto1    = dmy(inv.get("firstDueDate", "") or ""),
+                importe       = float(inv.get("totalAmount", 0)),
+                advertencias  = ["Desglose no disponible por API — importá el PDF para completarlo."],
+            )
+
+        dlg = FacturaElectricaDialog(self._db, medidor_id or 0, anio, None, parent=self)
+        dlg._cargar_desde_api(r)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_electricidad()
+
+    def _on_edesur_error(self, mensaje: str) -> None:
+        self._edesur_dlg.accept()
+        QMessageBox.critical(self, "Error al descargar factura EDESUR", mensaje)
+
+    def _gestionar_medidores(self) -> None:
+        dlg = MedidoresDialog(self._db, parent=self)
+        dlg.exec()
+        self._reload_elec_medidor_combo()
+
     # ── Opciones ──────────────────────────────────────────────────────────────
 
     def _build_opciones_page(self) -> QWidget:
@@ -1928,6 +2569,66 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Opciones", "Colores guardados correctamente.")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _make_overlay(chart_view: "QChartView") -> "QLabel":
+        lbl = QLabel(chart_view)
+        lbl.setStyleSheet(
+            "QLabel{background:rgba(20,20,20,210);color:#f0f0f0;"
+            "padding:5px 10px;border-radius:5px;font-size:12px;}"
+        )
+        lbl.hide()
+        return lbl
+
+    @staticmethod
+    def _hover_barras(series, labels: list[str], chart_view: "QChartView",
+                      unidad: str = "") -> None:
+        """Overlay persistente con el valor de la barra hovered."""
+        overlay = MainWindow._make_overlay(chart_view)
+
+        def _on(status: bool, index: int, barset,
+                _l=labels, _ov=overlay, _u=unidad) -> None:
+            if status and 0 <= index < len(_l):
+                val = barset.at(index)
+                txt = f"{_l[index]}  —  {barset.label()}: {val:,.1f}"
+                if _u:
+                    txt += f" {_u}"
+                _ov.setText(txt)
+                _ov.adjustSize()
+                _ov.move(10, 10)
+                _ov.show()
+                _ov.raise_()
+            else:
+                _ov.hide()
+
+        series.hovered.connect(_on)
+
+    @staticmethod
+    def _hover_linea(serie, labels: list[str], valores: list[float],
+                     chart_view: "QChartView",
+                     fmt: str = ".4f", unidad: str = "") -> None:
+        """Overlay persistente con el valor real del punto hovered."""
+        overlay = MainWindow._make_overlay(chart_view)
+
+        def _on(point, state: bool,
+                _l=labels, _v=valores, _ov=overlay,
+                _f=fmt, _u=unidad) -> None:
+            if state:
+                idx = int(round(point.x()))
+                if 0 <= idx < len(_l):
+                    val_txt = format(_v[idx], _f)
+                    txt = f"{_l[idx]}  —  {val_txt}"
+                    if _u:
+                        txt += f" {_u}"
+                    _ov.setText(txt)
+                    _ov.adjustSize()
+                    _ov.move(10, 10)
+                    _ov.show()
+                    _ov.raise_()
+            else:
+                _ov.hide()
+
+        serie.hovered.connect(_on)
 
     def _selected_id(self, table: QTableWidget) -> int | None:
         selected = table.selectedItems()
@@ -3782,3 +4483,1243 @@ class ProgramaDialog(QDialog):
             self.accept()
         except Exception as exc:
             QMessageBox.critical(self, "Error", str(exc))
+
+
+# ── Importación masiva de PDFs ────────────────────────────────────────────────
+
+# (worker eliminado — la importación ahora usa QTimer en el diálogo)
+
+
+class _BulkImportDialog(QDialog):
+    """
+    Importa múltiples PDFs usando ProcessPoolExecutor (proceso separado = sin GIL).
+    Un QTimer sondea cada 150 ms si el proceso terminó y actualiza la UI.
+    """
+
+    def __init__(
+        self, db: Path, medidor_id: int, paths: list[str],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db         = db
+        self._medidor_id = medidor_id
+        self._paths      = paths
+        self._total      = len(paths)
+        self._done       = 0
+        self._resultados: list[dict] = []
+
+        self.setWindowTitle(f"Importar {self._total} factura(s) PDF")
+        self.setMinimumWidth(600)
+        self.resize(640, 500)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint)
+        self._build()
+
+        # src/ path para que el subproceso pueda importar gestion_mantenimiento
+        src_path = str(Path(__file__).resolve().parent.parent.parent)
+
+        from concurrent.futures import ProcessPoolExecutor
+        from gestion_mantenimiento.services.edesur_parser import parse_pdf_worker
+
+        self._executor = ProcessPoolExecutor(max_workers=1)
+        self._futures = [
+            (Path(p).name, self._executor.submit(parse_pdf_worker, p, src_path))
+            for p in paths
+        ]
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._sondear)
+        self._timer.start(150)
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+
+        self._lbl = QLabel(f"Iniciando... 0 / {self._total}")
+        layout.addWidget(self._lbl)
+
+        from PySide6.QtWidgets import QProgressBar as _PBar
+        self._bar = _PBar()
+        self._bar.setRange(0, self._total)
+        layout.addWidget(self._bar)
+
+        self._log = QTextEdit()
+        self._log.setReadOnly(True)
+        self._log.setMinimumHeight(180)
+        self._log.setStyleSheet("font-family: Consolas, monospace; font-size: 11px;")
+        layout.addWidget(self._log)
+
+        self._tabla = _make_table(["Archivo", "Período", "N° Factura", "Total", "Estado"])
+        self._tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for col, w in [(1, 90), (2, 160), (3, 110), (4, 90)]:
+            self._tabla.setColumnWidth(col, w)
+        self._tabla.horizontalHeader().setStretchLastSection(False)
+        layout.addWidget(self._tabla)
+
+        self._btn = QPushButton("Procesando...")
+        self._btn.setEnabled(False)
+        self._btn.clicked.connect(self.accept)
+        layout.addWidget(self._btn)
+
+    # ── sondeo de futuros ─────────────────────────────────────────────────────
+
+    def _sondear(self) -> None:
+        """Llamado cada 150 ms. Procesa futuros completados sin bloquear Qt."""
+        while self._done < len(self._futures):
+            nombre, future = self._futures[self._done]
+            if not future.done():
+                break
+            try:
+                d = future.result()
+            except Exception as exc:
+                d = {"ok": False, "error": str(exc)}
+            self._aplicar_resultado(nombre, d)
+            self._done += 1
+            self._bar.setValue(self._done)
+            self._lbl.setText(f"Procesando {self._done} / {self._total}...")
+
+        if self._done >= len(self._futures):
+            self._timer.stop()
+            self._executor.shutdown(wait=False)
+            self._finalizar()
+
+    def _aplicar_resultado(self, nombre: str, d: dict) -> None:
+        from gestion_mantenimiento.data.repositories import FacturaElectricaRepository
+
+        self._log.append(f"\n── {nombre}")
+        if not d.get("ok"):
+            self._log.append(f"   ERROR: {d.get('error', '?')}")
+            self._resultados.append({"archivo": nombre, "ok": False,
+                                     "error": d.get("error", "")})
+            self._scroll_log()
+            return
+
+        periodo = d.get("periodo", "")
+        if not periodo:
+            self._log.append("   ERROR: no se encontró el período")
+            self._resultados.append({"archivo": nombre, "ok": False,
+                                     "error": "período no encontrado"})
+            self._scroll_log()
+            return
+
+        anio_f, mes_f = periodo.split("-")
+        kwh = d["kwh_punta"] + d["kwh_valle_noc"] + d["kwh_restantes"]
+        self._log.append(f"   Período  : {_MESES[int(mes_f)-1]} {anio_f}")
+        self._log.append(f"   LSP N°   : {d.get('nro_lsp','')}")
+        self._log.append(f"   kWh total: {kwh:,.1f}  "
+                         f"(P:{d['kwh_punta']:,.0f} VN:{d['kwh_valle_noc']:,.0f} "
+                         f"R:{d['kwh_restantes']:,.0f})")
+        if d.get("drp_kw") or d.get("drfp_kw"):
+            self._log.append(f"   Demanda  : DRP={d['drp_kw']:.0f} kW  "
+                             f"DRFP={d['drfp_kw']:.0f} kW")
+        if d.get("cargo_fijo"):
+            sub = (d["cargo_fijo"] + d["importe_cap_convenida"] + d["importe_cap_adquirida"]
+                   + d["importe_kwh_punta"] + d["importe_kwh_valle_noc"] + d["importe_kwh_restantes"])
+            imp = d["ley_7290"] + d["iva_27"] + d["contrib_art34"] + d["contrib_provincial"] + d["percep_iva"]
+            self._log.append(f"   Subtotal : $ {sub:,.2f}   Impuestos: $ {imp:,.2f}")
+        self._log.append(f"   TOTAL    : $ {d['importe']:,.2f}")
+
+        try:
+            repo = FacturaElectricaRepository(self._db)
+            _, creada = repo.create_or_update(
+                medidor_id=self._medidor_id,
+                periodo=d["periodo"], tipo_tarifa=d["tipo_tarifa"], nro_lsp=d["nro_lsp"],
+                fecha_factura=d["fecha_factura"], fecha_vto1=d["fecha_vto1"], fecha_vto2=d["fecha_vto2"],
+                cap_convenida_kw=d["cap_convenida_kw"], cap_adquirida_kw=d["cap_adquirida_kw"],
+                tangente_fi=d["tangente_fi"],
+                kwh_punta=d["kwh_punta"], kwh_valle_noc=d["kwh_valle_noc"],
+                kwh_restantes=d["kwh_restantes"], kvar_reactiva=d["kvar_reactiva"],
+                drp_kw=d["drp_kw"], drfp_kw=d["drfp_kw"],
+                cargo_fijo=d["cargo_fijo"],
+                importe_cap_convenida=d["importe_cap_convenida"],
+                importe_cap_adquirida=d["importe_cap_adquirida"],
+                importe_kwh_punta=d["importe_kwh_punta"],
+                importe_kwh_valle_noc=d["importe_kwh_valle_noc"],
+                importe_kwh_restantes=d["importe_kwh_restantes"],
+                recargo_reactiva=d["recargo_reactiva"],
+                ley_7290=d["ley_7290"], iva_27=d["iva_27"], contrib_art34=d["contrib_art34"],
+                contrib_provincial=d["contrib_provincial"], percep_iva=d["percep_iva"],
+                cestab=d["cestab"], tasa_mun_ap=d["tasa_mun_ap"],
+                bonificaciones=d["bonificaciones"], acpot=d["acpot"], iva_otros=d["iva_otros"],
+                importe=d["importe"], observaciones="",
+            )
+            label = "✓ Nueva" if creada else "↻ Actualizada"
+            self._log.append(f"   Estado   : {label}")
+            self._resultados.append({"archivo": nombre, "ok": True, "nueva": creada,
+                                     "periodo": periodo, "lsp": d["nro_lsp"],
+                                     "total": d["importe"]})
+        except Exception as exc:
+            self._log.append(f"   ERROR DB : {exc}")
+            self._resultados.append({"archivo": nombre, "ok": False, "error": str(exc)})
+
+        self._scroll_log()
+
+    def _scroll_log(self) -> None:
+        self._log.verticalScrollBar().setValue(self._log.verticalScrollBar().maximum())
+
+    # ── cierre ────────────────────────────────────────────────────────────────
+
+    def _finalizar(self) -> None:
+        self._bar.setValue(self._total)
+        nuevas       = sum(1 for r in self._resultados if r.get("ok") and r.get("nueva"))
+        actualizadas = sum(1 for r in self._resultados if r.get("ok") and not r.get("nueva"))
+        errores      = sum(1 for r in self._resultados if not r.get("ok"))
+        partes = [f"{nuevas} nueva(s)"]
+        if actualizadas:
+            partes.append(f"{actualizadas} actualizada(s)")
+        if errores:
+            partes.append(f"{errores} con error")
+        resumen = "Completado: " + ", ".join(partes) + "."
+        self._lbl.setText(resumen)
+        self._log.append(f"\n{'─'*44}\n{resumen}")
+        self._scroll_log()
+
+        for res in self._resultados:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+            self._tabla.setItem(row, 0, QTableWidgetItem(res["archivo"]))
+            if res["ok"]:
+                anio_f, mes_f = res["periodo"].split("-")
+                self._tabla.setItem(row, 1, QTableWidgetItem(f"{_MESES[int(mes_f)-1]} {anio_f}"))
+                self._tabla.setItem(row, 2, QTableWidgetItem(res["lsp"]))
+                self._tabla.setItem(row, 3, QTableWidgetItem(f"$ {res['total']:,.2f}"))
+                lbl = "Nueva" if res.get("nueva") else "Actualizada"
+                it = QTableWidgetItem(lbl)
+                it.setForeground(QBrush(QColor("#22c55e" if res.get("nueva") else "#f59e0b")))
+                self._tabla.setItem(row, 4, it)
+            else:
+                for col in [1, 2, 3]:
+                    self._tabla.setItem(row, col, QTableWidgetItem("—"))
+                it = QTableWidgetItem("Error")
+                it.setForeground(QBrush(QColor("#ef4444")))
+                it.setToolTip(res["error"])
+                self._tabla.setItem(row, 4, it)
+
+        self._btn.setText("Cerrar")
+        self._btn.setEnabled(True)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowCloseButtonHint)
+        self.show()
+
+
+# ── Worker de descarga EDESUR ─────────────────────────────────────────────────
+
+class _DescargaEdesurWorker(QThread):
+    progreso = Signal(str)
+    listo    = Signal(object)   # ResultadoAPI
+    fallo    = Signal(str)
+
+    def __init__(self, usuario: str, clave: str, parent=None) -> None:
+        super().__init__(parent)
+        self._usuario = usuario
+        self._clave   = clave
+
+    def run(self) -> None:
+        try:
+            from gestion_mantenimiento.services.edesur_scraper import obtener_datos_factura
+            resultado = obtener_datos_factura(
+                self._usuario, self._clave,
+                on_status=self.progreso.emit,
+            )
+            self.listo.emit(resultado)
+        except Exception as exc:
+            self.fallo.emit(str(exc))
+
+
+# ── Diálogos de electricidad ──────────────────────────────────────────────────
+
+class MedidoresDialog(QDialog):
+    """CRUD de medidores eléctricos."""
+
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._repo = MedidorRepository(database_path)
+        self.setWindowTitle("Gestionar medidores")
+        self.setMinimumWidth(500)
+        self.resize(520, 400)
+        self._build()
+        self._load()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        self._tabla = _make_table(["ID", "Nombre", "N° Medidor", "N° Cliente", "Descripción", "Estado"])
+        self._tabla.setColumnHidden(0, True)
+        self._tabla.doubleClicked.connect(self._editar)
+        layout.addWidget(self._tabla)
+
+        btn_row = QHBoxLayout()
+        btn_nuevo = _primary_button("+ Nuevo")
+        btn_editar = QPushButton("Editar")
+        btn_elim = _danger_button("Eliminar")
+        btn_cerrar = QPushButton("Cerrar")
+        btn_nuevo.clicked.connect(self._nuevo)
+        btn_editar.clicked.connect(self._editar)
+        btn_elim.clicked.connect(self._eliminar)
+        btn_cerrar.clicked.connect(self.accept)
+        btn_row.addWidget(btn_nuevo)
+        btn_row.addWidget(btn_editar)
+        btn_row.addWidget(btn_elim)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_cerrar)
+        layout.addLayout(btn_row)
+
+    def _load(self) -> None:
+        medidores = self._repo.list_all()
+        self._tabla.setRowCount(0)
+        for m in medidores:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+            self._tabla.setItem(row, 0, QTableWidgetItem(str(m.id)))
+            self._tabla.setItem(row, 1, QTableWidgetItem(m.nombre))
+            self._tabla.setItem(row, 2, QTableWidgetItem(m.nro_medidor))
+            self._tabla.setItem(row, 3, QTableWidgetItem(m.nro_cliente))
+            self._tabla.setItem(row, 4, QTableWidgetItem(m.descripcion))
+            self._tabla.setItem(row, 5, QTableWidgetItem("Activo" if m.activo else "Inactivo"))
+            item = self._tabla.item(row, 0)
+            if item:
+                item.setData(Qt.ItemDataRole.UserRole, m.id)
+
+    def _selected_id(self) -> int | None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return None
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        if item is None:
+            return None
+        val = item.data(Qt.ItemDataRole.UserRole)
+        return int(val) if val is not None else None
+
+    def _nuevo(self) -> None:
+        dlg = MedidorDialog(self._db, None, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._load()
+
+    def _editar(self) -> None:
+        mid = self._selected_id()
+        if mid is None:
+            return
+        dlg = MedidorDialog(self._db, mid, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._load()
+
+    def _eliminar(self) -> None:
+        mid = self._selected_id()
+        if mid is None:
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar este medidor?\nSe eliminarán también sus facturas.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                self._repo.delete(mid)
+                self._load()
+            except Exception as exc:
+                QMessageBox.critical(self, "Error", str(exc))
+
+
+class MedidorDialog(QDialog):
+    def __init__(
+        self, database_path: Path, medidor_id: int | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._medidor_id = medidor_id
+        self._repo = MedidorRepository(database_path)
+        self.setWindowTitle("Medidor")
+        self.setMinimumWidth(380)
+        self._build()
+        if medidor_id is not None:
+            self._load(medidor_id)
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self._nombre = QLineEdit()
+        self._nombre.setPlaceholderText("ej: Tablero principal planta")
+        self._nro_medidor = QLineEdit()
+        self._nro_medidor.setPlaceholderText("ej: 36110637")
+        self._nro_cliente = QLineEdit()
+        self._nro_cliente.setPlaceholderText("ej: 80035433")
+        self._descripcion = QLineEdit()
+        self._activo = QCheckBox("Activo")
+        self._activo.setChecked(True)
+        form.addRow("Nombre *", self._nombre)
+        form.addRow("N° Medidor (físico)", self._nro_medidor)
+        form.addRow("N° Cliente EDESUR", self._nro_cliente)
+        form.addRow("Descripción", self._descripcion)
+        form.addRow("", self._activo)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _load(self, medidor_id: int) -> None:
+        m = self._repo.get_by_id(medidor_id)
+        if m is None:
+            return
+        self._nombre.setText(m.nombre)
+        self._nro_medidor.setText(m.nro_medidor)
+        self._nro_cliente.setText(m.nro_cliente)
+        self._descripcion.setText(m.descripcion)
+        self._activo.setChecked(m.activo)
+
+    def _save(self) -> None:
+        nombre = self._nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Validación", "El nombre es requerido.")
+            return
+        try:
+            if self._medidor_id is None:
+                self._repo.create(nombre, self._nro_medidor.text().strip(),
+                                  self._nro_cliente.text().strip(),
+                                  self._descripcion.text().strip())
+            else:
+                self._repo.update(self._medidor_id, nombre,
+                                  self._nro_medidor.text().strip(),
+                                  self._nro_cliente.text().strip(),
+                                  self._descripcion.text().strip(),
+                                  self._activo.isChecked())
+            self.accept()
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
+
+
+class FacturaElectricaDialog(QDialog):
+    """Carga/edición de factura EDESUR con estructura real (T1 / T2 / T3)."""
+
+    def __init__(
+        self,
+        database_path: Path,
+        medidor_id: int,
+        anio_default: int,
+        factura_id: int | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._medidor_id = medidor_id
+        self._factura_id = factura_id
+        self._repo = FacturaElectricaRepository(database_path)
+        self.setWindowTitle("Factura eléctrica — EDESUR")
+        self.setMinimumWidth(520)
+        self._anio_default = anio_default
+        self._build()
+        if factura_id is not None:
+            self._load(factura_id)
+        self._on_tarifa_changed()
+
+    # ── helpers ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _money_spin(maximo: float = 99_999_999.0) -> QDoubleSpinBox:
+        sb = QDoubleSpinBox()
+        sb.setRange(0, maximo)
+        sb.setDecimals(2)
+        sb.setPrefix("$ ")
+        sb.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        sb.setMinimumWidth(140)
+        return sb
+
+    @staticmethod
+    def _kwh_spin() -> QDoubleSpinBox:
+        sb = QDoubleSpinBox()
+        sb.setRange(0, 9_999_999)
+        sb.setDecimals(1)
+        sb.setSuffix(" kWh")
+        sb.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        sb.setMinimumWidth(140)
+        return sb
+
+    @staticmethod
+    def _date_edit() -> QDateEdit:
+        de = QDateEdit()
+        de.setCalendarPopup(True)
+        de.setDate(QDate.currentDate())
+        de.setDisplayFormat("dd/MM/yyyy")
+        return de
+
+    @staticmethod
+    def _parse_date(s: str) -> QDate | None:
+        if not s:
+            return None
+        try:
+            p = s.split("-")
+            return QDate(int(p[0]), int(p[1]), int(p[2]))
+        except (ValueError, IndexError):
+            return None
+
+    # ── helpers ───────────────────────────────────────────────────────────────
+
+    def _build(self) -> None:
+        from PySide6.QtWidgets import QGroupBox, QScrollArea
+        outer = QVBoxLayout(self)
+        outer.setSpacing(0)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        # ── Barra de importación ──────────────────────────────────────────────
+        import_bar = QFrame()
+        import_bar.setObjectName("topbar")
+        ib_layout = QHBoxLayout(import_bar)
+        ib_layout.setContentsMargins(12, 6, 12, 6)
+        lbl_import = QLabel("Cargá el PDF de EDESUR para completar el formulario automáticamente:")
+        lbl_import.setObjectName("muted")
+        btn_import = _primary_button("Importar PDF")
+        btn_import.clicked.connect(self._importar_pdf)
+        ib_layout.addWidget(lbl_import, 1)
+        ib_layout.addWidget(btn_import)
+        outer.addWidget(import_bar)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(16, 16, 16, 8)
+        layout.setSpacing(10)
+
+        # ── 1. Identificación ──────────────────────────────────────────────────
+        grp1 = QGroupBox("Identificación de la factura")
+        f1 = QFormLayout(grp1)
+        f1.setSpacing(7)
+
+        self._tarifa_combo = QComboBox()
+        for label, key in [("T1 — Residencial", "T1"),
+                            ("T2 — Comercial / Pequeña industria", "T2"),
+                            ("T3 MT — Gran demanda / Media tensión", "T3")]:
+            self._tarifa_combo.addItem(label, key)
+        self._tarifa_combo.setCurrentIndex(2)   # T3 por defecto
+        self._tarifa_combo.currentIndexChanged.connect(self._on_tarifa_changed)
+        f1.addRow("Tipo de tarifa *", self._tarifa_combo)
+
+        periodo_row = QHBoxLayout()
+        self._mes_combo = QComboBox()
+        for nombre in _MESES:
+            self._mes_combo.addItem(nombre)
+        from datetime import date as _date
+        self._mes_combo.setCurrentIndex(_date.today().month - 1)
+        self._anio_spin = QSpinBox()
+        self._anio_spin.setRange(2000, 2100)
+        self._anio_spin.setValue(self._anio_default)
+        self._anio_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._anio_spin.setFixedWidth(76)
+        periodo_row.addWidget(self._mes_combo)
+        periodo_row.addWidget(self._anio_spin)
+        f1.addRow("Período *", periodo_row)
+
+        self._nro_lsp = QLineEdit()
+        self._nro_lsp.setPlaceholderText("ej: A 9904-02665225 17")
+        f1.addRow("LSP N°", self._nro_lsp)
+
+        self._fecha_factura = self._date_edit()
+        f1.addRow("Fecha de emisión", self._fecha_factura)
+
+        vto_row = QHBoxLayout()
+        self._fecha_vto1 = self._date_edit()
+        self._fecha_vto2 = self._date_edit()
+        vto_row.addWidget(QLabel("1° vto:"))
+        vto_row.addWidget(self._fecha_vto1)
+        vto_row.addSpacing(8)
+        vto_row.addWidget(QLabel("2° vto:"))
+        vto_row.addWidget(self._fecha_vto2)
+        f1.addRow("Vencimientos", vto_row)
+        layout.addWidget(grp1)
+
+        # ── 2. Datos técnicos y consumo ────────────────────────────────────────
+        self._grp_consumo = QGroupBox("Consumo y datos técnicos")
+        f2 = QFormLayout(self._grp_consumo)
+        f2.setSpacing(7)
+
+        # Capacidades (T2/T3)
+        cap_row = QHBoxLayout()
+        self._cap_convenida = self._kw_spin()
+        self._cap_adquirida = self._kw_spin()
+        cap_row.addWidget(QLabel("Conv:"))
+        cap_row.addWidget(self._cap_convenida)
+        cap_row.addSpacing(8)
+        cap_row.addWidget(QLabel("Adquirida:"))
+        cap_row.addWidget(self._cap_adquirida)
+        self._lbl_cap = QLabel("Cap. Suministro (kW)")
+        f2.addRow(self._lbl_cap, cap_row)
+
+        self._tangente_fi = QDoubleSpinBox()
+        self._tangente_fi.setRange(0, 10)
+        self._tangente_fi.setDecimals(7)
+        self._tangente_fi.setSingleStep(0.01)
+        self._tangente_fi.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._tangente_fi.setMinimumWidth(140)
+        self._lbl_tg = QLabel("Tangente fi (cos φ)")
+        f2.addRow(self._lbl_tg, self._tangente_fi)
+
+        # Energía — 3 períodos (T2/T3) o 1 total (T1)
+        self._kwh_punta = self._kwh_spin()
+        self._kwh_punta.valueChanged.connect(self._recalcular_kwh_total)
+        self._lbl_punta = QLabel("kWh Hrs. Punta")
+        f2.addRow(self._lbl_punta, self._kwh_punta)
+
+        self._kwh_valle_noc = self._kwh_spin()
+        self._kwh_valle_noc.valueChanged.connect(self._recalcular_kwh_total)
+        self._lbl_valle = QLabel("kWh Hrs. Valle Noc.")
+        f2.addRow(self._lbl_valle, self._kwh_valle_noc)
+
+        self._kwh_restantes = self._kwh_spin()
+        self._kwh_restantes.valueChanged.connect(self._recalcular_kwh_total)
+        self._lbl_rest = QLabel("kWh Hrs. Restantes")
+        f2.addRow(self._lbl_rest, self._kwh_restantes)
+
+        self._lbl_kwh_total = QLabel("kWh Total")
+        self._kwh_total_lbl = QLabel("0,0 kWh")
+        self._kwh_total_lbl.setObjectName("metricValue")
+        f2.addRow(self._lbl_kwh_total, self._kwh_total_lbl)
+
+        self._kvar_reactiva = self._kwh_spin()
+        self._kvar_reactiva.setSuffix(" kVAR")
+        self._lbl_reactiva = QLabel("Energía Reactiva")
+        f2.addRow(self._lbl_reactiva, self._kvar_reactiva)
+
+        sep_dem = QFrame(); sep_dem.setFrameShape(QFrame.Shape.HLine)
+        f2.addRow(sep_dem)
+
+        self._drp_kw = QDoubleSpinBox()
+        self._drp_kw.setRange(0, 99999); self._drp_kw.setDecimals(1)
+        self._drp_kw.setSuffix(" kW"); self._drp_kw.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._drp_kw.setMinimumWidth(130)
+        self._lbl_drp = QLabel("DRP — Dem. Reg. Punta (15 min)")
+        f2.addRow(self._lbl_drp, self._drp_kw)
+
+        self._drfp_kw = QDoubleSpinBox()
+        self._drfp_kw.setRange(0, 99999); self._drfp_kw.setDecimals(1)
+        self._drfp_kw.setSuffix(" kW"); self._drfp_kw.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._drfp_kw.setMinimumWidth(130)
+        self._lbl_drfp = QLabel("DRFP — Dem. Reg. Fuera Punta (15 min)")
+        f2.addRow(self._lbl_drfp, self._drfp_kw)
+
+        # T1: campo simple de kWh
+        self._kwh_t1 = self._kwh_spin()
+        self._lbl_kwh_t1 = QLabel("kWh consumidos *")
+        f2.addRow(self._lbl_kwh_t1, self._kwh_t1)
+
+        layout.addWidget(self._grp_consumo)
+
+        # ── 3. Cargos netos ────────────────────────────────────────────────────
+        self._grp_cargos = QGroupBox("Cargos netos del mes")
+        f3 = QFormLayout(self._grp_cargos)
+        f3.setSpacing(7)
+
+        self._cargo_fijo = self._money_spin()
+        self._cargo_fijo.valueChanged.connect(self._recalcular_subtotal)
+        f3.addRow("a) Cargo fijo T3", self._cargo_fijo)
+
+        self._imp_cap_conv = self._money_spin()
+        self._imp_cap_conv.valueChanged.connect(self._recalcular_subtotal)
+        self._lbl_cap_conv = QLabel("b) Cap. Suministro Convenida")
+        f3.addRow(self._lbl_cap_conv, self._imp_cap_conv)
+
+        self._imp_cap_adq = self._money_spin()
+        self._imp_cap_adq.valueChanged.connect(self._recalcular_subtotal)
+        self._lbl_cap_adq = QLabel("c) Cap. Suministro Adquirida")
+        f3.addRow(self._lbl_cap_adq, self._imp_cap_adq)
+
+        self._imp_punta = self._money_spin()
+        self._imp_punta.valueChanged.connect(self._recalcular_subtotal)
+        self._lbl_imp_punta = QLabel("d) Energ. Hrs. Punta")
+        f3.addRow(self._lbl_imp_punta, self._imp_punta)
+
+        self._imp_valle_noc = self._money_spin()
+        self._imp_valle_noc.valueChanged.connect(self._recalcular_subtotal)
+        self._lbl_imp_valle = QLabel("d) Energ. Hrs. Valle Noc.")
+        f3.addRow(self._lbl_imp_valle, self._imp_valle_noc)
+
+        self._imp_restantes = self._money_spin()
+        self._imp_restantes.valueChanged.connect(self._recalcular_subtotal)
+        self._lbl_imp_rest = QLabel("d) Energ. Hrs. Restantes")
+        f3.addRow(self._lbl_imp_rest, self._imp_restantes)
+
+        self._recargo_reactiva = self._money_spin()
+        self._recargo_reactiva.valueChanged.connect(self._recalcular_subtotal)
+        self._lbl_rec_react = QLabel("Recargo Energía Reactiva")
+        f3.addRow(self._lbl_rec_react, self._recargo_reactiva)
+
+        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.HLine)
+        f3.addRow(sep1)
+        self._lbl_subtotal_neto = QLabel("$ 0,00")
+        self._lbl_subtotal_neto.setObjectName("metricValue")
+        f3.addRow("Subtotal cargos netos:", self._lbl_subtotal_neto)
+
+        layout.addWidget(self._grp_cargos)
+
+        # ── 4. Impuestos sobre subtotal neto ──────────────────────────────────
+        grp4 = QGroupBox("Contribuciones e impuestos (sobre subtotal neto)")
+        f4 = QFormLayout(grp4)
+        f4.setSpacing(7)
+
+        self._ley_7290 = self._money_spin()
+        self._ley_7290.valueChanged.connect(self._recalcular_subtotal)
+        f4.addRow("Ley 7290/67  (1 %)", self._ley_7290)
+
+        self._iva_27 = self._money_spin()
+        self._iva_27.valueChanged.connect(self._recalcular_subtotal)
+        f4.addRow("IVA  (27 %)", self._iva_27)
+
+        self._contrib_art34 = self._money_spin()
+        self._contrib_art34.valueChanged.connect(self._recalcular_subtotal)
+        f4.addRow("Contrib. Art. 34  (6.424 %)", self._contrib_art34)
+
+        self._contrib_prov = self._money_spin()
+        self._contrib_prov.valueChanged.connect(self._recalcular_subtotal)
+        f4.addRow("Contrib. Provincial  (0.001 %)", self._contrib_prov)
+
+        self._percep_iva = self._money_spin()
+        self._percep_iva.valueChanged.connect(self._recalcular_subtotal)
+        f4.addRow("Percep. IVA RG2408/08  (3 %)", self._percep_iva)
+
+        sep2 = QFrame(); sep2.setFrameShape(QFrame.Shape.HLine)
+        f4.addRow(sep2)
+        self._lbl_subtotal_imp = QLabel("$ 0,00")
+        self._lbl_subtotal_imp.setObjectName("metricValue")
+        f4.addRow("Subtotal impuestos:", self._lbl_subtotal_imp)
+        layout.addWidget(grp4)
+
+        # ── 5. Otros cargos y ajustes ─────────────────────────────────────────
+        grp5 = QGroupBox("Otros cargos y ajustes")
+        f5 = QFormLayout(grp5)
+        f5.setSpacing(7)
+
+        self._cestab = self._money_spin()
+        self._cestab.valueChanged.connect(self._recalcular_subtotal)
+        f5.addRow("CESTAB  (Res. SE 976-23)", self._cestab)
+
+        self._tasa_mun_ap = self._money_spin()
+        self._tasa_mun_ap.valueChanged.connect(self._recalcular_subtotal)
+        f5.addRow("Tasa Municipal AP", self._tasa_mun_ap)
+
+        self._bonificaciones = QDoubleSpinBox()
+        self._bonificaciones.setRange(-99_999_999, 0)
+        self._bonificaciones.setDecimals(2)
+        self._bonificaciones.setPrefix("$ ")
+        self._bonificaciones.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._bonificaciones.setMinimumWidth(140)
+        self._bonificaciones.valueChanged.connect(self._recalcular_subtotal)
+        f5.addRow("Bonificaciones (negativo)", self._bonificaciones)
+
+        self._acpot = QDoubleSpinBox()
+        self._acpot.setRange(-99_999_999, 0)
+        self._acpot.setDecimals(2)
+        self._acpot.setPrefix("$ ")
+        self._acpot.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self._acpot.setMinimumWidth(140)
+        self._acpot.valueChanged.connect(self._recalcular_subtotal)
+        f5.addRow("ACPOT  (Res. SE 976-23, negativo)", self._acpot)
+
+        self._iva_otros = self._money_spin()
+        self._iva_otros.valueChanged.connect(self._recalcular_subtotal)
+        f5.addRow("IVA  (21 %)  s/otros cargos", self._iva_otros)
+
+        layout.addWidget(grp5)
+
+        # ── 6. Total ──────────────────────────────────────────────────────────
+        grp6 = QGroupBox("Total")
+        f6 = QFormLayout(grp6)
+        f6.setSpacing(7)
+        self._importe_total = self._money_spin()
+        self._importe_total.setStyleSheet("font-weight: bold; font-size: 14px;")
+        f6.addRow("TOTAL A PAGAR *", self._importe_total)
+        layout.addWidget(grp6)
+
+        # ── 7. Observaciones ──────────────────────────────────────────────────
+        grp7 = QGroupBox("Observaciones")
+        obs_lay = QVBoxLayout(grp7)
+        self._observaciones = QTextEdit()
+        self._observaciones.setFixedHeight(55)
+        obs_lay.addWidget(self._observaciones)
+        layout.addWidget(grp7)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll, 1)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        btn_wrap = QWidget()
+        bl = QHBoxLayout(btn_wrap)
+        bl.setContentsMargins(16, 8, 16, 12)
+        bl.addStretch()
+        bl.addWidget(buttons)
+        outer.addWidget(btn_wrap)
+
+    @staticmethod
+    def _kw_spin() -> QDoubleSpinBox:
+        sb = QDoubleSpinBox()
+        sb.setRange(0, 9_999_999)
+        sb.setDecimals(2)
+        sb.setSuffix(" kW")
+        sb.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        sb.setMinimumWidth(130)
+        return sb
+
+    # ── cargar desde API EDESUR ───────────────────────────────────────────────
+
+    def _cargar_desde_api(self, r) -> None:
+        """Rellena el formulario con datos obtenidos de la API de EDESUR."""
+        from gestion_mantenimiento.services.edesur_parser import FacturaParseResult
+        if not isinstance(r, FacturaParseResult):
+            return
+        idx = self._tarifa_combo.findData(r.tipo_tarifa)
+        if idx >= 0:
+            self._tarifa_combo.setCurrentIndex(idx)
+        if r.periodo and len(r.periodo) == 7:
+            anio_str, mes_str = r.periodo.split("-")
+            self._mes_combo.setCurrentIndex(int(mes_str) - 1)
+            self._anio_spin.setValue(int(anio_str))
+        self._nro_lsp.setText(r.nro_lsp)
+        for src, widget in [(r.fecha_factura, self._fecha_factura),
+                            (r.fecha_vto1,    self._fecha_vto1)]:
+            d = self._parse_date(src)
+            if d:
+                widget.setDate(d)
+        self._kwh_punta.setValue(r.kwh_punta)
+        self._kwh_valle_noc.setValue(r.kwh_valle_noc)
+        self._kwh_restantes.setValue(r.kwh_restantes)
+        self._kwh_t1.setValue(r.kwh_punta)
+        self._importe_total.setValue(r.importe)
+        self._recalcular_kwh_total()
+        self._recalcular_subtotal()
+        if r.advertencias:
+            QMessageBox.information(
+                self, "Datos importados desde EDESUR",
+                "Datos de factura y consumo cargados correctamente.\n\n"
+                + "\n".join(f"• {a}" for a in r.advertencias)
+            )
+
+    # ── importar PDF ──────────────────────────────────────────────────────────
+
+    def _importar_pdf(self, pdf_path: str | None = None) -> None:
+        from pathlib import Path as _Path
+        if pdf_path is None:
+            pdf_path, _ = QFileDialog.getOpenFileName(
+                self, "Seleccionar factura EDESUR (PDF)",
+                str(_Path.home()),
+                "Archivos PDF (*.pdf *.PDF)",
+            )
+        if not pdf_path:
+            return
+        path = pdf_path
+        try:
+            from gestion_mantenimiento.services.edesur_parser import parse_factura_edesur
+            r = parse_factura_edesur(_Path(path))
+        except ImportError as exc:
+            QMessageBox.critical(self, "Módulo faltante", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Error al leer el PDF", str(exc))
+            return
+
+        # ── Rellenar formulario ───────────────────────────────────────────────
+        idx = self._tarifa_combo.findData(r.tipo_tarifa)
+        if idx >= 0:
+            self._tarifa_combo.setCurrentIndex(idx)
+
+        if r.periodo and len(r.periodo) == 7:
+            anio, mes = r.periodo.split("-")
+            self._mes_combo.setCurrentIndex(int(mes) - 1)
+            self._anio_spin.setValue(int(anio))
+
+        self._nro_lsp.setText(r.nro_lsp)
+
+        for src, widget in [(r.fecha_factura, self._fecha_factura),
+                            (r.fecha_vto1,    self._fecha_vto1),
+                            (r.fecha_vto2,    self._fecha_vto2)]:
+            d = self._parse_date(src)
+            if d:
+                widget.setDate(d)
+
+        self._cap_convenida.setValue(r.cap_convenida_kw)
+        self._cap_adquirida.setValue(r.cap_adquirida_kw)
+        self._tangente_fi.setValue(r.tangente_fi)
+        self._kwh_punta.setValue(r.kwh_punta)
+        self._kwh_valle_noc.setValue(r.kwh_valle_noc)
+        self._kwh_restantes.setValue(r.kwh_restantes)
+        self._kvar_reactiva.setValue(r.kvar_reactiva)
+        self._drp_kw.setValue(r.drp_kw)
+        self._drfp_kw.setValue(r.drfp_kw)
+        self._kwh_t1.setValue(r.kwh_punta)
+
+        self._cargo_fijo.setValue(r.cargo_fijo)
+        self._imp_cap_conv.setValue(r.importe_cap_convenida)
+        self._imp_cap_adq.setValue(r.importe_cap_adquirida)
+        self._imp_punta.setValue(r.importe_kwh_punta)
+        self._imp_valle_noc.setValue(r.importe_kwh_valle_noc)
+        self._imp_restantes.setValue(r.importe_kwh_restantes)
+        self._recargo_reactiva.setValue(r.recargo_reactiva)
+
+        self._ley_7290.setValue(r.ley_7290)
+        self._iva_27.setValue(r.iva_27)
+        self._contrib_art34.setValue(r.contrib_art34)
+        self._contrib_prov.setValue(r.contrib_provincial)
+        self._percep_iva.setValue(r.percep_iva)
+
+        self._cestab.setValue(r.cestab)
+        self._tasa_mun_ap.setValue(r.tasa_mun_ap)
+        self._bonificaciones.setValue(r.bonificaciones)
+        self._acpot.setValue(r.acpot)
+        self._iva_otros.setValue(r.iva_otros)
+        self._importe_total.setValue(r.importe)
+
+        self._recalcular_kwh_total()
+        self._recalcular_subtotal()
+
+        # ── Resumen de la importación ─────────────────────────────────────────
+        lineas = [
+            f"Factura {r.nro_lsp}  —  {r.tipo_tarifa}  —  período {r.periodo}",
+            f"Total importado: $ {r.importe:,.2f}",
+        ]
+        if r.nro_medidor:
+            lineas.append(f"Medidor: {r.nro_medidor}  |  Cliente: {r.nro_cliente}")
+        if r.advertencias:
+            lineas.append("")
+            lineas.append("Advertencias (revisar manualmente):")
+            lineas.extend(f"  • {a}" for a in r.advertencias)
+
+        QMessageBox.information(self, "PDF importado", "\n".join(lineas))
+
+    # ── lógica dinámica ───────────────────────────────────────────────────────
+
+    def _on_tarifa_changed(self) -> None:
+        tarifa = self._tarifa_combo.currentData() or "T3"
+        es_t1 = tarifa == "T1"
+
+        t23_widgets = [
+            self._lbl_cap, self._cap_convenida, self._cap_adquirida,
+            self._lbl_tg, self._tangente_fi,
+            self._lbl_punta, self._kwh_punta,
+            self._lbl_valle, self._kwh_valle_noc,
+            self._lbl_rest, self._kwh_restantes,
+            self._lbl_kwh_total, self._kwh_total_lbl,
+            self._lbl_reactiva, self._kvar_reactiva,
+            self._lbl_cap_conv, self._imp_cap_conv,
+            self._lbl_cap_adq, self._imp_cap_adq,
+            self._lbl_imp_punta, self._imp_punta,
+            self._lbl_imp_valle, self._imp_valle_noc,
+            self._lbl_imp_rest, self._imp_restantes,
+            self._lbl_rec_react, self._recargo_reactiva,
+        ]
+        for w in t23_widgets:
+            w.setVisible(not es_t1)
+        self._lbl_kwh_t1.setVisible(es_t1)
+        self._kwh_t1.setVisible(es_t1)
+        # DRP/DRFP solo en T2/T3
+        for w in (self._lbl_drp, self._drp_kw, self._lbl_drfp, self._drfp_kw):
+            w.setVisible(not es_t1)
+
+    def _recalcular_kwh_total(self) -> None:
+        total = self._kwh_punta.value() + self._kwh_valle_noc.value() + self._kwh_restantes.value()
+        self._kwh_total_lbl.setText(f"{total:,.1f} kWh")
+
+    def _recalcular_subtotal(self) -> None:
+        sub_neto = (self._cargo_fijo.value() + self._imp_cap_conv.value()
+                    + self._imp_cap_adq.value() + self._imp_punta.value()
+                    + self._imp_valle_noc.value() + self._imp_restantes.value()
+                    + self._recargo_reactiva.value())
+        sub_imp = (self._ley_7290.value() + self._iva_27.value()
+                   + self._contrib_art34.value() + self._contrib_prov.value()
+                   + self._percep_iva.value())
+        otros = (self._cestab.value() + self._tasa_mun_ap.value()
+                 + self._bonificaciones.value() + self._acpot.value()
+                 + self._iva_otros.value())
+        total = sub_neto + sub_imp + otros
+        self._lbl_subtotal_neto.setText(f"$ {sub_neto:,.2f}")
+        self._lbl_subtotal_imp.setText(f"$ {sub_imp:,.2f}")
+        self._importe_total.blockSignals(True)
+        self._importe_total.setValue(total)
+        self._importe_total.blockSignals(False)
+
+    # ── load / save ───────────────────────────────────────────────────────────
+
+    def _load(self, factura_id: int) -> None:
+        f = self._repo.get_by_id(factura_id)
+        if f is None:
+            return
+        idx = self._tarifa_combo.findData(f.tipo_tarifa)
+        if idx >= 0:
+            self._tarifa_combo.setCurrentIndex(idx)
+        anio_f, mes_f = f.periodo.split("-")
+        self._mes_combo.setCurrentIndex(int(mes_f) - 1)
+        self._anio_spin.setValue(int(anio_f))
+        self._nro_lsp.setText(f.nro_lsp)
+        for src, widget in [(f.fecha_factura, self._fecha_factura),
+                            (f.fecha_vto1, self._fecha_vto1),
+                            (f.fecha_vto2, self._fecha_vto2)]:
+            d = self._parse_date(src)
+            if d:
+                widget.setDate(d)
+        self._cap_convenida.setValue(f.cap_convenida_kw)
+        self._cap_adquirida.setValue(f.cap_adquirida_kw)
+        self._tangente_fi.setValue(f.tangente_fi)
+        self._kwh_punta.setValue(f.kwh_punta)
+        self._kwh_valle_noc.setValue(f.kwh_valle_noc)
+        self._kwh_restantes.setValue(f.kwh_restantes)
+        self._kvar_reactiva.setValue(f.kvar_reactiva)
+        self._drp_kw.setValue(f.drp_kw)
+        self._drfp_kw.setValue(f.drfp_kw)
+        self._kwh_t1.setValue(f.kwh_punta)   # T1 usa kwh_punta como total
+        self._cargo_fijo.setValue(f.cargo_fijo)
+        self._imp_cap_conv.setValue(f.importe_cap_convenida)
+        self._imp_cap_adq.setValue(f.importe_cap_adquirida)
+        self._imp_punta.setValue(f.importe_kwh_punta)
+        self._imp_valle_noc.setValue(f.importe_kwh_valle_noc)
+        self._imp_restantes.setValue(f.importe_kwh_restantes)
+        self._recargo_reactiva.setValue(f.recargo_reactiva)
+        self._ley_7290.setValue(f.ley_7290)
+        self._iva_27.setValue(f.iva_27)
+        self._contrib_art34.setValue(f.contrib_art34)
+        self._contrib_prov.setValue(f.contrib_provincial)
+        self._percep_iva.setValue(f.percep_iva)
+        self._cestab.setValue(f.cestab)
+        self._tasa_mun_ap.setValue(f.tasa_mun_ap)
+        self._bonificaciones.setValue(f.bonificaciones)
+        self._acpot.setValue(f.acpot)
+        self._iva_otros.setValue(f.iva_otros)
+        self._importe_total.setValue(f.importe)
+        self._observaciones.setPlainText(f.observaciones)
+        self._recalcular_kwh_total()
+        self._recalcular_subtotal()
+
+    def _save(self) -> None:
+        tarifa = self._tarifa_combo.currentData() or "T3"
+        mes = self._mes_combo.currentIndex() + 1
+        anio = self._anio_spin.value()
+        periodo = f"{anio}-{mes:02d}"
+        importe = self._importe_total.value()
+
+        if tarifa == "T1":
+            kwh_p = self._kwh_t1.value()
+            kwh_v = kwh_r = 0.0
+        else:
+            kwh_p = self._kwh_punta.value()
+            kwh_v = self._kwh_valle_noc.value()
+            kwh_r = self._kwh_restantes.value()
+
+        if (kwh_p + kwh_v + kwh_r) <= 0:
+            QMessageBox.warning(self, "Validación", "Ingresá al menos un valor de consumo (kWh).")
+            return
+        if importe <= 0:
+            QMessageBox.warning(self, "Validación", "El total a pagar debe ser mayor a 0.")
+            return
+
+        args = dict(
+            periodo=periodo, tipo_tarifa=tarifa,
+            nro_lsp=self._nro_lsp.text().strip(),
+            fecha_factura=self._fecha_factura.date().toString("yyyy-MM-dd"),
+            fecha_vto1=self._fecha_vto1.date().toString("yyyy-MM-dd"),
+            fecha_vto2=self._fecha_vto2.date().toString("yyyy-MM-dd"),
+            cap_convenida_kw=self._cap_convenida.value(),
+            cap_adquirida_kw=self._cap_adquirida.value(),
+            tangente_fi=self._tangente_fi.value(),
+            kwh_punta=kwh_p, kwh_valle_noc=kwh_v, kwh_restantes=kwh_r,
+            kvar_reactiva=self._kvar_reactiva.value(),
+            drp_kw=self._drp_kw.value(),
+            drfp_kw=self._drfp_kw.value(),
+            cargo_fijo=self._cargo_fijo.value(),
+            importe_cap_convenida=self._imp_cap_conv.value(),
+            importe_cap_adquirida=self._imp_cap_adq.value(),
+            importe_kwh_punta=self._imp_punta.value(),
+            importe_kwh_valle_noc=self._imp_valle_noc.value(),
+            importe_kwh_restantes=self._imp_restantes.value(),
+            recargo_reactiva=self._recargo_reactiva.value(),
+            ley_7290=self._ley_7290.value(),
+            iva_27=self._iva_27.value(),
+            contrib_art34=self._contrib_art34.value(),
+            contrib_provincial=self._contrib_prov.value(),
+            percep_iva=self._percep_iva.value(),
+            cestab=self._cestab.value(),
+            tasa_mun_ap=self._tasa_mun_ap.value(),
+            bonificaciones=self._bonificaciones.value(),
+            acpot=self._acpot.value(),
+            iva_otros=self._iva_otros.value(),
+            importe=importe,
+            observaciones=self._observaciones.toPlainText().strip(),
+        )
+        try:
+            if self._factura_id is None:
+                self._repo.create(medidor_id=self._medidor_id, **args)
+            else:
+                self._repo.update(factura_id=self._factura_id, **args)
+            self.accept()
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
+
+
+# ── Diálogo de historial EDESUR ───────────────────────────────────────────────
+
+class EdesurHistorialDialog(QDialog):
+    """
+    Muestra el historial de facturas EDESUR obtenido por API.
+    El usuario elige qué factura cargar y tiene links directos a los PDFs.
+    """
+
+    def __init__(self, resultado, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._resultado = resultado
+        self._elegido: int | None = 0
+        self.setWindowTitle("Historial de facturas EDESUR")
+        self.setMinimumWidth(640)
+        self.resize(680, 480)
+        self._build()
+
+    def exec_get_choice(self) -> int | None:
+        self.exec()
+        return self._elegido
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+
+        info = QLabel(
+            f"Se encontraron <b>{len(self._resultado.todas_facturas)}</b> facturas en tu cuenta EDESUR.<br>"
+            "Seleccioná cuál cargar y usá el link para descargar el PDF si necesitás el desglose completo."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        # Tabla de facturas
+        tabla = _make_table(["#", "Período", "N° Factura", "Total", "Vto 1", "PDF"])
+        tabla.setColumnWidth(0, 35)
+        tabla.setColumnWidth(1, 90)
+        tabla.setColumnWidth(2, 165)
+        tabla.setColumnWidth(3, 110)
+        tabla.setColumnWidth(4, 90)
+        tabla.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        tabla.setSelectionBehavior(tabla.SelectionBehavior.SelectRows)
+        tabla.doubleClicked.connect(self._elegir_seleccionado)
+
+        facturas = self._resultado.todas_facturas
+        for i, inv in enumerate(facturas):
+            row = tabla.rowCount()
+            tabla.insertRow(row)
+            tabla.setItem(row, 0, QTableWidgetItem(str(i + 1)))
+            # Período desde issueDate (DD/MM/YYYY → Mes YYYY)
+            issue = inv.get("issueDate", "")
+            try:
+                d, m, y = issue.split("/")
+                from datetime import date as _date
+                periodo_lbl = f"{_MESES[int(m)-1]} {y}"
+            except Exception:
+                periodo_lbl = issue
+            tabla.setItem(row, 1, QTableWidgetItem(periodo_lbl))
+            tabla.setItem(row, 2, QTableWidgetItem(inv.get("number", "")))
+            tabla.setItem(row, 3, QTableWidgetItem(f"$ {float(inv.get('totalAmount', 0)):,.2f}"))
+            tabla.setItem(row, 4, QTableWidgetItem(inv.get("firstDueDate", "")))
+
+            # Link al PDF
+            url_pdf = inv.get("invoiceAccess", "")
+            if url_pdf:
+                btn_link = QPushButton("Abrir PDF")
+                btn_link.setFlat(True)
+                btn_link.setStyleSheet("color: #3b82f6; text-decoration: underline;")
+                btn_link.setToolTip(f"Abre el PDF en el navegador (requiere verificación)")
+                btn_link.clicked.connect(lambda _, u=url_pdf: QDesktopServices.openUrl(QUrl(u)))
+                tabla.setCellWidget(row, 5, btn_link)
+            else:
+                tabla.setItem(row, 5, QTableWidgetItem("No disponible"))
+
+            item0 = tabla.item(row, 0)
+            if item0:
+                item0.setData(Qt.ItemDataRole.UserRole, i)
+
+        tabla.selectRow(0)
+        layout.addWidget(tabla)
+        self._tabla = tabla
+
+        nota = QLabel(
+            "<i>Los links de PDF abren el portal de descarga de EDESUR en el navegador.<br>"
+            "En la página verás un botón 'Descargá tu factura digital' — hacé clic para bajarlo.<br>"
+            "Luego usá 'Importar PDF' en el formulario para completar el desglose de cargos.</i>"
+        )
+        nota.setWordWrap(True)
+        nota.setObjectName("muted")
+        layout.addWidget(nota)
+
+        btn_row = QHBoxLayout()
+        btn_cargar = _primary_button("Cargar factura seleccionada")
+        btn_cargar.clicked.connect(self._elegir_seleccionado)
+        btn_cancelar = QPushButton("Cancelar")
+        btn_cancelar.clicked.connect(self.reject)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_cancelar)
+        btn_row.addWidget(btn_cargar)
+        layout.addLayout(btn_row)
+
+    def _elegir_seleccionado(self) -> None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        if item:
+            self._elegido = item.data(Qt.ItemDataRole.UserRole)
+        self.accept()
+
+
+# ── Diálogo de credenciales EDESUR ────────────────────────────────────────────
+
+class EdesurCredencialesDialog(QDialog):
+    """Guarda usuario y contraseña del portal EDESUR de forma local."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Acceso portal EDESUR")
+        self.setMinimumWidth(420)
+        self._build()
+        self._load()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        aviso = QLabel(
+            "Las credenciales se guardan <b>solo en este equipo</b>, "
+            "en un archivo local fuera del repositorio.\n"
+            "No se comparten con ningún servicio externo."
+        )
+        aviso.setWordWrap(True)
+        aviso.setObjectName("muted")
+        layout.addWidget(aviso)
+
+        form = QFormLayout()
+        self._usuario = QLineEdit()
+        self._usuario.setPlaceholderText("email o usuario EDESUR")
+        self._clave = QLineEdit()
+        self._clave.setEchoMode(QLineEdit.EchoMode.Password)
+        self._clave.setPlaceholderText("contraseña")
+        form.addRow("Usuario:", self._usuario)
+        form.addRow("Contraseña:", self._clave)
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _load(self) -> None:
+        from gestion_mantenimiento.services.edesur_scraper import cargar_credenciales
+        creds = cargar_credenciales()
+        self._usuario.setText(creds.get("usuario", ""))
+        self._clave.setText(creds.get("clave", ""))
+
+    def _save(self) -> None:
+        from gestion_mantenimiento.services.edesur_scraper import guardar_credenciales
+        usuario = self._usuario.text().strip()
+        clave = self._clave.text()
+        if not usuario or not clave:
+            QMessageBox.warning(self, "Validación", "Completá usuario y contraseña.")
+            return
+        guardar_credenciales(usuario, clave)
+        self.accept()
