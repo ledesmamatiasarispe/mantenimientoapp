@@ -1,0 +1,28 @@
+package com.example.mantenimientoapp.ui.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.mantenimientoapp.data.preferences.SessionManager
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val session: SessionManager
+) : ViewModel() {
+
+    val baseUrl: StateFlow<String> = session.baseUrl
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "http://192.168.0.1:54321")
+
+    val tecnicoNombre: StateFlow<String> = session.tecnicoNombre
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val esAdmin: StateFlow<Boolean> = session.esAdmin
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun saveBaseUrl(url: String) {
+        viewModelScope.launch { session.saveBaseUrl(url) }
+    }
+}
