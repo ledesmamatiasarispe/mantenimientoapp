@@ -82,7 +82,7 @@ fun SettingsScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("URLs frecuentes", style = MaterialTheme.typography.titleSmall)
                 listOf(
-                    "Red local (default)" to "http://192.168.0.1:54321",
+                    "Esta PC (192.168.100.228)" to "http://192.168.100.228:54321",
                     "PC laboratorio" to "http://LAB01.local:54321",
                     "Emulador Android" to "http://10.0.2.2:54321"
                 ).forEach { (label, url) ->

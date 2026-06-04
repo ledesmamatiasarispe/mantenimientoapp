@@ -36,7 +36,7 @@ class SessionManager @Inject constructor(
         "$n $a".trim()
     }
     val baseUrl: Flow<String> = context.dataStore.data.map {
-        it[KEY_BASE_URL] ?: "http://192.168.0.1:54321"
+        it[KEY_BASE_URL] ?: "http://192.168.100.228:54321"
     }
 
     suspend fun saveSession(
