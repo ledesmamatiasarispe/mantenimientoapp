@@ -65,16 +65,23 @@ def main() -> int:
 
 def _start_api_server(database_path: Path) -> None:
     """Arranca la API REST en background en el puerto 54321."""
-    # parents[2] = sistema-gestion-mantenimiento/  (project root)
     repo_root = Path(__file__).resolve().parents[2]
 
-    uvicorn_exe = repo_root / ".venv" / "Scripts" / "uvicorn.exe"
-    if not uvicorn_exe.exists():
-        uvicorn_exe = Path(sys.executable).parent / "uvicorn.exe"
-    if not uvicorn_exe.exists():
+    if sys.platform == "win32":
+        candidates = [
+            repo_root / ".venv" / "Scripts" / "uvicorn.exe",
+            Path(sys.executable).parent / "uvicorn.exe",
+        ]
+    else:
+        candidates = [
+            repo_root / ".venv" / "bin" / "uvicorn",
+            Path(sys.executable).parent / "uvicorn",
+        ]
+
+    uvicorn_exe = next((p for p in candidates if p.exists()), None)
+    if uvicorn_exe is None:
         return
 
-    # Cerrar uvicorn anterior si existe
     if sys.platform == "win32":
         try:
             subprocess.run(
