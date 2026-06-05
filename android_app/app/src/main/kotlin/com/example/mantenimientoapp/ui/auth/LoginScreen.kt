@@ -25,11 +25,17 @@ fun LoginScreen(
     vm: LoginViewModel = hiltViewModel()
 ) {
     val uiState by vm.uiState.collectAsState()
+    val isLoggedIn by vm.isLoggedIn.collectAsState(initial = false)
     val focusManager = LocalFocusManager.current
 
     var legajo by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+
+    // Si ya tenía sesión activa, ir directo al home
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) onLoginSuccess()
+    }
 
     LaunchedEffect(uiState.success) {
         if (uiState.success) onLoginSuccess()

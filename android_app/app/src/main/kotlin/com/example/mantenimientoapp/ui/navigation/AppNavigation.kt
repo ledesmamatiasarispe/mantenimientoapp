@@ -1,27 +1,22 @@
 package com.example.mantenimientoapp.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.mantenimientoapp.ui.admin.AdminScreen
 import com.example.mantenimientoapp.ui.admin.equipos.EquiposAdminScreen
 import com.example.mantenimientoapp.ui.admin.programas.ProgramasAdminScreen
 import com.example.mantenimientoapp.ui.admin.repuestos.RepuestosAdminScreen
 import com.example.mantenimientoapp.ui.admin.tecnicos.TecnicosAdminScreen
 import com.example.mantenimientoapp.ui.auth.LoginScreen
-import com.example.mantenimientoapp.ui.auth.LoginViewModel
-import com.example.mantenimientoapp.ui.cronograma.CronogramaScreen
 import com.example.mantenimientoapp.ui.home.HomeScreen
 import com.example.mantenimientoapp.ui.ordenes.OrdenDetailScreen
-import com.example.mantenimientoapp.ui.settings.SettingsScreen
+import com.example.mantenimientoapp.ui.servercheck.ServerCheckScreen
 
 object Routes {
+    const val SERVER_CHECK = "server_check"
     const val LOGIN = "login"
     const val HOME = "home"
     const val ORDEN_DETAIL = "orden/{id}"
@@ -35,21 +30,39 @@ object Routes {
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
-    val loginVm: LoginViewModel = hiltViewModel()
-    val isLoggedIn by loginVm.isLoggedIn.collectAsState(initial = false)
 
     NavHost(
         navController = navController,
-        startDestination = if (isLoggedIn) Routes.HOME else Routes.LOGIN
+        startDestination = Routes.SERVER_CHECK
     ) {
-        composable(Routes.LOGIN) {
-            LoginScreen(onLoginSuccess = {
-                navController.navigate(Routes.HOME) {
-                    popUpTo(Routes.LOGIN) { inclusive = true }
+        // 1. Verificación de servidor (siempre primero)
+        composable(Routes.SERVER_CHECK) {
+            ServerCheckScreen(
+                onConnectedLoggedIn = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.SERVER_CHECK) { inclusive = true }
+                    }
+                },
+                onConnectedNeedLogin = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.SERVER_CHECK) { inclusive = true }
+                    }
                 }
-            })
+            )
         }
 
+        // 2. Login
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // 3. Home principal
         composable(Routes.HOME) {
             HomeScreen(
                 onOrdenClick = { id -> navController.navigate(Routes.ordenDetail(id)) },
@@ -58,13 +71,14 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToAdminRepuestos = { navController.navigate(Routes.ADMIN_REPUESTOS) },
                 onNavigateToAdminTecnicos = { navController.navigate(Routes.ADMIN_TECNICOS) },
                 onLogout = {
-                    navController.navigate(Routes.LOGIN) {
+                    navController.navigate(Routes.SERVER_CHECK) {
                         popUpTo(Routes.HOME) { inclusive = true }
                     }
                 }
             )
         }
 
+        // 4. Detalle de orden
         composable(
             route = Routes.ORDEN_DETAIL,
             arguments = listOf(navArgument("id") { type = NavType.IntType })
@@ -76,6 +90,7 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
+        // 5. Admin sub-pantallas
         composable(Routes.ADMIN_EQUIPOS) {
             EquiposAdminScreen(onBack = { navController.popBackStack() })
         }

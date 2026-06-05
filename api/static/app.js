@@ -1,12 +1,67 @@
 const state = {
   token: localStorage.getItem("gm_token") || "",
   tecnico: JSON.parse(localStorage.getItem("gm_tecnico") || "null"),
+  serverBase: localStorage.getItem("gm_server") || "",
   tab: "pendientes",
   cronogramaAnio: new Date().getFullYear(),
   adminProgramaEquipoId: null,
   adjuntoViewer: null,
   cronogramaEquipoId: null,
 };
+
+function setServerBase(url) {
+  state.serverBase = url.replace(/\/+$/, "");
+  localStorage.setItem("gm_server", state.serverBase);
+}
+
+async function pingServer(base) {
+  const url = (base === undefined ? state.serverBase : base);
+  try {
+    const r = await fetch(url + "/api/health", {
+      signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined,
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+function serverConfigView(error = "", testing = false) {
+  return `
+    <div class="login-shell">
+      <form class="login-card" id="server-form">
+        <h1 class="title">Gestión de Mantenimiento</h1>
+        <p class="subtitle">No se pudo conectar al servidor. Ingresá la dirección IP.</p>
+        <div class="field">
+          <label for="server-url">URL del servidor</label>
+          <input id="server-url" name="server-url" type="text"
+            placeholder="http://192.168.100.228:54321"
+            value="${escapeHtml(state.serverBase)}" required />
+        </div>
+        <button class="button primary" type="submit" ${testing ? "disabled" : ""}>
+          ${testing ? "Conectando…" : "Conectar"}
+        </button>
+        ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+      </form>
+    </div>
+  `;
+}
+
+function showServerConfig(error = "") {
+  document.querySelector("#app").innerHTML = serverConfigView(error);
+  document.querySelector("#server-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = document.querySelector("#server-url").value.trim().replace(/\/+$/, "");
+    document.querySelector("#app").innerHTML = serverConfigView("", true);
+    const ok = await pingServer(url);
+    if (ok) {
+      setServerBase(url);
+      render().catch((err) => showServerConfig(err.message));
+    } else {
+      showServerConfig(`No se pudo conectar a "${url}". Verificá la IP y que el servidor esté corriendo.`);
+    }
+  });
+}
 
 function setAuth(token, tecnico) {
   state.token = token;
@@ -42,7 +97,7 @@ async function apiFetch(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   if (options.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(state.serverBase + path, { ...options, headers });
   if (response.status === 401) {
     clearAuth();
     render();
@@ -60,7 +115,8 @@ async function apiFetch(path, options = {}) {
 }
 
 async function fetchBlobAutenticado(url) {
-  const response = await fetch(url, {
+  const fullUrl = url.startsWith("http") ? url : state.serverBase + url;
+  const response = await fetch(fullUrl, {
     headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
   });
   if (!response.ok) throw new Error("No se pudo cargar la foto.");
@@ -1332,7 +1388,29 @@ window.addEventListener("popstate", () => {
   render().catch((error) => window.alert(error.message));
 });
 
-render().catch((error) => {
-  document.querySelector("#app").innerHTML = loginView(error.message);
-  document.querySelector("#login-form").addEventListener("submit", handleLoginSubmit);
-});
+// Arranque: verificar conexión antes de mostrar login
+(async function startup() {
+  // Mostrar indicador de conexión
+  document.querySelector("#app").innerHTML = `
+    <div class="login-shell">
+      <div class="login-card" style="text-align:center">
+        <p style="color:#666;margin-bottom:12px">Conectando al servidor…</p>
+        <progress style="width:100%;height:4px"></progress>
+      </div>
+    </div>`;
+
+  // Intentar con la URL almacenada (o relativa si no hay)
+  const ok = await pingServer();
+  if (ok) {
+    render().catch((err) => {
+      document.querySelector("#app").innerHTML = loginView(err.message);
+      document.querySelector("#login-form").addEventListener("submit", handleLoginSubmit);
+    });
+  } else {
+    showServerConfig(
+      state.serverBase
+        ? `No se pudo conectar a "${state.serverBase}".`
+        : "No se encontró el servidor. Ingresá la IP manualmente."
+    );
+  }
+})();

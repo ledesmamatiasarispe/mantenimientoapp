@@ -125,6 +125,7 @@ private fun OrdenCard(orden: OrdenCardDto, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NuevaOrdenDialog(
     equipos: List<EquipoCardDto>,

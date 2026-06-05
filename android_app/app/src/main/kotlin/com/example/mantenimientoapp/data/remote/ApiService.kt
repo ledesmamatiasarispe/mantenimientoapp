@@ -8,6 +8,10 @@ import retrofit2.http.*
 
 interface ApiService {
 
+    // ── Health ────────────────────────────────────────────────────────────────
+    @GET("api/health")
+    suspend fun health(): retrofit2.Response<Unit>
+
     // ── Auth ──────────────────────────────────────────────────────────────────
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequestDto): TokenResponseDto
