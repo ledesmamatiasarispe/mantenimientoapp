@@ -2,16 +2,18 @@ package com.example.mantenimientoapp.ui.servercheck
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.mantenimientoapp.data.preferences.ServerIpInfo
 
 @Composable
 fun ServerCheckScreen(
@@ -20,8 +22,8 @@ fun ServerCheckScreen(
     vm: ServerCheckViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
-    val currentUrl by vm.baseUrl.collectAsState()
     val isLoggedIn by vm.isLoggedIn.collectAsState(initial = false)
+    val cachedIps by vm.serverIps.collectAsState()
 
     LaunchedEffect(state) {
         if (state is ServerState.Connected) {
@@ -36,10 +38,11 @@ fun ServerCheckScreen(
                 is ServerState.Failed -> FailedView(
                     currentUrl = serverState.url,
                     error = serverState.error,
+                    cachedIps = cachedIps,
                     onRetry = { vm.check() },
                     onSaveUrl = { url -> vm.saveUrlAndCheck(url) }
                 )
-                is ServerState.Connected -> CheckingView() // Transitorio antes de navegar
+                is ServerState.Connected -> CheckingView()
             }
         }
     }
@@ -65,6 +68,7 @@ private fun CheckingView() {
 private fun FailedView(
     currentUrl: String,
     error: String,
+    cachedIps: List<ServerIpInfo>,
     onRetry: () -> Unit,
     onSaveUrl: (String) -> Unit
 ) {
@@ -76,10 +80,11 @@ private fun FailedView(
             .padding(24.dp)
     ) {
         Column(
-            Modifier.padding(24.dp),
+            Modifier
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Ícono de error
             Icon(
                 Icons.Default.WifiOff,
                 contentDescription = null,
@@ -105,7 +110,7 @@ private fun FailedView(
             HorizontalDivider()
 
             Text(
-                "Ingresá la dirección IP del servidor:",
+                "Ingresá la dirección del servidor:",
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -113,26 +118,28 @@ private fun FailedView(
                 value = urlInput,
                 onValueChange = { urlInput = it },
                 label = { Text("URL del servidor") },
-                placeholder = { Text("http://192.168.100.228:54321") },
+                placeholder = { Text("http://192.168.x.x:54321") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Dns, null) }
             )
 
-            // URLs rápidas
-            Text("Accesos rápidos:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-            listOf(
-                "Esta PC" to "http://192.168.100.228:54321",
-                "LABOR01 (red local)" to "http://192.168.0.116:54321"
-            ).forEach { (label, url) ->
-                OutlinedButton(
-                    onClick = { urlInput = url },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(label, style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.width(4.dp))
-                    Text(url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            // IPs del servidor (cacheadas de la última conexión exitosa)
+            if (cachedIps.isNotEmpty()) {
+                Text(
+                    "IPs del servidor (última conexión exitosa):",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                cachedIps.forEach { info ->
+                    IpButton(info = info, onClick = { urlInput = info.url })
                 }
+            } else {
+                Text(
+                    "Conectate una vez para que el servidor informe sus IPs automáticamente.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
             }
 
             Row(
@@ -154,6 +161,27 @@ private fun FailedView(
                     Text("Conectar")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun IpButton(info: ServerIpInfo, onClick: () -> Unit) {
+    val icon = when {
+        info.label.contains("local", ignoreCase = true) -> Icons.Default.Wifi
+        info.label.contains("Hamachi", ignoreCase = true) -> Icons.Default.VpnLock
+        info.label.contains("pública", ignoreCase = true) -> Icons.Default.Public
+        else -> Icons.Default.NetworkCheck
+    }
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(icon, null, Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(info.label, style = MaterialTheme.typography.labelMedium)
+            Text(info.url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
     }
 }

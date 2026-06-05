@@ -27,6 +27,19 @@ async function pingServer(base) {
 }
 
 function serverConfigView(error = "", testing = false) {
+  const cached = getNetworkInfo();
+  const ipButtons = cached && cached.ips && cached.ips.length > 0
+    ? `<p style="font-size:12px;color:#666;margin:8px 0 4px">IPs del servidor (última conexión exitosa):</p>
+       ${cached.ips.map(entry => `
+         <button type="button" class="button secondary ip-quick"
+           data-url="http://${entry.ip}:${cached.port}"
+           style="width:100%;text-align:left;margin-bottom:6px;font-size:12px;padding:6px 10px">
+           <strong>${escapeHtml(entry.label)}</strong> — http://${entry.ip}:${cached.port}
+         </button>`).join("")}`
+    : `<p style="font-size:12px;color:#999;margin-top:8px">
+         Conectate una vez para que el servidor informe sus IPs automáticamente.
+       </p>`;
+
   return `
     <div class="login-shell">
       <form class="login-card" id="server-form">
@@ -38,7 +51,9 @@ function serverConfigView(error = "", testing = false) {
             placeholder="http://192.168.100.228:54321"
             value="${escapeHtml(state.serverBase)}" required />
         </div>
-        <button class="button primary" type="submit" ${testing ? "disabled" : ""}>
+        ${ipButtons}
+        <button class="button primary" type="submit" ${testing ? "disabled" : ""}
+          style="width:100%;margin-top:12px">
           ${testing ? "Conectando…" : "Conectar"}
         </button>
         ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
@@ -49,6 +64,14 @@ function serverConfigView(error = "", testing = false) {
 
 function showServerConfig(error = "") {
   document.querySelector("#app").innerHTML = serverConfigView(error);
+
+  // Botones de IP rápida
+  document.querySelectorAll(".ip-quick").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelector("#server-url").value = btn.dataset.url;
+    });
+  });
+
   document.querySelector("#server-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const url = document.querySelector("#server-url").value.trim().replace(/\/+$/, "");
@@ -63,11 +86,27 @@ function showServerConfig(error = "") {
   });
 }
 
+async function fetchNetworkInfo() {
+  try {
+    const info = await apiFetch("/api/network-info");
+    state.serverNetworkInfo = info;
+    localStorage.setItem("gm_network_info", JSON.stringify(info));
+  } catch (_) { /* no crítico */ }
+}
+
+function getNetworkInfo() {
+  if (state.serverNetworkInfo) return state.serverNetworkInfo;
+  try {
+    return JSON.parse(localStorage.getItem("gm_network_info") || "null");
+  } catch { return null; }
+}
+
 function setAuth(token, tecnico) {
   state.token = token;
   state.tecnico = tecnico;
   localStorage.setItem("gm_token", token);
   localStorage.setItem("gm_tecnico", JSON.stringify(tecnico));
+  fetchNetworkInfo(); // cargar IPs en background tras el login
 }
 
 function clearAuth() {

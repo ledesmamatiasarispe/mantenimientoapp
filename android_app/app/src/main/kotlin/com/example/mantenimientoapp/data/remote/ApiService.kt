@@ -8,9 +8,12 @@ import retrofit2.http.*
 
 interface ApiService {
 
-    // ── Health ────────────────────────────────────────────────────────────────
+    // ── Health / Network ──────────────────────────────────────────────────────
     @GET("api/health")
     suspend fun health(): retrofit2.Response<Unit>
+
+    @GET("api/network-info")
+    suspend fun networkInfo(): NetworkInfoDto
 
     // ── Auth ──────────────────────────────────────────────────────────────────
     @POST("api/auth/login")
