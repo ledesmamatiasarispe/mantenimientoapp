@@ -50,16 +50,28 @@ fun ServerCheckScreen(
 
 @Composable
 private fun CheckingView() {
+    var seconds by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            seconds++
+        }
+    }
     Column(
         Modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         CircularProgressIndicator(Modifier.size(48.dp))
         Text(
-            "Conectando al servidor…",
+            "Buscando el servidor…",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.outline
+        )
+        Text(
+            if (seconds < 2) "Verificando conexión" else "Tiempo: ${seconds}s (máx. 6s)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
         )
     }
 }
