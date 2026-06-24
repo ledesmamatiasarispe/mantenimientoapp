@@ -1563,7 +1563,8 @@ async function renderElectricidad(medidorId = null) {
   if (graficos && graficos.consumo_kwh.length > 0) {
     dibujarGrafico("canvas-kwh", graficos.consumo_kwh, "#3b82f6", "kWh");
     dibujarGrafico("canvas-kw", graficos.demanda_kw, "#f59e0b", "kW");
-    dibujarGrafico("canvas-fp", graficos.factor_potencia, "#10b981", "cos φ");
+    const maxFp = Math.max(...graficos.factor_potencia.map(p => p.valor), 0);
+    dibujarGrafico("canvas-fp", graficos.factor_potencia, "#10b981", "cos φ", maxFp * 0.85);
     dibujarGrafico("canvas-costo", graficos.costo_total, "#6366f1", "$");
   }
 }
@@ -1579,7 +1580,7 @@ function renderGraficosElectricidad(g) {
     </div>`;
 }
 
-function dibujarGrafico(canvasId, puntos, color, unidad) {
+function dibujarGrafico(canvasId, puntos, color, unidad, baseline = null) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || puntos.length === 0) return;
   const ctx = canvas.getContext("2d");
@@ -1589,17 +1590,20 @@ function dibujarGrafico(canvasId, puntos, color, unidad) {
   canvas.height = H;
   const valores = puntos.map(p => p.valor);
   const max = Math.max(...valores) || 1;
+  const min = baseline !== null ? baseline : 0;
+  const range = (max - min) || 1;
   const barW = Math.max(2, (W - 20) / puntos.length - 2);
   ctx.clearRect(0, 0, W, H);
   puntos.forEach((p, i) => {
     const x = 10 + i * (barW + 2);
-    const barH = (p.valor / max) * (H - 20);
+    const barH = Math.max(0, ((p.valor - min) / range) * (H - 20));
     ctx.fillStyle = color;
     ctx.fillRect(x, H - barH - 10, barW, barH);
   });
   ctx.fillStyle = "#666";
   ctx.font = "9px sans-serif";
-  ctx.fillText(`${Math.round(max)} ${unidad}`, 2, 10);
+  ctx.fillText(`${max.toFixed(unidad === "cos φ" ? 3 : 0)} ${unidad}`, 2, 10);
+  if (min > 0) ctx.fillText(min.toFixed(3), 2, H - 2);
 }
 
 // ── Base de datos (export/import) ─────────────────────────────────────────────
