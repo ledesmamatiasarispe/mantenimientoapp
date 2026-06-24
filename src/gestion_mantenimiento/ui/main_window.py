@@ -1592,6 +1592,8 @@ class MainWindow(QMainWindow):
         COLOR_SEP        = QColor("#4A4A4A")  # gris oscuro  — separador entre máquinas
         hoy = date.today()
 
+        equipos_map = {e.id: e for e in self._equipo_repo.list_all()}
+
         # Agrupar programas por equipo para insertar separadores
         grupos: list[list] = []  # lista de grupos, cada grupo es lista de programas
         for prog in programas:
@@ -1624,8 +1626,12 @@ class MainWindow(QMainWindow):
                     tabla.setItem(tabla_row, col, sep_item)
                 tabla_row += 1
 
-            for prog in grupo:
+            for p_idx, prog in enumerate(grupo):
                 etiqueta = f"{prog.equipo_nombre}  —  {prog.descripcion}"
+                if p_idx == 0:
+                    equipo = equipos_map.get(prog.equipo_id)
+                    if equipo is not None and equipo.horas_trabajo_activo:
+                        etiqueta += f"\nHoras de trabajo: {equipo.horas_trabajo_actual:g} hs"
                 tabla.setItem(tabla_row, 0, QTableWidgetItem(etiqueta))
 
                 for mes in range(1, 13):
@@ -1647,6 +1653,7 @@ class MainWindow(QMainWindow):
                     item.setBackground(QBrush(color))
                     tabla.setItem(tabla_row, mes, item)
 
+                tabla.resizeRowToContents(tabla_row)
                 tabla_row += 1
 
     # ── Técnicos ─────────────────────────────────────────────────────────────
@@ -2249,6 +2256,7 @@ class MainWindow(QMainWindow):
             self, "Seleccionar facturas EDESUR (PDF)",
             str(_Path.home()),
             "Archivos PDF (*.pdf *.PDF)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if not paths:
             return
@@ -2455,6 +2463,27 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._nav_list_widget)
         layout.addLayout(nav_btn_row)
 
+        # ── Base de datos ────────────────────────────────────────────────────
+        layout.addWidget(_section_title("Base de datos"))
+
+        db_info = QLabel(
+            "Exportar genera una copia de seguridad del archivo de base de datos.\n"
+            "Importar reemplaza la base de datos actual y reinicia la aplicación."
+        )
+        db_info.setObjectName("muted")
+        db_info.setWordWrap(True)
+        layout.addWidget(db_info)
+
+        db_btn_row = QHBoxLayout()
+        btn_export_db = QPushButton("Exportar base de datos")
+        btn_import_db = _danger_button("Importar base de datos")
+        btn_export_db.clicked.connect(self._db_exportar)
+        btn_import_db.clicked.connect(self._db_importar)
+        db_btn_row.addWidget(btn_export_db)
+        db_btn_row.addWidget(btn_import_db)
+        db_btn_row.addStretch()
+        layout.addLayout(db_btn_row)
+
         # ── Apariencia ───────────────────────────────────────────────────────
         layout.addWidget(_section_title("Apariencia"))
 
@@ -2567,6 +2596,79 @@ class MainWindow(QMainWindow):
         from gestion_mantenimiento.data.paths import get_theme_path
         save_theme_colors(get_theme_path(), self._current_theme)
         QMessageBox.information(self, "Opciones", "Colores guardados correctamente.")
+
+    def _db_exportar(self) -> None:
+        from gestion_mantenimiento.data.paths import get_database_path
+        from pathlib import Path as _Path
+        from datetime import date as _date
+        db_src = get_database_path()
+        nombre_default = f"gestion_mantenimiento_backup_{_date.today()}.sqlite3"
+        dest, _ = QFileDialog.getSaveFileName(
+            self, "Exportar base de datos",
+            str(_Path.home() / nombre_default),
+            "Base de datos SQLite (*.sqlite3 *.db)",
+            options=QFileDialog.Option.DontUseNativeDialog,
+        )
+        if not dest:
+            return
+        import shutil as _shutil
+        try:
+            _shutil.copy2(db_src, dest)
+            QMessageBox.information(self, "Exportar", f"Base de datos exportada correctamente:\n{dest}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Error al exportar", str(exc))
+
+    def _db_importar(self) -> None:
+        reply = QMessageBox.warning(
+            self, "Importar base de datos",
+            "Esto reemplazará toda la base de datos actual.\n"
+            "Se creará una copia de seguridad automáticamente antes de importar.\n\n"
+            "¿Continuar?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        from pathlib import Path as _Path
+        src_path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar base de datos a importar",
+            str(_Path.home()),
+            "Base de datos SQLite (*.sqlite3 *.db)",
+            options=QFileDialog.Option.DontUseNativeDialog,
+        )
+        if not src_path:
+            return
+
+        from gestion_mantenimiento.data.paths import get_database_path
+        from datetime import datetime as _dt
+        import sqlite3 as _sqlite3
+        import shutil as _shutil
+
+        db_dst = get_database_path()
+        backup = db_dst.parent / f"backup_{_dt.now().strftime('%Y%m%d_%H%M%S')}.sqlite3"
+        try:
+            _shutil.copy2(db_dst, backup)
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", f"No se pudo crear el backup:\n{exc}")
+            return
+
+        try:
+            with _sqlite3.connect(src_path) as src_conn:
+                with _sqlite3.connect(str(db_dst)) as dst_conn:
+                    src_conn.backup(dst_conn)
+        except Exception as exc:
+            QMessageBox.critical(self, "Error al importar", str(exc))
+            return
+
+        QMessageBox.information(
+            self, "Importar",
+            "Base de datos importada correctamente.\n"
+            f"Backup guardado en:\n{backup}\n\n"
+            "La aplicación se reiniciará ahora."
+        )
+        import sys as _sys, subprocess as _sp
+        _sp.Popen([_sys.executable] + _sys.argv)
+        _sys.exit(0)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -2811,6 +2913,12 @@ class EquipoDialog(QDialog):
         self._activo = QCheckBox("Activo")
         self._activo.setChecked(True)
 
+        self._horas_trabajo_check = QCheckBox("Controlar horas de trabajo")
+        self._horas_trabajo_actual = QDoubleSpinBox()
+        self._horas_trabajo_actual.setRange(0, 9_999_999)
+        self._horas_trabajo_actual.setDecimals(1)
+        self._horas_trabajo_actual.setSuffix(" hs")
+
         form.addRow("Nombre *", self._nombre)
         form.addRow("Tipo", self._tipo)
         form.addRow("N° Serie", self._numero_serie)
@@ -2820,6 +2928,13 @@ class EquipoDialog(QDialog):
         form.addRow("Fecha adquisición", self._fecha_adq)
         form.addRow("Observaciones", self._observaciones)
         form.addRow("", self._activo)
+        form.addRow("", self._horas_trabajo_check)
+        self._horas_row_label = "Horas actuales"
+        form.addRow(self._horas_row_label, self._horas_trabajo_actual)
+
+        self._form = form
+        self._horas_trabajo_check.toggled.connect(self._on_horas_trabajo_toggled)
+        self._on_horas_trabajo_toggled(self._horas_trabajo_check.isChecked())
 
         layout.addLayout(form)
 
@@ -2829,6 +2944,11 @@ class EquipoDialog(QDialog):
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _on_horas_trabajo_toggled(self, checked: bool) -> None:
+        row, _ = self._form.getWidgetPosition(self._horas_trabajo_actual)
+        if row >= 0:
+            self._form.setRowVisible(row, checked)
 
     def _load(self, equipo_id: int) -> None:
         eq = self._repo.get_by_id(equipo_id)
@@ -2850,6 +2970,9 @@ class EquipoDialog(QDialog):
                 pass
         self._observaciones.setPlainText(eq.observaciones)
         self._activo.setChecked(eq.activo)
+        self._horas_trabajo_check.setChecked(eq.horas_trabajo_activo)
+        self._horas_trabajo_actual.setValue(eq.horas_trabajo_actual)
+        self._on_horas_trabajo_toggled(self._horas_trabajo_check.isChecked())
 
     def _save(self) -> None:
         nombre = self._nombre.text().strip()
@@ -2865,17 +2988,21 @@ class EquipoDialog(QDialog):
         fecha_adq = self._fecha_adq.date().toString("yyyy-MM-dd")
         observaciones = self._observaciones.toPlainText().strip()
         activo = self._activo.isChecked()
+        horas_trabajo_activo = self._horas_trabajo_check.isChecked()
+        horas_trabajo_actual = self._horas_trabajo_actual.value()
 
         try:
             if self._equipo_id is None:
                 self._repo.create(
                     nombre, tipo_id, numero_serie, marca, modelo,
                     ubicacion, fecha_adq, observaciones,
+                    horas_trabajo_activo, horas_trabajo_actual,
                 )
             else:
                 self._repo.update(
                     self._equipo_id, nombre, tipo_id, numero_serie, marca, modelo,
                     ubicacion, fecha_adq, observaciones, activo,
+                    horas_trabajo_activo, horas_trabajo_actual,
                 )
             self.accept()
         except Exception as exc:
@@ -3045,6 +3172,7 @@ class OrdenTrabajoDialog(QDialog):
         self._db = database_path
         self._orden_id = orden_id
         self._initial_estado: str = ""
+        self._horas_trabajo_baseline: float = 0.0
         self._repo = OrdenTrabajoRepository(database_path)
         self._repuesto_repo = RepuestoOrdenRepository(database_path)
         self._repuesto_catalog_repo = RepuestoRepository(database_path)
@@ -3062,6 +3190,8 @@ class OrdenTrabajoDialog(QDialog):
     def _build(self) -> None:
         layout = QVBoxLayout(self)
         form = QFormLayout()
+
+        self._equipos_map = {e.id: e for e in self._equipo_repo.list_all()}
 
         self._equipo = QComboBox()
         for eq in self._equipo_repo.list_all(solo_activos=True):
@@ -3100,6 +3230,11 @@ class OrdenTrabajoDialog(QDialog):
         self._observaciones = QTextEdit()
         self._observaciones.setFixedHeight(60)
 
+        self._horas_trabajo_input = QDoubleSpinBox()
+        self._horas_trabajo_input.setRange(0, 9_999_999)
+        self._horas_trabajo_input.setDecimals(1)
+        self._horas_trabajo_input.setSuffix(" hs")
+
         form.addRow("Equipo *", self._equipo)
         form.addRow("Tipo", self._tipo)
         form.addRow("Estado", self._estado)
@@ -3108,7 +3243,12 @@ class OrdenTrabajoDialog(QDialog):
         form.addRow("Fecha cierre", self._fecha_cierre)
         form.addRow("Técnico", self._tecnico)
         form.addRow("Costo mano de obra", self._costo_mano_obra)
+        form.addRow("Horas de trabajo actuales", self._horas_trabajo_input)
         form.addRow("Observaciones", self._observaciones)
+
+        self._form = form
+        self._equipo.currentIndexChanged.connect(self._on_equipo_changed)
+        self._on_equipo_changed()
 
         layout.addLayout(form)
 
@@ -3177,6 +3317,17 @@ class OrdenTrabajoDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _on_equipo_changed(self) -> None:
+        equipo = self._equipos_map.get(self._equipo.currentData())
+        activo = bool(equipo and equipo.horas_trabajo_activo)
+        row, _ = self._form.getWidgetPosition(self._horas_trabajo_input)
+        if row >= 0:
+            self._form.setRowVisible(row, activo)
+        if activo and equipo is not None:
+            self._horas_trabajo_baseline = equipo.horas_trabajo_actual
+            if self._orden_id is None:
+                self._horas_trabajo_input.setValue(equipo.horas_trabajo_actual)
+
     def _load(self, orden_id: int) -> None:
         orden = self._repo.get_by_id(orden_id)
         if orden is None:
@@ -3187,6 +3338,12 @@ class OrdenTrabajoDialog(QDialog):
         idx = self._equipo.findData(orden.equipo_id)
         if idx >= 0:
             self._equipo.setCurrentIndex(idx)
+        self._on_equipo_changed()
+
+        equipo = self._equipos_map.get(orden.equipo_id)
+        if equipo and equipo.horas_trabajo_activo:
+            valor = orden.horas_trabajo if orden.horas_trabajo is not None else equipo.horas_trabajo_actual
+            self._horas_trabajo_input.setValue(valor)
 
         idx = self._tipo.findData(orden.tipo)
         if idx >= 0:
@@ -3347,16 +3504,34 @@ class OrdenTrabajoDialog(QDialog):
             QMessageBox.warning(self, "Validación", "Seleccione un equipo.")
             return
 
+        equipo = self._equipos_map.get(equipo_id)
+        usa_horas = bool(equipo and equipo.horas_trabajo_activo)
+        estado = self._estado.currentData() or "PENDIENTE"
+        horas_trabajo = self._horas_trabajo_input.value() if usa_horas else None
+
+        if (
+            usa_horas
+            and estado == "COMPLETADA"
+            and self._initial_estado != "COMPLETADA"
+            and (horas_trabajo is None or horas_trabajo <= self._horas_trabajo_baseline)
+        ):
+            QMessageBox.warning(
+                self, "Validación",
+                "Debe actualizar las horas de trabajo del equipo para completar esta orden."
+            )
+            return
+
         data = OrdenTrabajoCreate(
             equipo_id=equipo_id,
             tipo=self._tipo.currentData() or "CORRECTIVO",
             descripcion=self._descripcion.toPlainText().strip(),
             fecha_apertura=self._fecha_apertura.date().toString("yyyy-MM-dd"),
             fecha_cierre=self._fecha_cierre.date().toString("yyyy-MM-dd"),
-            estado=self._estado.currentData() or "PENDIENTE",
+            estado=estado,
             tecnico_id=self._tecnico.currentData(),
             costo_mano_obra=self._costo_mano_obra.value(),
             observaciones=self._observaciones.toPlainText().strip(),
+            horas_trabajo=horas_trabajo,
         )
 
         try:
@@ -3380,6 +3555,15 @@ class OrdenTrabajoDialog(QDialog):
                         self._programa_repo.advance_proxima(
                             prog.id, prog.proxima_ejecucion, prog.frecuencia_meses
                         )
+
+            # Al completar la orden, actualizar las horas de trabajo del equipo
+            if (
+                usa_horas
+                and data.estado == "COMPLETADA"
+                and self._initial_estado != "COMPLETADA"
+                and data.horas_trabajo is not None
+            ):
+                self._equipo_repo.actualizar_horas_trabajo(equipo_id, data.horas_trabajo)
 
             # Save repuestos that don't have a rep_orden_id yet (new rows added in this session)
             for row in range(self._rep_table.rowCount()):
@@ -4970,7 +5154,7 @@ class FacturaElectricaDialog(QDialog):
         lbl_import = QLabel("Cargá el PDF de EDESUR para completar el formulario automáticamente:")
         lbl_import.setObjectName("muted")
         btn_import = _primary_button("Importar PDF")
-        btn_import.clicked.connect(self._importar_pdf)
+        btn_import.clicked.connect(lambda: self._importar_pdf())
         ib_layout.addWidget(lbl_import, 1)
         ib_layout.addWidget(btn_import)
         outer.addWidget(import_bar)
@@ -5307,6 +5491,7 @@ class FacturaElectricaDialog(QDialog):
                 self, "Seleccionar factura EDESUR (PDF)",
                 str(_Path.home()),
                 "Archivos PDF (*.pdf *.PDF)",
+                options=QFileDialog.Option.DontUseNativeDialog,
             )
         if not pdf_path:
             return

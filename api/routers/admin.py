@@ -111,6 +111,8 @@ def _equipo_row_to_item(row: sqlite3.Row) -> AdminEquipoItem:
         fecha_adquisicion=str(row["fecha_adquisicion"] or ""),
         observaciones=str(row["observaciones"] or ""),
         activo=bool(row["activo"]),
+        horas_trabajo_activo=bool(row["horas_trabajo_activo"]),
+        horas_trabajo_actual=float(row["horas_trabajo_actual"] or 0),
     )
 
 _EQUIPO_SELECT = """
@@ -118,7 +120,9 @@ _EQUIPO_SELECT = """
            COALESCE(e.numero_serie,'') AS numero_serie, COALESCE(e.marca,'') AS marca,
            COALESCE(e.modelo,'') AS modelo, COALESCE(e.ubicacion,'') AS ubicacion,
            COALESCE(e.fecha_adquisicion,'') AS fecha_adquisicion,
-           COALESCE(e.observaciones,'') AS observaciones, e.activo
+           COALESCE(e.observaciones,'') AS observaciones, e.activo,
+           COALESCE(e.horas_trabajo_activo,0) AS horas_trabajo_activo,
+           COALESCE(e.horas_trabajo_actual,0) AS horas_trabajo_actual
     FROM equipos e LEFT JOIN tipos_equipo t ON t.id = e.tipo_id
 """
 
@@ -132,10 +136,12 @@ def list_equipos_admin(_: AdminTecnicoDep, connection: ConnectionDep) -> list[Ad
 @router.post("/equipos", response_model=AdminEquipoItem, status_code=status.HTTP_201_CREATED)
 def create_equipo(payload: AdminEquipoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> AdminEquipoItem:
     cur = connection.execute(
-        """INSERT INTO equipos (nombre, tipo_id, numero_serie, marca, modelo, ubicacion, fecha_adquisicion, observaciones, activo)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO equipos (nombre, tipo_id, numero_serie, marca, modelo, ubicacion, fecha_adquisicion, observaciones, activo,
+           horas_trabajo_activo, horas_trabajo_actual)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (payload.nombre.strip(), payload.tipo_id, payload.numero_serie, payload.marca,
-         payload.modelo, payload.ubicacion, payload.fecha_adquisicion, payload.observaciones, int(payload.activo)),
+         payload.modelo, payload.ubicacion, payload.fecha_adquisicion, payload.observaciones, int(payload.activo),
+         int(payload.horas_trabajo_activo), payload.horas_trabajo_actual),
     )
     connection.commit()
     row = connection.execute(_EQUIPO_SELECT + " WHERE e.id = ?", (cur.lastrowid,)).fetchone()
@@ -147,10 +153,11 @@ def update_equipo(equipo_id: int, payload: AdminEquipoRequest, _: AdminTecnicoDe
     affected = connection.execute(
         """UPDATE equipos SET nombre=?, tipo_id=?, numero_serie=?, marca=?, modelo=?,
            ubicacion=?, fecha_adquisicion=?, observaciones=?, activo=?,
+           horas_trabajo_activo=?, horas_trabajo_actual=?,
            actualizado_en=CURRENT_TIMESTAMP WHERE id=?""",
         (payload.nombre.strip(), payload.tipo_id, payload.numero_serie, payload.marca,
          payload.modelo, payload.ubicacion, payload.fecha_adquisicion, payload.observaciones,
-         int(payload.activo), equipo_id),
+         int(payload.activo), int(payload.horas_trabajo_activo), payload.horas_trabajo_actual, equipo_id),
     ).rowcount
     if not affected:
         raise HTTPException(status_code=404, detail="Equipo no encontrado.")

@@ -1,0 +1,5819 @@
+{
+ "1 - FichaMantenimiento-CompresorETR50 ver 1.xls": {
+  "A (Cada 3 meses)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-50"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Limpieza General"
+   ],
+   [
+    "Limpieza de Filtro de Aire"
+   ],
+   [
+    "Control de Correas"
+   ],
+   [
+    "Control de Mangueras"
+   ],
+   [
+    "Control de Nivel de Aceite"
+   ],
+   [
+    "controlar puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (Cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Limpieza General"
+   ],
+   [
+    "Limpieza de Filtro de Aire"
+   ],
+   [
+    "Control de Correas"
+   ],
+   [
+    "Control de Mangueras"
+   ],
+   [
+    "puesta a tierra"
+   ],
+   [
+    "Control de Nivel de Aceite"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 2 (juego) (SPZ 1060 Lw)",
+    "Filtro de Aceite: 1"
+   ],
+   [
+    "Filtro de Aire: 1",
+    "Aceite: 5 litros"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "\n(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 1 de 4"
+   ]
+  ],
+  "B (Cada 1000 hs)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-50"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "B - (Cada 1000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Cambio de aceite"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "B - (Cada 1000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Cambio de aceite"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 2 (juego) (SPZ 1060 Lw)"
+   ],
+   [
+    "Filtro de Aire: 1"
+   ],
+   [
+    "Filtro de Aceite: 1"
+   ],
+   [
+    "Aceite: 5 litros"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 2 de 4"
+   ]
+  ],
+  "C (Cada 2000 hs)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-50"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "C - (Cada 2000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Limpieza de radiador"
+   ],
+   [
+    "Limpieza de Válvula de Purgado"
+   ],
+   [
+    "Cambio de Filtro de Aceite"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "C - (Cada 2000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Limpieza de radiador"
+   ],
+   [
+    "Limpieza de Válvula de Purgado"
+   ],
+   [
+    "Cambio de Filtro de Aceite"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 2 (juego) (SPZ 1060 Lw)",
+    "Filtro de Aceite: 1"
+   ],
+   [
+    "Filtro de Aire: 1",
+    "Aceite: 5 litros"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 3 de 4"
+   ]
+  ],
+  "D (Cada 8000 hs)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-50"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "D - (Cada 8000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Cambio de Filtro Separador"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "D - (Cada 8000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Cambio de Filtro Separador"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 2 (juego) (SPZ 1060 Lw)",
+    "Filtro de Aceite: 1"
+   ],
+   [
+    "Filtro de Aire: 1",
+    "Aceite: 5 litros"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 4 de 4"
+   ]
+  ]
+ },
+ "10 - FichaMantenimiento-Cascarera ver 3.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Cascarera (Resp. Noyería)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada tres meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa"
+   ],
+   [
+    "Control de aceite de los reductores"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "B - (Cada seis meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Engrase general"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Botonera: 1"
+   ],
+   [
+    "Cadena corta, de ¾” por 37 eslabones: 1"
+   ],
+   [
+    "Cadena larga, de ¾” por 49,5 eslabones: 1"
+   ],
+   [
+    "Eslabón de cierre y medio eslabón: 1"
+   ]
+  ]
+ },
+ "11 - FichaMantenimiento-PegadoraDeVacio ver 2.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Pegadora de Vacío 1 y 2 (Resp. Noyería)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Pegadora",
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0
+   ],
+   [
+    "Limpieza completa."
+   ],
+   [
+    "Limpieza de Filtro"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Pegadora",
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0
+   ],
+   [
+    "Limpieza completa."
+   ],
+   [
+    "Limpieza de Filtro"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Goma: 1 (Cámara Tractor Goodyear "
+   ],
+   [
+    "16,9 × 28)"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "12 - FichaMantenimiento-Zarandas  ver 1.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Zarandas 1 y 2 (Resp. Moldeo)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Zaranda",
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0
+   ],
+   [
+    "Revisión de correas"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Zaranda",
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0,
+    1.0,
+    2.0
+   ],
+   [
+    "Revisión de correas"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correa Motor-Rotor:  1 (B-39)"
+   ],
+   [
+    "Correa Motor-Zaranda: 1 (B-41)"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "13 - FichaMantenimiento-MontacargaDelMolinoDeTierra ver 2.xls": {
+  "Hoja1": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ],
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Montacarga del Molino de Tierra (Resp. Moldeo)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada tres meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de Aceite de Reductor"
+   ],
+   [
+    "Control de Cable de Acero"
+   ],
+   [
+    "Verificar extremos de sujeción del cable de acero"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (cada tres meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de Aceite de Reductor"
+   ],
+   [
+    "Control de Cable de Acero"
+   ],
+   [
+    "Verificar extremos de sujeción del cable de acero"
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm:  6,5 m"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "14 - FichaMantenimiento-MonorrielHornoRecuperaciónDeArena  ver 2.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Monorriel Horno de Recuperación de Arena (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar puesta  a tierra"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 6 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "15 - FichaMantenimiento-PlumaDeMoldeo ver 3.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Pluma moldeo (Resp. Fusión)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Mensual)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "Engrasar pivote"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 6 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "16 - FichaMantenimiento-AparejoMescladoraDeArena ver 1.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): aparejo del evador de arena"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "Engrasar pivote"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 6 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ]
+  ]
+ },
+ "16 - FichaMantenimiento-AparejoZonaAmolado ver 1.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): aparejo del evador de arena"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "Engrasar pivote"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 6 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "16 - FichaMantenimiento-PlumaHorno ver 2.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Pluma horno (Resp. Fusión)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Mensual)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "Engrasar pivote"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 6 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ],
+   [
+    "uj"
+   ]
+  ]
+ },
+ "17 - FichaMantenimiento-PuenteGruaNoyeria ver 3.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Puente grúa Noyería (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:",
+    " "
+   ],
+   [
+    "A - (cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estado de las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas "
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas "
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se suelten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "Comprobar puesta a tierra"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 10 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ],
+   [
+    "Correa: 1 (B-40)"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "18 - FichaMantenimiento-PuenteGruaSayos500 ver 3.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Puente grúa Sayos (500 Kg) (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estado de las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas "
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas "
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se suelten al activar los motores"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar puesta a tierra"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 12 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ],
+   [
+    "Correa: 1 (B-40)"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "19 - FichaMantenimiento-PuenteGruaSayos1000 ver 3.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Puente grúa Sayos (1000 Kg) (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 2 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas "
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas "
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se suelten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar puesta a tierra"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "28 m de cable de Acero 6x36 de Ø 6 mm"
+   ],
+   [
+    "Seguro del gancho"
+   ]
+  ]
+ },
+ "2 - FichaMantenimiento-CompresorETR80 ver 1.xls": {
+  "A (Mensual)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-80C"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada tres meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Limpieza General"
+   ],
+   [
+    "Limpieza de Filtro de Aire"
+   ],
+   [
+    "Control de válvula de seguridad"
+   ],
+   [
+    "Control de Correas y de Aceite"
+   ],
+   [
+    "controlar puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (cada tres meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Limpieza General"
+   ],
+   [
+    "Limpieza de Filtro de Aire"
+   ],
+   [
+    "Control de válvula de seguridad"
+   ],
+   [
+    "controlar puesta a tierra"
+   ],
+   [
+    "Control de Correas y de Aceite"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 4 (juego) (SPZ 1162 Lw)",
+    "Filtro de aceite: 1"
+   ],
+   [
+    "Aceite: 5 Litros (Sintético)",
+    "Filtro de aire: 1"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 1 de 4"
+   ]
+  ],
+  "B (Cada 2000 hs)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-80C"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "B - (Cada 2000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Cambio de Filtro de Aceite y de Aire"
+   ],
+   [
+    "Control y ajuste de correas"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "B - (Cada 2000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Cambio de Filtro de Aceite y de Aire"
+   ],
+   [
+    "Control y ajuste de correas"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 4 (juego) (SPZ 1162 Lw)",
+    "Filtro de aceite: 1"
+   ],
+   [
+    "Aceite: 5 Litros (Sintético)",
+    "Filtro de aire: 1"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 2 de 4"
+   ]
+  ],
+  "C (Cada 4000 hs)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-80C"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "C - (Cada 4000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Control de módulo de comando"
+   ],
+   [
+    "Engrase de rodamientos de motor"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "C - (Cada 4000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Control de módulo de comando"
+   ],
+   [
+    "Engrase de rodamientos de motor"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 4 (juego) (SPZ 1162 Lw)",
+    "Filtro de aceite: 1"
+   ],
+   [
+    "Aceite: 5 Litros (Sintético)",
+    "Filtro de aire: 1"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hoja 3 de 4"
+   ]
+  ],
+  "D (Cada 8000 hs)": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Compresor (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Compresor Cetec ETR-80C"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "D - (Cada 8000 horas)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Cantidad de horas"
+   ],
+   [
+    "Control Eléctrico general"
+   ],
+   [
+    "Cambio de Aceite"
+   ],
+   [
+    "Cambio de Filtro Separador"
+   ],
+   [
+    "Control (y cambio si es necesario) de Correas, Sello mecánico, kit Válv. Aspiración, kit de Mangueras."
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 4 (juego) (SPZ 1162 Lw)"
+   ],
+   [
+    "Aceite: 5 Litros (Sintético)"
+   ],
+   [
+    "Filtro de aceite: 1"
+   ],
+   [
+    "Filtro de aire: 1"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ],
+   [
+    "Hola 4 de 4"
+   ]
+  ]
+ },
+ "20 - FichaMantenimiento-PuenteGruaExpedicion ver 3.xls": {
+  "Hoja1": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ],
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "ESTRUCTURA",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEOS"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas "
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas "
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se suelten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar puesta a tierra"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indique mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Cable de Acero Ø 5 mm: 32 metros"
+   ],
+   [
+    "Seguro del gancho"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "21 - FichaMantenimiento-MezcladorContinuoDeArena ver 4.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Mezclador Continuo de Arena (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: IMF T36/3"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 4 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control aceite de reductor."
+   ],
+   [
+    "Limpieza de Filtros de Resina y Catalizador"
+   ],
+   [
+    "controlar puesta a tierra"
+   ],
+   [
+    "limpieza de picos injectores (desarmar completos)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (cada 4 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control aceite de reductor."
+   ],
+   [
+    "Limpieza de Filtros de Resina y Catalizador"
+   ],
+   [
+    "Limpieza de Filtros de Resina y Catalizador"
+   ],
+   [
+    "limpieza de picos injectores (desarmar completos)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Set completo de:"
+   ],
+   [
+    "Adaptador Central + Ruleman (SKF 6207-2RS1) + Reten 9315 (Øext 72 - Øint 35)"
+   ]
+  ]
+ },
+ "22 - FichaMantenimiento-Transformadores ver 2.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Transformadores (Resp. Fusión)"
+   ],
+   [
+    "Marca y Modelo: Brenta 200 Kva y 1000 Kva"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Cada 12 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza General de la Cabina (Realiza personal externo)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (Cada 12 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza General de la Cabina (Realiza personal externo)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "No posee"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ]
+  ]
+ },
+ "23 - FichaMantenimiento-SistemaElevadordeArena ver 1.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Sistema de elevación de arena recuperada (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 2 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control y/o limpieza de la fosa"
+   ],
+   [
+    "Revisar cañerias de elevación de arena"
+   ],
+   [
+    "Revisar pérdidas en el lecho fluido"
+   ],
+   [
+    "controlar puesta tierra (motores de ventiladores , sacudidores y sinfin) "
+   ],
+   [
+    "¡importante !controlar aceite de reductores ( valvula rotativa y sinfín)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "B - (Cada 6 meses)",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de reductor del extractor de la Tolva de arena"
+   ],
+   [
+    "Revisar estado de las turbinas"
+   ],
+   [
+    "limpiar todas las cámaras de aire"
+   ],
+   [
+    "limpiar lecho fluido"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correa (B-41): 1",
+    "Motor del extractor"
+   ],
+   [
+    "Cadena de 70 eslabones",
+    "Reductor del extractor"
+   ],
+   [
+    "Corona de 50 dientes y diámetro de eje 45 mm",
+    "Conjunto extractor de arena tolva"
+   ]
+  ]
+ },
+ "24 - FichaMantenimiento-LavadorDeHumos ver 3.xls": {
+  "b": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Lavador de Humos (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "b - mensual",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "engrase de rodamientos del ventilador "
+   ],
+   [
+    "verificar correas del ventilador "
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (Cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa (De ser necesario)"
+   ],
+   [
+    "Control visual"
+   ],
+   [
+    "Control de bomba (Caudal: 20 lts)"
+   ],
+   [
+    "Control del ventilador"
+   ],
+   [
+    "Verificar focos de oxidación en el interior"
+   ],
+   [
+    "Limpieza del tanque interno (Sector chatarra)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Bomba:  1  (Pedrollo HF/5 BM)"
+   ],
+   [
+    "Correa: juego de 2  (B43)",
+    "2  rodamiento ucp 208"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ],
+  "a": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Lavador de Humos (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa (De ser necesario)"
+   ],
+   [
+    "Control visual"
+   ],
+   [
+    "Control de bomba (Caudal: 20 lts)"
+   ],
+   [
+    "Control del ventilador (engrase y correas )"
+   ],
+   [
+    "Verificar focos de oxidación en el interior"
+   ],
+   [
+    "Limpieza del tanque interno (Sector chatarra)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (Cada 3 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa (ventilador , tanques rulero y tanque (De ser necesario)"
+   ],
+   [
+    "Control visual"
+   ],
+   [
+    "Control de bomba (Caudal: 20 lts)"
+   ],
+   [
+    "Control del ventilador (engrase y correas )"
+   ],
+   [
+    "Verificar focos de oxidación en el interior"
+   ],
+   [
+    "Limpieza del tanque interno (Sector chatarra)"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Bomba:  1  (Pedrollo HF/5 BM)"
+   ],
+   [
+    "Correa: juego de 2  (B43)",
+    "2  rodamiento ucp 208"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ]
+ },
+ "25 - FichaMantenimiento-Amoladoras ver 1.xls": {
+  "Hoja1": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ],
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Amoladoras (Resp. Mantenimiento)"
+   ],
+   [
+    "Marca y Modelo: Bosch"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Nº Máquina",
+    "Inicio de actividad",
+    "Fin de actividad",
+    "Observaciones",
+    "Nº Máquina",
+    "Inicio de actividad",
+    "Fin de actividad",
+    "Observaciones"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ],
+   [
+    "(FIRMA Y ACLARACIÓN)"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "26 - FichaMantenimineto-mangasDeLSistemaElevadorDeArena ver 1.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Molino de tierra (Resp. Moldeo)"
+   ],
+   [
+    "Marca y Modelo: Tecno"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (MENSUAL)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "limpieza y control de mangas"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ]
+  ]
+ },
+ "27 - FichaMantenimiento-elevador silo de arena ver 1.xls": {
+  "Hoja1": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ],
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°",
+    15.0
+   ],
+   [
+    "Equipo (Responsable): Granalladora (Resp. Expedición)"
+   ],
+   [
+    "Marca y Modelo: elevador de bolsas de arena"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada 2 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "revisar cable y engrasarlo"
+   ],
+   [
+    "controlar que las 2 luces enciendan al subir "
+   ],
+   [
+    "controlar que las 2 luces enciendal al llegare al tope superior"
+   ],
+   [
+    "revisar el desgaste de las ruedas"
+   ],
+   [
+    "revisar que los botones superiores e inferiores funcionen correctamente"
+   ],
+   [
+    "revisar cable y engrasarlo"
+   ],
+   [
+    "controlar que las luces enciendan al subir "
+   ],
+   [
+    "controlar que las luces enciendal al llegare al tope superior"
+   ],
+   [
+    "revisar el desgaste de las ruedas"
+   ],
+   [
+    "revisar que los botones superiores e inferiores funcionen correctamente"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "3 - FichaMantenimiento-HornoInduccion ver 2.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Horno induccion (Mantenimiento y Fusión)"
+   ],
+   [
+    "Marca y Modelo"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (mensual)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de estado Mangueras"
+   ],
+   [
+    "Limpieza general"
+   ],
+   [
+    "Control perdidas de agua"
+   ],
+   [
+    "Engrase general"
+   ],
+   [
+    "Control Nivel Aceite Hidraulico"
+   ],
+   [
+    "Control Nivel de Agua del Tanque"
+   ],
+   [
+    "ajuste de abrazaderas de sist refrig"
+   ],
+   [
+    "B - (Cada 4 meses)",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza Bom. Hidraulica",
+    "v"
+   ],
+   [
+    "Controlar estados de bujes"
+   ],
+   [
+    "Control filtros de aceite del sist. Hidraulico"
+   ],
+   [
+    "controlar puesta a tierra "
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "1-Filtro de aceite \"ERA32NCD\" (Equi. CID)"
+   ]
+  ]
+ },
+ "4 - FichaMantenimiento-Granalladora ver 3.xls": {
+  "Hoja1": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ],
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°",
+    15.0
+   ],
+   [
+    "Equipo (Responsable): Granalladora (Resp. Expedición)"
+   ],
+   [
+    "Marca y Modelo: Granalladora Americana AC-1200"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de Correas (3 juegos)"
+   ],
+   [
+    "Control de paletas y protectores laterales"
+   ],
+   [
+    "Limpieza motores y Tolva Superior"
+   ],
+   [
+    "Control de Aceite de Reductor de Puerta"
+   ],
+   [
+    "Control de Aceite de Reductor de Cinta"
+   ],
+   [
+    "Control de Cadenas (2 juegos)."
+   ],
+   [
+    "Control de Aceite de Reductor de Elevador"
+   ],
+   [
+    "control puesta a tierra maquina y tableros"
+   ],
+   [
+    "B - (Cada 6 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Engrase general"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correa de Turbina: 3 (juego) (B-66)",
+    "Álabes: 1 (W3-466 × 16)."
+   ],
+   [
+    "Correa de Transportador: 2 (juego) (A-34)",
+    "Distribuidor: 1 (W3-356)."
+   ],
+   [
+    "Correa de Sacudidor: 1 (A-40)",
+    "Rotor: 1 (W4-104 ó W3-357)."
+   ],
+   [
+    "Correa de Puerta: 1 (AA-20 / 0-20)",
+    "Protector Lateral: 1 (W-339)."
+   ],
+   [
+    "Cable de Acero Ø 4 mm: 4,60 m",
+    "Bobina del electroiman"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "5 - FichaMantenimiento-MolinoDeTierra ver 2.xls": {
+  "Hoja1": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ],
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "  "
+   ],
+   [
+    "Equipo (Responsable): Molino de tierra (Resp. Moldeo)"
+   ],
+   [
+    "Marca y Modelo: Tecno"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de Correas (2 juegos)"
+   ],
+   [
+    "Control de Aceite de los 2 Reductores."
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (cada cuatro meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Control de Correas (2 juegos)"
+   ],
+   [
+    "Control de Aceite de los 2 Reductores."
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Correas: 3 (juego) (C-62)."
+   ],
+   [
+    "Correas: 2 (juego) (B-67)."
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "6 - FichaMantenimiento-Noyera (manual)  ver 2.xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Noyera ____ (Resp. Noyería)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Cada 4 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa."
+   ],
+   [
+    "B - (Cada 8 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Revisar pistones"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (Cada 4 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa."
+   ],
+   [
+    "  "
+   ],
+   [
+    "B - (Cada 8 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Revisar pistones"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Microswitch:   1"
+   ],
+   [
+    "Botonera:   1"
+   ],
+   [
+    "Aceite (SAE 120 ~ 140): 0,5 l."
+   ],
+   [
+    "Electro válvula  1."
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ },
+ "6 - FichaMantenimiento-Noyera(automatizada)  ver 2 .xls": {
+  "Hoja2": [
+   [
+    "Ficha de mantenimiento",
+    "N°"
+   ],
+   [
+    "Equipo (Responsable): Noyera ____ (Resp. Noyería)"
+   ],
+   [
+    "Marca y Modelo: Sin determinar"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "A - (Cada 4 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa."
+   ],
+   [
+    "control de puesta a tierra"
+   ],
+   [
+    "Control de Aceite de Reductores"
+   ],
+   [
+    "B - (Cada 8 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Revisar pistones"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "A - (Cada 4 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Limpieza completa."
+   ],
+   [
+    "control puesta a tierra"
+   ],
+   [
+    "Control de Aceite de Reductores"
+   ],
+   [
+    "B - (Cada 8 meses)",
+    "__/__/__",
+    "__/__/__",
+    "__/__/__"
+   ],
+   [
+    "Realizado",
+    "Realizado",
+    "Realizado"
+   ],
+   [
+    "Revisar pistones"
+   ],
+   [
+    "Firma:"
+   ],
+   [
+    "Repuestos críticos:",
+    "OBSERVACIONES"
+   ],
+   [
+    "Microswitch:   1"
+   ],
+   [
+    "Botonera:   1"
+   ],
+   [
+    "Aceite (SAE 120 ~ 140): 0,5 l."
+   ],
+   [
+    "Electro válvula  1."
+   ],
+   [
+    "APROBÓ",
+    "FECHA DE APROBACIÓN"
+   ]
+  ],
+  "Hoja3": [
+   [
+    "Ficha de mantenimiento"
+   ],
+   [
+    "Equipo (Responsable): Puente Grúa Expedición (Chofer)"
+   ],
+   [
+    "Marca y Modelo: Ferro"
+   ],
+   [
+    "Frecuencia y Tipo de Mantenimiento:"
+   ],
+   [
+    "Mensual"
+   ],
+   [
+    "ESTRUCTURA"
+   ],
+   [
+    "Comprobar uniones de guía (Apriete de tornillos, soldaduras, etc)"
+   ],
+   [
+    "Inspeccionar los carriles de rodadura (Alineación, desgaste, fijación de vigas, etc)"
+   ],
+   [
+    "TESTEROS"
+   ],
+   [
+    "Comprobar la frenada simultánea de los grupos motrices"
+   ],
+   [
+    "Comprobar funcionamiento de los motores"
+   ],
+   [
+    "Comprobar desgaste de las prestañas de las ruedas"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores"
+   ],
+   [
+    "Comprobar que no existen grietas capilares en las zonas de rodadura de las ruedas"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos (Motores, reductores, topes, etc)"
+   ],
+   [
+    "CARRO"
+   ],
+   [
+    "Engrase del cable de elevación"
+   ],
+   [
+    "Comprobar pérdidas de aceite o grasa"
+   ],
+   [
+    "Comprobar estado guía de cables"
+   ],
+   [
+    "Comprobar estadod e las ruedas del carro (Pestañas, grietas, etc)"
+   ],
+   [
+    "Inspeccionar el cable de elevación y sus amarres"
+   ],
+   [
+    "Engrasar dientes, rodamientos y puntos de fricción"
+   ],
+   [
+    "Verificar niveles de aceite y estado de grasas en los grupos reductores de elevación y traslación"
+   ],
+   [
+    "Examinar el desgaste de los elementos de freno"
+   ],
+   [
+    "Comprobar colocación, estado y apriete de grapas"
+   ],
+   [
+    "Comprobar regulaciones de limitador de carga máxima"
+   ],
+   [
+    "Comprobar apriete de tornillos y tuercas de fijación de los elementos"
+   ],
+   [
+    "GANCHOS"
+   ],
+   [
+    "Observar giro de poleas (Engrase a vida)"
+   ],
+   [
+    "Comprobar bien estado del gancho de carga"
+   ],
+   [
+    "Engrase de rodamiento axial"
+   ],
+   [
+    "Engrase de poleas (Si no tiene engrase a vida)"
+   ],
+   [
+    "INSTALACIÓN ELECTRICA"
+   ],
+   [
+    "Comprobar estado de los aparatos de protección y control automático"
+   ],
+   [
+    "Comprobar estado de mandos y controles manuales"
+   ],
+   [
+    "Comprobar estado de las cajas de conexión"
+   ],
+   [
+    "Comprobar que los frenos se sielten al activar los motores"
+   ],
+   [
+    "Comprobar limitadores de fin de carrera de elevación, translación de carro y puente"
+   ],
+   [
+    "Revisar estado de los elementos móviles de alimentación eléctrica"
+   ],
+   [
+    "Comprobar el estado de las conexiones en general"
+   ],
+   [
+    "Comprobar empalmes y sujeción de linea de alimentación"
+   ],
+   [
+    "SEÑALIZACION"
+   ],
+   [
+    "Comprobar que indice mediante cartel la carga máxima a levantar"
+   ],
+   [
+    "Repuestos críticos:"
+   ],
+   [
+    "-------"
+   ]
+  ]
+ }
+}

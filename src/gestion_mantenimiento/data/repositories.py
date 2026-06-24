@@ -166,7 +166,9 @@ class EquipoRepository:
                 COALESCE(e.ubicacion, '') AS ubicacion,
                 COALESCE(e.fecha_adquisicion, '') AS fecha_adquisicion,
                 COALESCE(e.observaciones, '') AS observaciones,
-                e.activo
+                e.activo,
+                COALESCE(e.horas_trabajo_activo, 0),
+                COALESCE(e.horas_trabajo_actual, 0)
             FROM equipos e
             LEFT JOIN tipos_equipo t ON t.id = e.tipo_id
         """
@@ -205,6 +207,8 @@ class EquipoRepository:
                 fecha_adquisicion=r[8],
                 observaciones=r[9],
                 activo=bool(r[10]),
+                horas_trabajo_activo=bool(r[11]),
+                horas_trabajo_actual=float(r[12]),
             )
             for r in rows
         ]
@@ -219,7 +223,8 @@ class EquipoRepository:
                 e.id, e.nombre, e.tipo_id, COALESCE(t.nombre, '') AS tipo_nombre,
                 COALESCE(e.numero_serie, ''), COALESCE(e.marca, ''),
                 COALESCE(e.modelo, ''), COALESCE(e.ubicacion, ''),
-                COALESCE(e.fecha_adquisicion, ''), COALESCE(e.observaciones, ''), e.activo
+                COALESCE(e.fecha_adquisicion, ''), COALESCE(e.observaciones, ''), e.activo,
+                COALESCE(e.horas_trabajo_activo, 0), COALESCE(e.horas_trabajo_actual, 0)
             FROM equipos e
             LEFT JOIN tipos_equipo t ON t.id = e.tipo_id
             WHERE e.id = ?
@@ -231,6 +236,7 @@ class EquipoRepository:
                 id=r[0], nombre=r[1], tipo_id=r[2], tipo_nombre=r[3],
                 numero_serie=r[4], marca=r[5], modelo=r[6], ubicacion=r[7],
                 fecha_adquisicion=r[8], observaciones=r[9], activo=bool(r[10]),
+                horas_trabajo_activo=bool(r[11]), horas_trabajo_actual=float(r[12]),
             )
             for r in rows
         ]
@@ -245,18 +251,22 @@ class EquipoRepository:
         ubicacion: str,
         fecha_adquisicion: str,
         observaciones: str,
+        horas_trabajo_activo: bool = False,
+        horas_trabajo_actual: float = 0.0,
     ) -> int:
         with closing(sqlite3.connect(self.database_path)) as conn:
             cur = conn.execute(
                 """
                 INSERT INTO equipos
                     (nombre, tipo_id, numero_serie, marca, modelo,
-                     ubicacion, fecha_adquisicion, observaciones)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     ubicacion, fecha_adquisicion, observaciones,
+                     horas_trabajo_activo, horas_trabajo_actual)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     nombre.strip(), tipo_id, numero_serie.strip(), marca.strip(),
                     modelo.strip(), ubicacion.strip(), fecha_adquisicion, observaciones.strip(),
+                    int(horas_trabajo_activo), horas_trabajo_actual,
                 ),
             )
             conn.commit()
@@ -274,6 +284,8 @@ class EquipoRepository:
         fecha_adquisicion: str,
         observaciones: str,
         activo: bool,
+        horas_trabajo_activo: bool = False,
+        horas_trabajo_actual: float = 0.0,
     ) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute(
@@ -281,14 +293,28 @@ class EquipoRepository:
                 UPDATE equipos SET
                     nombre = ?, tipo_id = ?, numero_serie = ?, marca = ?, modelo = ?,
                     ubicacion = ?, fecha_adquisicion = ?, observaciones = ?, activo = ?,
+                    horas_trabajo_activo = ?, horas_trabajo_actual = ?,
                     actualizado_en = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (
                     nombre.strip(), tipo_id, numero_serie.strip(), marca.strip(),
                     modelo.strip(), ubicacion.strip(), fecha_adquisicion,
-                    observaciones.strip(), int(activo), equipo_id,
+                    observaciones.strip(), int(activo),
+                    int(horas_trabajo_activo), horas_trabajo_actual, equipo_id,
                 ),
+            )
+            conn.commit()
+
+    def actualizar_horas_trabajo(self, equipo_id: int, horas: float) -> None:
+        with closing(sqlite3.connect(self.database_path)) as conn:
+            conn.execute(
+                """
+                UPDATE equipos SET
+                    horas_trabajo_actual = ?, actualizado_en = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (horas, equipo_id),
             )
             conn.commit()
 
@@ -414,7 +440,8 @@ class OrdenTrabajoRepository:
                         WHERE r.orden_id = o.id
                     ), 0
                 ) AS costo_repuestos,
-                COALESCE(o.observaciones, '') AS observaciones
+                COALESCE(o.observaciones, '') AS observaciones,
+                o.horas_trabajo
             FROM ordenes_trabajo o
             JOIN equipos e ON e.id = o.equipo_id
             LEFT JOIN tecnicos t ON t.id = o.tecnico_id
@@ -448,6 +475,7 @@ class OrdenTrabajoRepository:
                 estado=r[7], tecnico_id=r[8], tecnico_nombre=r[9],
                 costo_mano_obra=float(r[10]), costo_repuestos=float(r[11]),
                 observaciones=r[12],
+                horas_trabajo=float(r[13]) if r[13] is not None else None,
             )
             for r in rows
         ]
@@ -464,7 +492,8 @@ class OrdenTrabajoRepository:
                     (SELECT SUM(r.cantidad * r.costo_unitario)
                      FROM repuestos_orden r WHERE r.orden_id = o.id), 0
                 ),
-                COALESCE(o.observaciones, '')
+                COALESCE(o.observaciones, ''),
+                o.horas_trabajo
             FROM ordenes_trabajo o
             JOIN equipos e ON e.id = o.equipo_id
             LEFT JOIN tecnicos t ON t.id = o.tecnico_id
@@ -480,6 +509,7 @@ class OrdenTrabajoRepository:
             estado=row[7], tecnico_id=row[8], tecnico_nombre=row[9],
             costo_mano_obra=float(row[10]), costo_repuestos=float(row[11]),
             observaciones=row[12],
+            horas_trabajo=float(row[13]) if row[13] is not None else None,
         )
 
     def create(self, data: OrdenTrabajoCreate) -> int:
@@ -488,13 +518,14 @@ class OrdenTrabajoRepository:
                 """
                 INSERT INTO ordenes_trabajo
                     (equipo_id, tipo, descripcion, fecha_apertura, fecha_cierre,
-                     estado, tecnico_id, costo_mano_obra, observaciones)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     estado, tecnico_id, costo_mano_obra, observaciones, horas_trabajo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     data.equipo_id, data.tipo, data.descripcion,
                     data.fecha_apertura, data.fecha_cierre, data.estado,
                     data.tecnico_id, data.costo_mano_obra, data.observaciones,
+                    data.horas_trabajo,
                 ),
             )
             conn.commit()
@@ -507,14 +538,14 @@ class OrdenTrabajoRepository:
                 UPDATE ordenes_trabajo SET
                     equipo_id = ?, tipo = ?, descripcion = ?, fecha_apertura = ?,
                     fecha_cierre = ?, estado = ?, tecnico_id = ?, costo_mano_obra = ?,
-                    observaciones = ?, actualizado_en = CURRENT_TIMESTAMP
+                    observaciones = ?, horas_trabajo = ?, actualizado_en = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (
                     data.equipo_id, data.tipo, data.descripcion,
                     data.fecha_apertura, data.fecha_cierre, data.estado,
                     data.tecnico_id, data.costo_mano_obra, data.observaciones,
-                    orden_id,
+                    data.horas_trabajo, orden_id,
                 ),
             )
             conn.commit()
