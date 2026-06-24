@@ -159,13 +159,21 @@ def main():
         if remote and remote != _local_sha():
             _download_update(remote)
 
-        print("Instalando dependencias (puede tardar unos minutos la primera vez)...")
-        subprocess.run([str(VENV_PY), "-m", "pip", "install", "--upgrade", "pip", "-q"])
-        r = subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", str(ROOT), "-q"])
+        print()
+        print("=" * 55)
+        print("  Instalando dependencias (primera vez)...")
+        print("  Esto puede tardar varios minutos.")
+        print("=" * 55)
+        subprocess.run([str(VENV_PY), "-m", "pip", "install", "--upgrade", "pip"])
+        print()
+        print("  [1/2] Instalando paquetes de la aplicacion...")
+        print()
+        r = subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", str(ROOT)])
         if r.returncode != 0:
             abort("No se pudieron instalar las dependencias.")
 
-        print("Descargando navegador para integracion EDESUR (~200 MB, solo una vez)...")
+        print()
+        print("  [2/2] Descargando navegador para integracion EDESUR (~200 MB)...")
         subprocess.run([str(VENV_PY), "-m", "playwright", "install", "chromium"])
 
     else:
