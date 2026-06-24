@@ -46,6 +46,8 @@ def _card_from_row(row: sqlite3.Row) -> OrdenCard:
         equipo_marca=str(row["equipo_marca"] or ""),
         equipo_modelo=str(row["equipo_modelo"] or ""),
         equipo_ubicacion=str(row["equipo_ubicacion"] or ""),
+        equipo_horas_trabajo_activo=bool(row["equipo_horas_trabajo_activo"]),
+        equipo_horas_trabajo_actual=float(row["equipo_horas_trabajo_actual"] or 0),
         tipo=str(row["tipo"] or ""),
         descripcion=str(row["descripcion"] or ""),
         fecha_apertura=str(row["fecha_apertura"] or ""),
@@ -55,6 +57,7 @@ def _card_from_row(row: sqlite3.Row) -> OrdenCard:
         tecnico_nombre=str(row["tecnico_nombre"] or ""),
         costo_mano_obra=float(row["costo_mano_obra"] or 0),
         observaciones=str(row["observaciones"] or ""),
+        horas_trabajo=float(row["horas_trabajo"]) if row["horas_trabajo"] is not None else None,
     )
 
 
@@ -68,6 +71,8 @@ def _base_query() -> str:
             COALESCE(e.marca, '') AS equipo_marca,
             COALESCE(e.modelo, '') AS equipo_modelo,
             COALESCE(e.ubicacion, '') AS equipo_ubicacion,
+            COALESCE(e.horas_trabajo_activo, 0) AS equipo_horas_trabajo_activo,
+            COALESCE(e.horas_trabajo_actual, 0) AS equipo_horas_trabajo_actual,
             o.tipo,
             COALESCE(o.descripcion, '') AS descripcion,
             COALESCE(o.fecha_apertura, '') AS fecha_apertura,
@@ -76,7 +81,8 @@ def _base_query() -> str:
             o.tecnico_id,
             COALESCE(trim(t.nombre || ' ' || t.apellido), '') AS tecnico_nombre,
             COALESCE(o.costo_mano_obra, 0) AS costo_mano_obra,
-            COALESCE(o.observaciones, '') AS observaciones
+            COALESCE(o.observaciones, '') AS observaciones,
+            o.horas_trabajo AS horas_trabajo
         FROM ordenes_trabajo o
         JOIN equipos e ON e.id = o.equipo_id
         LEFT JOIN tipos_equipo te ON te.id = e.tipo_id
@@ -419,7 +425,14 @@ def completar_orden(
     connection: ConnectionDep,
 ) -> OrdenDetail:
     row = connection.execute(
-        "SELECT id, estado, tecnico_id, observaciones FROM ordenes_trabajo WHERE id = ?",
+        """
+        SELECT o.id, o.estado, o.tecnico_id, o.observaciones, o.equipo_id,
+               COALESCE(e.horas_trabajo_activo, 0) AS horas_trabajo_activo,
+               COALESCE(e.horas_trabajo_actual, 0) AS horas_trabajo_actual
+        FROM ordenes_trabajo o
+        JOIN equipos e ON e.id = o.equipo_id
+        WHERE o.id = ?
+        """,
         (orden_id,),
     ).fetchone()
     if row is None:
@@ -428,6 +441,15 @@ def completar_orden(
         raise HTTPException(status_code=409, detail="La orden no está en EN_PROGRESO.")
     if row["tecnico_id"] is not None and int(row["tecnico_id"]) != current_tecnico.id:
         raise HTTPException(status_code=403, detail="El técnico no es el asignado.")
+
+    horas_trabajo_activo = bool(row["horas_trabajo_activo"])
+    horas_trabajo_actual = float(row["horas_trabajo_actual"] or 0)
+    if horas_trabajo_activo:
+        if payload.horas_trabajo is None or payload.horas_trabajo <= horas_trabajo_actual:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe actualizar las horas de trabajo del equipo para completar esta orden.",
+            )
 
     nueva_obs = payload.observaciones.strip()
     observaciones = str(row["observaciones"] or "")
@@ -442,11 +464,21 @@ def completar_orden(
             estado = 'COMPLETADA',
             fecha_cierre = datetime('now', 'localtime'),
             observaciones = ?,
+            horas_trabajo = ?,
             actualizado_en = CURRENT_TIMESTAMP
         WHERE id = ? AND estado = 'EN_PROGRESO'
         """,
-        (merged, orden_id),
+        (merged, payload.horas_trabajo, orden_id),
     )
+    if horas_trabajo_activo:
+        connection.execute(
+            """
+            UPDATE equipos
+            SET horas_trabajo_actual = ?, actualizado_en = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (payload.horas_trabajo, int(row["equipo_id"])),
+        )
     connection.commit()
     orden = _get_orden_detail(connection, orden_id)
     if orden is None:

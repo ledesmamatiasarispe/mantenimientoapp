@@ -74,6 +74,8 @@ class OrdenCard(BaseModel):
     equipo_marca: str
     equipo_modelo: str
     equipo_ubicacion: str
+    equipo_horas_trabajo_activo: bool = False
+    equipo_horas_trabajo_actual: float = 0.0
     tipo: str
     descripcion: str
     fecha_apertura: str
@@ -83,6 +85,7 @@ class OrdenCard(BaseModel):
     tecnico_nombre: str
     costo_mano_obra: float
     observaciones: str
+    horas_trabajo: float | None = None
 
 
 class ColaboradorItem(BaseModel):
@@ -139,6 +142,7 @@ class ObservacionRequest(BaseModel):
 
 class CompletarOrdenRequest(BaseModel):
     observaciones: str = ""
+    horas_trabajo: float | None = None
 
 
 class EquipoCard(BaseModel):
@@ -204,6 +208,8 @@ class AdminEquipoItem(BaseModel):
     fecha_adquisicion: str
     observaciones: str
     activo: bool
+    horas_trabajo_activo: bool = False
+    horas_trabajo_actual: float = 0.0
 
 
 class AdminEquipoRequest(BaseModel):
@@ -216,6 +222,8 @@ class AdminEquipoRequest(BaseModel):
     fecha_adquisicion: str = ""
     observaciones: str = ""
     activo: bool = True
+    horas_trabajo_activo: bool = False
+    horas_trabajo_actual: float = 0.0
 
 
 class AdminProgramaItem(BaseModel):

@@ -1,0 +1,1674 @@
+[
+ {
+  "row": 3,
+  "equipo": "Compresor\nETR-50",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 4,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 5,
+  "equipo": null,
+  "tipo": "horas trabajo ",
+  "proximo": null,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 6,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": 51000,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 8,
+  "equipo": null,
+  "tipo": "C",
+  "proximo": 57000,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 10,
+  "equipo": "Compresor\nETR-80C",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 11,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 12,
+  "equipo": null,
+  "tipo": "horas trabajo ",
+  "proximo": null,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 13,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": 12780,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 15,
+  "equipo": null,
+  "tipo": "C / D",
+  "proximo": 12780,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 17,
+  "equipo": "Granalladora",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 18,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 19,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 21,
+  "equipo": "Transformadores",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "SEP": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 23,
+  "equipo": "Durómetro Brinell",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "MAY": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 25,
+  "equipo": "Zarandas",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    1,
+    2
+   ],
+   "FEB": [
+    1,
+    2
+   ],
+   "MAR": [
+    1,
+    2
+   ],
+   "ABR": [
+    1,
+    2
+   ],
+   "MAY": [
+    1,
+    2
+   ],
+   "JUN": [
+    1,
+    2
+   ],
+   "JUL": [
+    1,
+    2
+   ],
+   "AGO": [
+    1,
+    2
+   ],
+   "SEP": [
+    1,
+    2
+   ],
+   "OCT": [
+    1,
+    2
+   ],
+   "NOV": [
+    1,
+    2
+   ],
+   "DIC": [
+    1,
+    2
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 26,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "X",
+    "X"
+   ],
+   "AGO": [
+    "X",
+    "X"
+   ],
+   "DIC": [
+    "X",
+    "X"
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 27,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 28,
+  "equipo": "Noyera Nº 1",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": "automática contra a pared"
+ },
+ {
+  "row": 29,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 30,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 32,
+  "equipo": "Noyera Nº 2",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": "automática perpendicular al pasillo"
+ },
+ {
+  "row": 33,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 34,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 36,
+  "equipo": "Noyera Nº 3",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "X",
+    null
+   ]
+  },
+  "obs": "manual amarilla chica"
+ },
+ {
+  "row": 38,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "MAY": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 40,
+  "equipo": "Cascarera",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "x",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 41,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 42,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 43,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 44,
+  "equipo": "Pegadora Vacío",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    1,
+    2
+   ],
+   "FEB": [
+    1,
+    2
+   ],
+   "MAR": [
+    1,
+    2
+   ],
+   "ABR": [
+    1,
+    2
+   ],
+   "MAY": [
+    1,
+    2
+   ],
+   "JUN": [
+    1,
+    2
+   ],
+   "JUL": [
+    1,
+    2
+   ],
+   "AGO": [
+    1,
+    2
+   ],
+   "SEP": [
+    1,
+    2
+   ],
+   "OCT": [
+    1,
+    2
+   ],
+   "NOV": [
+    1,
+    2
+   ],
+   "DIC": [
+    1,
+    2
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 45,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "x",
+    "x"
+   ],
+   "AGO": [
+    "X",
+    "X"
+   ],
+   "DIC": [
+    "X",
+    "X"
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 46,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 47,
+  "equipo": "Molino de Tierra",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 48,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 49,
+  "equipo": "Mezclador Continuo de Arena",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "X",
+    null
+   ],
+   "JUN": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": "el proximo mantenimiento de los injectores hay que realizar el procedimientto de limpieza de los injectores"
+ },
+ {
+  "row": 50,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 53,
+  "equipo": "Montacargas Molino de Tierra",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "x",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 54,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 55,
+  "equipo": "Monorriel de Horno Rec. Arena",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 56,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 57,
+  "equipo": "Pluma Moldeo",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "MAR": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "x",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 58,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 59,
+  "equipo": "Puente Grúa         (Noyería)",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 60,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 61,
+  "equipo": "Puente Grúa         (Sayos 500 Kg)",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 62,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 63,
+  "equipo": "Puente Grúa    (Sayos 1000 Kg)",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUN": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ],
+   "DIC": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 64,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ],
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 65,
+  "equipo": "aparejo eléctrico de la mescladora de arena",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "x",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 66,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 67,
+  "equipo": "Puente Grúa    (Expedición)",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 68,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 69,
+  "equipo": "Sistema de elevación de arena recuperada",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "MAR": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 70,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "MAR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 71,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 73,
+  "equipo": null,
+  "tipo": "C",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "  ",
+    null
+   ],
+   "FEB": [
+    "X",
+    null
+   ],
+   "SEP": [
+    " ",
+    null
+   ],
+   "OCT": [
+    " ",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 74,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 75,
+  "equipo": "mangas de sist elevador de arena",
+  "tipo": null,
+  "proximo": "LIMPIEZA",
+  "grid": {
+   "ENE": [
+    "cuando sea necesario o después de 2 meses ",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 76,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ],
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 77,
+  "equipo": "aparejo electrico de la zona e amolado",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "x",
+    null
+   ],
+   "MAY": [
+    "x",
+    null
+   ],
+   "JUL": [
+    " ",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 78,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 79,
+  "equipo": "Lavador de Humos",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 81,
+  "equipo": "Pluma Horno",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "FEB": [
+    "X",
+    null
+   ],
+   "MAR": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "JUN": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ],
+   "DIC": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 82,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ],
+   "MAR": [
+    "v",
+    null
+   ],
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 83,
+  "equipo": "Horno Inducción",
+  "tipo": "A",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "FEB": [
+    "X",
+    null
+   ],
+   "MAR": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "JUN": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ],
+   "DIC": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 84,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ],
+   "MAR": [
+    "v",
+    null
+   ],
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 85,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "X",
+    null
+   ]
+  },
+  "obs": " "
+ },
+ {
+  "row": 87,
+  "equipo": null,
+  "tipo": " fecha nuevo sinterizado",
+  "proximo": null,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 88,
+  "equipo": null,
+  "tipo": "PE 713.3",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "v",
+    "v"
+   ],
+   "FEB": [
+    "v",
+    "v"
+   ],
+   "MAR": [
+    "v",
+    "v"
+   ],
+   "ABR": [
+    "v",
+    "v"
+   ],
+   "MAY": [
+    "v",
+    "v"
+   ],
+   "JUN": [
+    "v",
+    "v"
+   ],
+   "JUL": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 89,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "v",
+    "v"
+   ],
+   "FEB": [
+    "v",
+    "v"
+   ],
+   "MAR": [
+    "v",
+    "v"
+   ],
+   "ABR": [
+    "v",
+    "v"
+   ],
+   "MAY": [
+    "v",
+    "v"
+   ],
+   "JUN": [
+    "v",
+    "v"
+   ],
+   "JUL": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 90,
+  "equipo": null,
+  "tipo": "revisar mangueras hidrauliccas del horno que estan tapadas con manta",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "v",
+    null
+   ],
+   "FEB": [
+    "v",
+    null
+   ],
+   "MAR": [
+    "v",
+    null
+   ],
+   "ABR": [
+    "v",
+    null
+   ],
+   "MAY": [
+    "v",
+    null
+   ],
+   "JUN": [
+    "v",
+    null
+   ],
+   "JUL": [
+    "v",
+    null
+   ],
+   "AGO": [
+    "v",
+    null
+   ],
+   "SEP": [
+    "v",
+    null
+   ],
+   "OCT": [
+    "v",
+    null
+   ],
+   "NOV": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 92,
+  "equipo": "Radiador (pe713.1)",
+  "tipo": "A",
+  "proximo": "correas",
+  "grid": {
+   "ENE": [
+    "X",
+    null
+   ],
+   "FEB": [
+    "X",
+    null
+   ],
+   "MAR": [
+    "X",
+    null
+   ],
+   "ABR": [
+    "X",
+    null
+   ],
+   "MAY": [
+    "X",
+    null
+   ],
+   "JUN": [
+    "X",
+    null
+   ],
+   "JUL": [
+    "X",
+    null
+   ],
+   "AGO": [
+    "X",
+    null
+   ],
+   "SEP": [
+    "X",
+    null
+   ],
+   "OCT": [
+    "X",
+    null
+   ],
+   "NOV": [
+    "X",
+    null
+   ],
+   "DIC": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 93,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ],
+   "MAR": [
+    "v",
+    null
+   ],
+   "ABR": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 94,
+  "equipo": null,
+  "tipo": "B",
+  "proximo": "lavado",
+  "grid": {
+   "FEB": [
+    "X",
+    null
+   ],
+   "DIC": [
+    "X",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 95,
+  "equipo": null,
+  "tipo": null,
+  "proximo": "radiador externo",
+  "grid": {
+   "FEB": [
+    "v",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 96,
+  "equipo": null,
+  "tipo": null,
+  "proximo": "con vinagre",
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 97,
+  "equipo": "Amoladoras",
+  "tipo": "-",
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "A estas máquinas no se les realiza mantenimiento preventivo dado que no se requiere del mismo. Se coloca dentro del cronograma para mantener un seguimiento de las mismas",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 99,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "Equipo",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 100,
+  "equipo": null,
+  "tipo": null,
+  "proximo": null,
+  "grid": {
+   "ENE": [
+    "Baja",
+    null
+   ]
+  },
+  "obs": null
+ },
+ {
+  "row": 110,
+  "equipo": "fa falta anotar",
+  "tipo": null,
+  "proximo": null,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 111,
+  "equipo": "v verificado",
+  "tipo": null,
+  "proximo": null,
+  "grid": {},
+  "obs": null
+ },
+ {
+  "row": 112,
+  "equipo": "su sin  hacer",
+  "tipo": null,
+  "proximo": null,
+  "grid": {},
+  "obs": null
+ }
+]

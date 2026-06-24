@@ -108,6 +108,121 @@ def test_orden_flow_accept_note_complete(tmp_path, monkeypatch) -> None:
     assert "Trabajo terminado" in completar.json()["observaciones"]
 
 
+def test_admin_equipo_horas_trabajo(tmp_path, monkeypatch) -> None:
+    database_path = tmp_path / "test.sqlite3"
+    initialize_database(database_path, seed=True)
+    monkeypatch.setenv("DB_PATH", str(database_path))
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE tecnicos SET password_hash = ? WHERE id = 1",
+            (hash_password("secreto123"),),
+        )
+        connection.commit()
+
+    client = TestClient(create_app())
+    headers = _auth_headers(client)
+
+    crear = client.post(
+        "/api/admin/equipos",
+        headers=headers,
+        json={
+            "nombre": "Compresor 1",
+            "horas_trabajo_activo": True,
+            "horas_trabajo_actual": 100.0,
+        },
+    )
+    assert crear.status_code == 201
+    creado = crear.json()
+    assert creado["horas_trabajo_activo"] is True
+    assert creado["horas_trabajo_actual"] == 100.0
+    equipo_id = creado["id"]
+
+    listado = client.get("/api/admin/equipos", headers=headers)
+    assert listado.status_code == 200
+    item = next(e for e in listado.json() if e["id"] == equipo_id)
+    assert item["horas_trabajo_activo"] is True
+    assert item["horas_trabajo_actual"] == 100.0
+
+    actualizar = client.put(
+        f"/api/admin/equipos/{equipo_id}",
+        headers=headers,
+        json={
+            "nombre": "Compresor 1",
+            "horas_trabajo_activo": True,
+            "horas_trabajo_actual": 150.0,
+        },
+    )
+    assert actualizar.status_code == 200
+    assert actualizar.json()["horas_trabajo_actual"] == 150.0
+
+
+def test_completar_orden_requiere_horas_trabajo(tmp_path, monkeypatch) -> None:
+    database_path = tmp_path / "test.sqlite3"
+    initialize_database(database_path, seed=True)
+    monkeypatch.setenv("DB_PATH", str(database_path))
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE tecnicos SET password_hash = ? WHERE id = 1",
+            (hash_password("secreto123"),),
+        )
+        connection.commit()
+
+    client = TestClient(create_app())
+    headers = _auth_headers(client)
+
+    crear = client.post(
+        "/api/admin/equipos",
+        headers=headers,
+        json={
+            "nombre": "Compresor con horómetro",
+            "horas_trabajo_activo": True,
+            "horas_trabajo_actual": 100.0,
+        },
+    )
+    assert crear.status_code == 201
+    equipo_id = crear.json()["id"]
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO ordenes_trabajo
+                (id, equipo_id, tipo, descripcion, fecha_apertura, estado, observaciones)
+            VALUES
+                (1, ?, 'CORRECTIVO', 'Mantenimiento', '2026-05-01', 'EN_PROGRESO', '')
+            """,
+            (equipo_id,),
+        )
+        connection.commit()
+
+    sin_horas = client.post(
+        "/api/ordenes/1/completar",
+        headers=headers,
+        json={"observaciones": "Listo"},
+    )
+    assert sin_horas.status_code == 400
+
+    sin_incremento = client.post(
+        "/api/ordenes/1/completar",
+        headers=headers,
+        json={"observaciones": "Listo", "horas_trabajo": 100.0},
+    )
+    assert sin_incremento.status_code == 400
+
+    con_horas = client.post(
+        "/api/ordenes/1/completar",
+        headers=headers,
+        json={"observaciones": "Listo", "horas_trabajo": 150.0},
+    )
+    assert con_horas.status_code == 200
+    body = con_horas.json()
+    assert body["estado"] == "COMPLETADA"
+    assert body["horas_trabajo"] == 150.0
+
+    equipos = client.get("/api/admin/equipos", headers=headers)
+    actualizado = next(e for e in equipos.json() if e["id"] == equipo_id)
+    assert actualizado["horas_trabajo_actual"] == 150.0
+
+
 def test_biblioteca_endpoints(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "test.sqlite3"
     initialize_database(database_path, seed=True)

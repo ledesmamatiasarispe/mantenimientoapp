@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS equipos (
     fecha_adquisicion TEXT NOT NULL DEFAULT '',
     observaciones TEXT NOT NULL DEFAULT '',
     activo INTEGER NOT NULL DEFAULT 1,
+    horas_trabajo_activo INTEGER NOT NULL DEFAULT 0,
+    horas_trabajo_actual REAL NOT NULL DEFAULT 0,
     creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tipo_id) REFERENCES tipos_equipo(id)
@@ -64,6 +66,7 @@ CREATE TABLE IF NOT EXISTS ordenes_trabajo (
     tecnico_id INTEGER,
     costo_mano_obra NUMERIC NOT NULL DEFAULT 0,
     observaciones TEXT NOT NULL DEFAULT '',
+    horas_trabajo REAL,
     creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (equipo_id) REFERENCES equipos(id),
@@ -284,6 +287,8 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_medidores(connection)
         _migrate_facturas_electricas(connection)
         _migrate_facturas_electricas_v2(connection)
+        _migrate_equipos_horas_trabajo(connection)
+        _migrate_ordenes_horas_trabajo(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
@@ -660,6 +665,29 @@ def _migrate_facturas_electricas_v2(connection: sqlite3.Connection) -> None:
             connection.execute(
                 f"ALTER TABLE facturas_electricas ADD COLUMN {col} {defn}"
             )
+
+
+def _migrate_equipos_horas_trabajo(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "equipos"):
+        return
+    cols = _table_columns(connection, "equipos")
+    if "horas_trabajo_activo" not in cols:
+        connection.execute(
+            "ALTER TABLE equipos ADD COLUMN horas_trabajo_activo INTEGER NOT NULL DEFAULT 0"
+        )
+    if "horas_trabajo_actual" not in cols:
+        connection.execute(
+            "ALTER TABLE equipos ADD COLUMN horas_trabajo_actual REAL NOT NULL DEFAULT 0"
+        )
+
+
+def _migrate_ordenes_horas_trabajo(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "ordenes_trabajo"):
+        return
+    if "horas_trabajo" not in _table_columns(connection, "ordenes_trabajo"):
+        connection.execute(
+            "ALTER TABLE ordenes_trabajo ADD COLUMN horas_trabajo REAL"
+        )
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:

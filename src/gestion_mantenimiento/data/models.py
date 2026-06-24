@@ -23,6 +23,8 @@ class Equipo:
     fecha_adquisicion: str
     observaciones: str
     activo: bool
+    horas_trabajo_activo: bool = False
+    horas_trabajo_actual: float = 0.0
 
     @property
     def etiqueta(self) -> str:
@@ -65,6 +67,7 @@ class OrdenTrabajo:
     costo_mano_obra: float
     costo_repuestos: float
     observaciones: str
+    horas_trabajo: float | None = None
 
     @property
     def costo_total(self) -> float:
@@ -82,6 +85,7 @@ class OrdenTrabajoCreate:
     tecnico_id: int | None
     costo_mano_obra: float
     observaciones: str
+    horas_trabajo: float | None = None
 
 
 @dataclass(frozen=True)
