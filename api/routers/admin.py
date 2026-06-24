@@ -25,6 +25,12 @@ from api.models import (
     AdminTecnicoCreate,
     AdminTecnicoItem,
     AdminTecnicoUpdate,
+    DashboardStats,
+    GenerarOrdenesRequest,
+    GenerarOrdenesResult,
+    HistorialEquipoItem,
+    HorasEquipoRequest,
+    HorasOrdenRequest,
     OrdenCard,
     OrdenDetail,
     SetPasswordRequest,
@@ -592,4 +598,181 @@ def delete_orden_admin(orden_id: int, _: AdminTecnicoDep, connection: Connection
         )
     connection.execute("DELETE FROM ordenes_trabajo WHERE id = ?", (orden_id,))
     connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+@router.get("/dashboard", response_model=DashboardStats)
+def get_dashboard(_: AdminTecnicoDep, connection: ConnectionDep) -> DashboardStats:
+    hoy = date.today().isoformat()
+    mes_inicio = date.today().replace(day=1).isoformat()
+
+    def count(sql: str, *args: object) -> int:
+        return int(connection.execute(sql, args).fetchone()[0])
+
+    alertas_stock = count(
+        "SELECT COUNT(*) FROM repuestos WHERE activo=1 AND stock_actual <= stock_minimo"
+    )
+    alertas_mant = count(
+        "SELECT COUNT(*) FROM programas_mantenimiento WHERE activo=1 AND proxima_ejecucion < ?", hoy
+    )
+    alertas_orden = count(
+        "SELECT COUNT(*) FROM ordenes_trabajo WHERE estado='PENDIENTE' AND tecnico_id IS NULL"
+    )
+    return DashboardStats(
+        ordenes_pendientes=count("SELECT COUNT(*) FROM ordenes_trabajo WHERE estado='PENDIENTE'"),
+        ordenes_en_progreso=count("SELECT COUNT(*) FROM ordenes_trabajo WHERE estado='EN_PROGRESO'"),
+        ordenes_completadas_mes=count(
+            "SELECT COUNT(*) FROM ordenes_trabajo WHERE estado='COMPLETADA' AND fecha_cierre >= ?", mes_inicio
+        ),
+        equipos_activos=count("SELECT COUNT(*) FROM equipos WHERE activo=1"),
+        alertas_activas=alertas_stock + alertas_mant + alertas_orden,
+        repuestos_bajo_stock=alertas_stock,
+        programas_vencidos=alertas_mant,
+    )
+
+
+# ── Horas de trabajo ──────────────────────────────────────────────────────────
+
+@router.patch("/ordenes/{orden_id}/horas", status_code=status.HTTP_204_NO_CONTENT)
+def set_horas_orden(orden_id: int, payload: HorasOrdenRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    row = connection.execute("SELECT id FROM ordenes_trabajo WHERE id=?", (orden_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    connection.execute(
+        "UPDATE ordenes_trabajo SET horas_trabajo=?, actualizado_en=? WHERE id=?",
+        (payload.horas_trabajo, date.today().isoformat(), orden_id),
+    )
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/equipos/{equipo_id}/horas", status_code=status.HTTP_204_NO_CONTENT)
+def set_horas_equipo(equipo_id: int, payload: HorasEquipoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    row = connection.execute("SELECT id FROM equipos WHERE id=?", (equipo_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado.")
+    updates: list[str] = []
+    params: list[object] = []
+    if payload.horas_trabajo_activo is not None:
+        updates.append("horas_trabajo_activo=?")
+        params.append(1 if payload.horas_trabajo_activo else 0)
+    if payload.horas_trabajo_actual is not None:
+        updates.append("horas_trabajo_actual=?")
+        params.append(payload.horas_trabajo_actual)
+    if updates:
+        updates.append("actualizado_en=?")
+        params.append(date.today().isoformat())
+        params.append(equipo_id)
+        connection.execute(f"UPDATE equipos SET {', '.join(updates)} WHERE id=?", params)
+        connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Historial de equipo ───────────────────────────────────────────────────────
+
+@router.get("/equipos/{equipo_id}/historial", response_model=list[HistorialEquipoItem])
+def get_historial_equipo(equipo_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> list[HistorialEquipoItem]:
+    rows = connection.execute(
+        """
+        SELECT ot.id, ot.tipo, ot.descripcion, ot.estado,
+               ot.fecha_apertura, ot.fecha_cierre,
+               ot.horas_trabajo, ot.costo_mano_obra, ot.observaciones,
+               t.nombre || ' ' || t.apellido AS tecnico_nombre
+        FROM ordenes_trabajo ot
+        LEFT JOIN tecnicos t ON t.id = ot.tecnico_id
+        WHERE ot.equipo_id = ?
+        ORDER BY ot.fecha_apertura DESC
+        """,
+        (equipo_id,),
+    ).fetchall()
+    return [
+        HistorialEquipoItem(
+            id=int(r["id"]),
+            tipo=str(r["tipo"]),
+            descripcion=str(r["descripcion"] or ""),
+            estado=str(r["estado"]),
+            fecha_apertura=str(r["fecha_apertura"] or ""),
+            fecha_cierre=str(r["fecha_cierre"] or ""),
+            tecnico_nombre=str(r["tecnico_nombre"] or ""),
+            horas_trabajo=float(r["horas_trabajo"] or 0),
+            costo_mano_obra=float(r["costo_mano_obra"] or 0),
+            observaciones=str(r["observaciones"] or ""),
+        )
+        for r in rows
+    ]
+
+
+# ── Generar órdenes preventivas ───────────────────────────────────────────────
+
+@router.post("/generar-ordenes", response_model=GenerarOrdenesResult)
+def generar_ordenes(payload: GenerarOrdenesRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> GenerarOrdenesResult:
+    import calendar as _cal
+    mes, anio = payload.mes, payload.anio
+    _, dias_mes = _cal.monthrange(anio, mes)
+    inicio = f"{anio:04d}-{mes:02d}-01"
+    fin = f"{anio:04d}-{mes:02d}-{dias_mes:02d}"
+
+    programas = connection.execute(
+        "SELECT id, equipo_id, descripcion FROM programas_mantenimiento "
+        "WHERE activo=1 AND proxima_ejecucion BETWEEN ? AND ?",
+        (inicio, fin),
+    ).fetchall()
+
+    creadas = 0
+    existentes = 0
+    nuevas_ids: list[int] = []
+
+    hoy = date.today().isoformat()
+    for prog in programas:
+        # ¿Ya existe orden pendiente/en progreso vinculada a este programa?
+        existente = connection.execute(
+            """
+            SELECT ot.id FROM ordenes_trabajo ot
+            JOIN orden_programas op ON op.orden_id = ot.id
+            WHERE op.programa_id = ? AND ot.estado IN ('PENDIENTE','EN_PROGRESO')
+            """,
+            (int(prog["id"]),),
+        ).fetchone()
+        if existente:
+            existentes += 1
+            continue
+
+        connection.execute(
+            "INSERT INTO ordenes_trabajo (equipo_id, tipo, descripcion, estado, fecha_apertura, creado_en, actualizado_en) "
+            "VALUES (?, 'PREVENTIVO', ?, 'PENDIENTE', ?, ?, ?)",
+            (int(prog["equipo_id"]), str(prog["descripcion"]), hoy, hoy, hoy),
+        )
+        orden_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
+        connection.execute(
+            "INSERT INTO orden_programas (orden_id, programa_id) VALUES (?, ?)",
+            (orden_id, int(prog["id"])),
+        )
+        creadas += 1
+        nuevas_ids.append(int(orden_id))
+
+    connection.commit()
+    return GenerarOrdenesResult(creadas=creadas, existentes=existentes, ordenes=nuevas_ids)
+
+
+# ── Exportar / Importar base de datos ────────────────────────────────────────
+
+@router.get("/db/exportar")
+def exportar_db(_: AdminTecnicoDep) -> FileResponse:
+    db_path = resolve_database_path()
+    return FileResponse(
+        path=str(db_path),
+        filename=f"mantenimiento_backup_{date.today().isoformat()}.sqlite",
+        media_type="application/octet-stream",
+    )
+
+
+@router.post("/db/importar", status_code=status.HTTP_204_NO_CONTENT)
+async def importar_db(file: UploadFile, _: AdminTecnicoDep) -> Response:
+    db_path = resolve_database_path()
+    backup_path = db_path.with_suffix(f".backup_{date.today().isoformat()}.sqlite")
+    shutil.copy2(db_path, backup_path)
+    data = await file.read()
+    db_path.write_bytes(data)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

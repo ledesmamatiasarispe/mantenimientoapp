@@ -308,3 +308,25 @@ button, input, textarea { font: inherit; }
     margin: 0 auto;
   }
 }
+
+/* Badge de alertas */
+.nav-link .badge {
+  display: inline-block;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* Badge de tipo de orden */
+.badge-tipo {
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+}

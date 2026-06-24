@@ -320,3 +320,133 @@ class AdminOrdenRequest(BaseModel):
     costo_mano_obra: float = 0
     observaciones: str = ""
 
+
+# ── Alertas ───────────────────────────────────────────────────────────────────
+
+class AlertaItem(BaseModel):
+    key: str
+    tipo: str
+    mensaje: str
+    severidad: str
+    puede_posponer: bool = True
+
+
+class SnoozeRequest(BaseModel):
+    dias: int = 7
+
+
+# ── Horas de trabajo ──────────────────────────────────────────────────────────
+
+class HorasOrdenRequest(BaseModel):
+    horas_trabajo: float
+
+
+class HorasEquipoRequest(BaseModel):
+    horas_trabajo_activo: bool | None = None
+    horas_trabajo_actual: float | None = None
+
+
+# ── Generación de órdenes ─────────────────────────────────────────────────────
+
+class GenerarOrdenesRequest(BaseModel):
+    mes: int
+    anio: int
+
+
+class GenerarOrdenesResult(BaseModel):
+    creadas: int
+    existentes: int
+    ordenes: list[int]
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+class DashboardStats(BaseModel):
+    ordenes_pendientes: int
+    ordenes_en_progreso: int
+    ordenes_completadas_mes: int
+    equipos_activos: int
+    alertas_activas: int
+    repuestos_bajo_stock: int
+    programas_vencidos: int
+
+
+# ── Medidores / Electricidad ──────────────────────────────────────────────────
+
+class MedidorItem(BaseModel):
+    id: int
+    nombre: str
+    nro_medidor: str
+    nro_cliente: str
+    descripcion: str
+    activo: bool
+
+
+class MedidorRequest(BaseModel):
+    nombre: str
+    nro_medidor: str = ""
+    nro_cliente: str = ""
+    descripcion: str = ""
+    activo: bool = True
+
+
+class FacturaElectricaItem(BaseModel):
+    id: int
+    medidor_id: int
+    periodo: str
+    tipo_tarifa: str
+    fecha_factura: str
+    kwh_punta: float
+    kwh_valle_noc: float
+    kwh_restantes: float
+    kvar_reactiva: float
+    drp_kw: float
+    drfp_kw: float
+    importe: float
+    observaciones: str
+
+
+class FacturaElectricaRequest(BaseModel):
+    periodo: str
+    tipo_tarifa: str = "T2"
+    fecha_factura: str = ""
+    kwh_punta: float = 0
+    kwh_valle_noc: float = 0
+    kwh_restantes: float = 0
+    kvar_reactiva: float = 0
+    drp_kw: float = 0
+    drfp_kw: float = 0
+    cap_convenida_kw: float = 0
+    cap_adquirida_kw: float = 0
+    tangente_fi: float = 0
+    importe: float = 0
+    observaciones: str = ""
+
+
+class GraficoPunto(BaseModel):
+    periodo: str
+    valor: float
+
+
+class GraficoElectricidad(BaseModel):
+    consumo_kwh: list[GraficoPunto]
+    demanda_kw: list[GraficoPunto]
+    factor_potencia: list[GraficoPunto]
+    energia_reactiva: list[GraficoPunto]
+    costo_total: list[GraficoPunto]
+
+
+# ── Historial de equipo ───────────────────────────────────────────────────────
+
+class HistorialEquipoItem(BaseModel):
+    id: int
+    tipo: str
+    descripcion: str
+    estado: str
+    fecha_apertura: str
+    fecha_cierre: str
+    tecnico_nombre: str
+    horas_trabajo: float
+    costo_mano_obra: float
+    observaciones: str
+

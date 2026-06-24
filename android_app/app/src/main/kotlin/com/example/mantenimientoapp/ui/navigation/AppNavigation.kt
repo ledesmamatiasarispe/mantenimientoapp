@@ -6,7 +6,11 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.mantenimientoapp.ui.admin.alertas.AlertasScreen
+import com.example.mantenimientoapp.ui.admin.dashboard.DashboardScreen
 import com.example.mantenimientoapp.ui.admin.equipos.EquiposAdminScreen
+import com.example.mantenimientoapp.ui.admin.generar.GenerarOrdenesScreen
+import com.example.mantenimientoapp.ui.admin.historial.HistorialEquipoScreen
 import com.example.mantenimientoapp.ui.admin.programas.ProgramasAdminScreen
 import com.example.mantenimientoapp.ui.admin.repuestos.RepuestosAdminScreen
 import com.example.mantenimientoapp.ui.admin.tecnicos.TecnicosAdminScreen
@@ -20,88 +24,84 @@ object Routes {
     const val LOGIN = "login"
     const val HOME = "home"
     const val ORDEN_DETAIL = "orden/{id}"
+    const val ADMIN_DASHBOARD = "admin/dashboard"
+    const val ADMIN_ALERTAS = "admin/alertas"
     const val ADMIN_EQUIPOS = "admin/equipos"
     const val ADMIN_PROGRAMAS = "admin/programas"
     const val ADMIN_REPUESTOS = "admin/repuestos"
     const val ADMIN_TECNICOS = "admin/tecnicos"
+    const val ADMIN_GENERAR = "admin/generar"
+    const val ADMIN_HISTORIAL = "admin/equipos/{equipoId}/historial?nombre={nombre}"
+    const val ADMIN_ELECTRICIDAD = "admin/electricidad"
 
     fun ordenDetail(id: Int) = "orden/$id"
+    fun historialEquipo(id: Int, nombre: String) = "admin/equipos/$id/historial?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
 }
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
+    NavHost(navController = navController, startDestination = Routes.SERVER_CHECK) {
 
-    NavHost(
-        navController = navController,
-        startDestination = Routes.SERVER_CHECK
-    ) {
-        // 1. Verificación de servidor (siempre primero)
         composable(Routes.SERVER_CHECK) {
             ServerCheckScreen(
-                onConnectedLoggedIn = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.SERVER_CHECK) { inclusive = true }
-                    }
-                },
-                onConnectedNeedLogin = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.SERVER_CHECK) { inclusive = true }
-                    }
-                }
+                onConnectedLoggedIn = { navController.navigate(Routes.HOME) { popUpTo(Routes.SERVER_CHECK) { inclusive = true } } },
+                onConnectedNeedLogin = { navController.navigate(Routes.LOGIN) { popUpTo(Routes.SERVER_CHECK) { inclusive = true } } }
             )
         }
 
-        // 2. Login
         composable(Routes.LOGIN) {
-            LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
-                    }
-                }
-            )
+            LoginScreen(onLoginSuccess = { navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } })
         }
 
-        // 3. Home principal
         composable(Routes.HOME) {
             HomeScreen(
                 onOrdenClick = { id -> navController.navigate(Routes.ordenDetail(id)) },
+                onNavigateToAdminDashboard = { navController.navigate(Routes.ADMIN_DASHBOARD) },
+                onNavigateToAdminAlertas = { navController.navigate(Routes.ADMIN_ALERTAS) },
                 onNavigateToAdminEquipos = { navController.navigate(Routes.ADMIN_EQUIPOS) },
                 onNavigateToAdminProgramas = { navController.navigate(Routes.ADMIN_PROGRAMAS) },
                 onNavigateToAdminRepuestos = { navController.navigate(Routes.ADMIN_REPUESTOS) },
                 onNavigateToAdminTecnicos = { navController.navigate(Routes.ADMIN_TECNICOS) },
-                onLogout = {
-                    navController.navigate(Routes.SERVER_CHECK) {
-                        popUpTo(Routes.HOME) { inclusive = true }
-                    }
-                }
+                onNavigateToGenerarOrdenes = { navController.navigate(Routes.ADMIN_GENERAR) },
+                onNavigateToElectricidad = { navController.navigate(Routes.ADMIN_ELECTRICIDAD) },
+                onNavigateToExportImportDb = { /* TODO */ },
+                onLogout = { navController.navigate(Routes.SERVER_CHECK) { popUpTo(Routes.HOME) { inclusive = true } } }
             )
         }
 
-        // 4. Detalle de orden
-        composable(
-            route = Routes.ORDEN_DETAIL,
-            arguments = listOf(navArgument("id") { type = NavType.IntType })
-        ) { backStack ->
-            val ordenId = backStack.arguments!!.getInt("id")
-            OrdenDetailScreen(
-                ordenId = ordenId,
-                onBack = { navController.popBackStack() }
-            )
+        composable(Routes.ORDEN_DETAIL, arguments = listOf(navArgument("id") { type = NavType.IntType })) { back ->
+            OrdenDetailScreen(ordenId = back.arguments!!.getInt("id"), onBack = { navController.popBackStack() })
         }
 
-        // 5. Admin sub-pantallas
+        composable(Routes.ADMIN_DASHBOARD) { DashboardScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_ALERTAS) { AlertasScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ADMIN_EQUIPOS) {
-            EquiposAdminScreen(onBack = { navController.popBackStack() })
+            EquiposAdminScreen(
+                onBack = { navController.popBackStack() },
+                onHistorial = { id, nombre -> navController.navigate(Routes.historialEquipo(id, nombre)) }
+            )
         }
-        composable(Routes.ADMIN_PROGRAMAS) {
-            ProgramasAdminScreen(onBack = { navController.popBackStack() })
+        composable(Routes.ADMIN_PROGRAMAS) { ProgramasAdminScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_REPUESTOS) { RepuestosAdminScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_TECNICOS) { TecnicosAdminScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_GENERAR) { GenerarOrdenesScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_ELECTRICIDAD) {
+            // Placeholder hasta tener ElectricidadScreen
+            androidx.compose.material3.Text("Electricidad - próximamente")
         }
-        composable(Routes.ADMIN_REPUESTOS) {
-            RepuestosAdminScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Routes.ADMIN_TECNICOS) {
-            TecnicosAdminScreen(onBack = { navController.popBackStack() })
+        composable(
+            route = "admin/equipos/{equipoId}/historial?nombre={nombre}",
+            arguments = listOf(
+                navArgument("equipoId") { type = NavType.IntType },
+                navArgument("nombre") { defaultValue = "" }
+            )
+        ) { back ->
+            HistorialEquipoScreen(
+                equipoId = back.arguments!!.getInt("equipoId"),
+                equipoNombre = back.arguments!!.getString("nombre") ?: "",
+                onBack = { navController.popBackStack() },
+                onOrdenClick = { id -> navController.navigate(Routes.ordenDetail(id)) }
+            )
         }
     }
 }

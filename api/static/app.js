@@ -7,6 +7,7 @@ const state = {
   adminProgramaEquipoId: null,
   adjuntoViewer: null,
   cronogramaEquipoId: null,
+  alertasCount: 0,
 };
 
 function setServerBase(url) {
@@ -107,6 +108,7 @@ function setAuth(token, tecnico) {
   localStorage.setItem("gm_token", token);
   localStorage.setItem("gm_tecnico", JSON.stringify(tecnico));
   fetchNetworkInfo(); // cargar IPs en background tras el login
+  refreshAlertasBadge(); // badge de alertas
 }
 
 function clearAuth() {
@@ -231,7 +233,7 @@ function layout(content, active = "ordenes") {
     <nav class="bottom-nav">
       <a class="nav-link ${active === "ordenes" ? "active" : ""}" href="/ordenes">Órdenes</a>
       <a class="nav-link ${active === "cronograma" ? "active" : ""}" href="/cronograma">Cronograma</a>
-      ${state.tecnico?.es_admin ? `<a class="nav-link ${active === "admin" ? "active" : ""}" href="/admin/equipos">Admin</a>` : ""}
+      ${state.tecnico?.es_admin ? `<a class="nav-link ${active === "admin" ? "active" : ""}" href="/admin/dashboard">Admin ${state.alertasCount > 0 ? `<span class="badge">${state.alertasCount}</span>` : ""}</a>` : ""}
     </nav>
   `;
 }
@@ -839,12 +841,17 @@ async function renderCronograma() {
 // ── Admin ──────────────────────────────────────────────────────────────────
 
 const ADMIN_SECTIONS = [
-  { key: "equipos",   label: "Equipos" },
-  { key: "tipos",     label: "Tipos" },
-  { key: "programas", label: "Programas" },
-  { key: "repuestos", label: "Repuestos" },
-  { key: "tecnicos",  label: "Técnicos" },
-  { key: "ordenes",   label: "Órdenes" },
+  { key: "dashboard",   label: "🏠 Inicio" },
+  { key: "alertas",     label: "🔔 Alertas" },
+  { key: "equipos",     label: "Equipos" },
+  { key: "tipos",       label: "Tipos" },
+  { key: "programas",   label: "Programas" },
+  { key: "repuestos",   label: "Repuestos" },
+  { key: "tecnicos",    label: "Técnicos" },
+  { key: "ordenes",     label: "Órdenes" },
+  { key: "generar",     label: "📅 Generar" },
+  { key: "electricidad",label: "⚡ Electr." },
+  { key: "base-datos",  label: "💾 DB" },
 ];
 
 function adminTabs(active) {
@@ -886,6 +893,7 @@ async function renderAdminList(section) {
       <td class="muted">${r.id}</td><td>${escapeHtml(r.nombre)}</td><td>${escapeHtml(r.tipo_nombre)}</td>
       <td>${escapeHtml(r.ubicacion)}</td><td>${r.activo ? "✓" : "–"}</td>
       <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/equipos/${r.id}/historial" title="Historial">📋</a>
         <a class="btn-icon" href="/admin/equipos/${r.id}" title="Editar">✏️</a>
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
       </td></tr>`).join("");
@@ -1369,6 +1377,285 @@ function parsePath() {
   return { path: raw, query: new URLSearchParams(location.search) };
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+async function renderDashboard() {
+  renderLoading("Cargando dashboard...");
+  const stats = await apiFetch("/api/admin/dashboard");
+  document.querySelector("#app").innerHTML = layoutAdmin("dashboard", `
+    <div class="topbar"><div><h1>Dashboard</h1></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:16px">
+      ${[
+        ["Pendientes", stats.ordenes_pendientes, "#f59e0b"],
+        ["En progreso", stats.ordenes_en_progreso, "#3b82f6"],
+        ["Completadas (mes)", stats.ordenes_completadas_mes, "#10b981"],
+        ["Equipos activos", stats.equipos_activos, "#6366f1"],
+        ["Alertas activas", stats.alertas_activas, "#ef4444"],
+        ["Stock bajo", stats.repuestos_bajo_stock, "#f97316"],
+        ["Mant. vencidos", stats.programas_vencidos, "#dc2626"],
+      ].map(([label, valor, color]) => `
+        <div style="background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid ${color}">
+          <div style="font-size:28px;font-weight:700;color:${color}">${valor}</div>
+          <div style="font-size:12px;color:#666;margin-top:4px">${label}</div>
+        </div>`).join("")}
+    </div>
+  `);
+}
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+
+async function renderAlertas() {
+  renderLoading("Cargando alertas...");
+  const alertas = await apiFetch("/api/alertas");
+  state.alertasCount = alertas.length;
+  const colores = { alta: "#ef4444", media: "#f59e0b", baja: "#10b981" };
+  document.querySelector("#app").innerHTML = layoutAdmin("alertas", `
+    <div class="topbar"><div><h1>Alertas (${alertas.length})</h1></div></div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      ${alertas.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin alertas activas</p>`
+        : alertas.map(a => `
+        <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid ${colores[a.severidad] || "#999"}">
+          <div style="font-weight:600;margin-bottom:6px">${escapeHtml(a.mensaje)}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="font-size:11px;background:#eee;padding:2px 8px;border-radius:12px">${a.tipo}</span>
+            <span style="font-size:11px;background:${colores[a.severidad]}22;color:${colores[a.severidad]};padding:2px 8px;border-radius:12px">${a.severidad}</span>
+            <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="snoozeAlerta('${escapeHtml(a.key)}')">Posponer 7d</button>
+            <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="ignorarAlerta('${escapeHtml(a.key)}')">Ignorar</button>
+          </div>
+        </div>`).join("")}
+    </div>
+  `);
+}
+
+async function snoozeAlerta(key) {
+  await apiFetch(`/api/alertas/${encodeURIComponent(key)}/snooze`, { method: "POST", body: JSON.stringify({ dias: 7 }) });
+  await renderAlertas();
+}
+
+async function ignorarAlerta(key) {
+  await apiFetch(`/api/alertas/${encodeURIComponent(key)}/ignorar`, { method: "POST", body: JSON.stringify({}) });
+  await renderAlertas();
+}
+
+// ── Generar órdenes ───────────────────────────────────────────────────────────
+
+async function renderGenerarOrdenes() {
+  const hoy = new Date();
+  document.querySelector("#app").innerHTML = layoutAdmin("generar", `
+    <div class="topbar"><div><h1>Generar órdenes preventivas</h1></div></div>
+    <div style="padding:20px;max-width:480px">
+      <p style="color:#555;margin-bottom:16px">Genera órdenes de trabajo PREVENTIVO para los programas con vencimiento en el mes seleccionado. No duplica órdenes ya existentes.</p>
+      <form id="generar-form" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field">
+          <label>Mes</label>
+          <select id="gen-mes" class="input">
+            ${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${m===hoy.getMonth()+1?"selected":""}>${m.toString().padStart(2,"0")}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Año</label>
+          <input id="gen-anio" class="input" type="number" value="${hoy.getFullYear()}" min="2020" max="2030" />
+        </div>
+        <button class="button primary" type="submit">Generar órdenes</button>
+      </form>
+      <div id="generar-resultado" style="margin-top:16px"></div>
+    </div>
+  `);
+  document.querySelector("#generar-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const mes = parseInt(document.querySelector("#gen-mes").value);
+    const anio = parseInt(document.querySelector("#gen-anio").value);
+    const div = document.querySelector("#generar-resultado");
+    div.innerHTML = `<p>Generando...</p>`;
+    try {
+      const r = await apiFetch("/api/admin/generar-ordenes", { method: "POST", body: JSON.stringify({ mes, anio }) });
+      div.innerHTML = `
+        <div style="background:#d1fae5;border-radius:8px;padding:14px">
+          <strong>${r.creadas} orden(es) creada(s)</strong>, ${r.existentes} ya existían.
+          ${r.ordenes.length > 0 ? `<br>IDs: ${r.ordenes.join(", ")}` : ""}
+        </div>`;
+    } catch(err) {
+      div.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
+    }
+  });
+}
+
+// ── Historial equipo (desde detalle de equipo en admin) ───────────────────────
+
+async function renderHistorialEquipo(equipoId) {
+  renderLoading("Cargando historial...");
+  const historial = await apiFetch(`/api/admin/equipos/${equipoId}/historial`);
+  const equipo = (await apiFetch("/api/admin/equipos")).find(e => e.id === equipoId);
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
+    <div class="topbar">
+      <div><a class="back-link" href="/admin/equipos">← Equipos</a><h1>Historial: ${escapeHtml(equipo?.nombre || `#${equipoId}`)}</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${historial.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin órdenes registradas</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th>#</th><th>Tipo</th><th>Estado</th><th>Apertura</th><th>Técnico</th><th>Horas</th><th>Costo</th>
+           </tr></thead><tbody>
+           ${historial.map(h=>`<tr>
+             <td><a href="/orden/${h.id}">#${h.id}</a></td>
+             <td><span class="badge-tipo">${h.tipo}</span></td>
+             <td><span class="badge ${h.estado.toLowerCase().replace("_","-")}">${h.estado}</span></td>
+             <td>${h.fecha_apertura.slice(0,10)}</td>
+             <td>${escapeHtml(h.tecnico_nombre)}</td>
+             <td>${h.horas_trabajo || 0}h</td>
+             <td>$${h.costo_mano_obra.toFixed(0)}</td>
+           </tr>`).join("")}
+           </tbody></table>`}
+    </div>
+  `);
+}
+
+// ── Electricidad ──────────────────────────────────────────────────────────────
+
+async function renderElectricidad(medidorId = null) {
+  renderLoading("Cargando electricidad...");
+  const medidores = await apiFetch("/api/admin/electricidad/medidores");
+  const selId = medidorId || medidores[0]?.id || null;
+
+  let facturas = [], graficos = null;
+  if (selId) {
+    [facturas, graficos] = await Promise.all([
+      apiFetch(`/api/admin/electricidad/medidores/${selId}/facturas`),
+      apiFetch(`/api/admin/electricidad/medidores/${selId}/graficos`),
+    ]);
+  }
+
+  document.querySelector("#app").innerHTML = layoutAdmin("electricidad", `
+    <div class="topbar">
+      <div><h1>Electricidad</h1></div>
+      <div><a class="button primary" href="/admin/electricidad/nuevo-medidor" style="font-size:12px;padding:4px 12px">+ Medidor</a></div>
+    </div>
+    <div style="padding:16px">
+      ${medidores.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin medidores. Agregá uno primero.</p>`
+        : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            ${medidores.map(m=>`<a href="/admin/electricidad/${m.id}" class="button ${m.id===selId?"primary":"secondary"}" style="font-size:12px;padding:4px 12px">${escapeHtml(m.nombre)}</a>`).join("")}
+           </div>
+           ${selId ? `
+             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+               <h3 style="margin:0">Facturas — ${escapeHtml(medidores.find(m=>m.id===selId)?.nombre||"")}</h3>
+               <a class="button primary" href="/admin/electricidad/${selId}/nueva-factura" style="font-size:12px;padding:4px 12px">+ Factura</a>
+             </div>
+             ${graficos && graficos.consumo_kwh.length > 0 ? renderGraficosElectricidad(graficos) : ""}
+             <table class="admin-table"><thead><tr>
+               <th>Período</th><th>kWh</th><th>DRP kW</th><th>kVAR</th><th>Importe</th><th></th>
+             </tr></thead><tbody>
+             ${facturas.map(f=>`<tr>
+               <td>${f.periodo}</td>
+               <td>${(f.kwh_punta+f.kwh_valle_noc+f.kwh_restantes).toFixed(0)}</td>
+               <td>${f.drp_kw.toFixed(1)}</td>
+               <td>${f.kvar_reactiva.toFixed(1)}</td>
+               <td>$${f.importe.toFixed(0)}</td>
+               <td><a class="btn-icon" href="/admin/electricidad/${selId}/factura/${f.id}">✏️</a></td>
+             </tr>`).join("")}
+             </tbody></table>
+           ` : ""}`}
+    </div>
+  `);
+
+  // Dibujar gráficos
+  if (graficos && graficos.consumo_kwh.length > 0) {
+    dibujarGrafico("canvas-kwh", graficos.consumo_kwh, "#3b82f6", "kWh");
+    dibujarGrafico("canvas-kw", graficos.demanda_kw, "#f59e0b", "kW");
+    dibujarGrafico("canvas-fp", graficos.factor_potencia, "#10b981", "cos φ");
+    dibujarGrafico("canvas-costo", graficos.costo_total, "#6366f1", "$");
+  }
+}
+
+function renderGraficosElectricidad(g) {
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      ${[["canvas-kwh","Consumo kWh"],["canvas-kw","Demanda kW"],["canvas-fp","Factor de potencia"],["canvas-costo","Costo $"]].map(([id,lbl])=>`
+        <div style="background:#fff;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+          <div style="font-size:12px;color:#666;margin-bottom:6px;font-weight:600">${lbl}</div>
+          <canvas id="${id}" height="100" style="width:100%"></canvas>
+        </div>`).join("")}
+    </div>`;
+}
+
+function dibujarGrafico(canvasId, puntos, color, unidad) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || puntos.length === 0) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.offsetWidth || 300;
+  const H = 100;
+  canvas.width = W;
+  canvas.height = H;
+  const valores = puntos.map(p => p.valor);
+  const max = Math.max(...valores) || 1;
+  const barW = Math.max(2, (W - 20) / puntos.length - 2);
+  ctx.clearRect(0, 0, W, H);
+  puntos.forEach((p, i) => {
+    const x = 10 + i * (barW + 2);
+    const barH = (p.valor / max) * (H - 20);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, H - barH - 10, barW, barH);
+  });
+  ctx.fillStyle = "#666";
+  ctx.font = "9px sans-serif";
+  ctx.fillText(`${Math.round(max)} ${unidad}`, 2, 10);
+}
+
+// ── Base de datos (export/import) ─────────────────────────────────────────────
+
+function renderBaseDatos() {
+  document.querySelector("#app").innerHTML = layoutAdmin("base-datos", `
+    <div class="topbar"><div><h1>Base de datos</h1></div></div>
+    <div style="padding:20px;max-width:480px;display:flex;flex-direction:column;gap:16px">
+      <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+        <h3 style="margin:0 0 8px">Exportar</h3>
+        <p style="color:#555;font-size:13px;margin-bottom:12px">Descargá una copia de la base de datos completa (archivo .sqlite).</p>
+        <a class="button primary" href="${state.serverBase}/api/admin/db/exportar" download>⬇ Descargar backup</a>
+      </div>
+      <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+        <h3 style="margin:0 0 8px">Importar</h3>
+        <p style="color:#555;font-size:13px;margin-bottom:4px">⚠️ Reemplaza la base de datos actual. Se genera un backup automático antes.</p>
+        <form id="import-form" style="margin-top:10px">
+          <input id="import-file" type="file" accept=".sqlite,.db" style="margin-bottom:8px;display:block" />
+          <button class="button primary" type="submit">⬆ Importar</button>
+        </form>
+        <div id="import-resultado" style="margin-top:8px"></div>
+      </div>
+    </div>
+  `);
+  document.querySelector("#import-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const file = document.querySelector("#import-file").files[0];
+    if (!file) return;
+    const div = document.querySelector("#import-resultado");
+    div.innerHTML = `<p>Importando...</p>`;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const resp = await fetch(`${state.serverBase}/api/admin/db/importar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${state.token}` },
+        body: formData,
+      });
+      if (!resp.ok) throw new Error(`Error ${resp.status}`);
+      div.innerHTML = `<p style="color:#10b981">✅ Importado correctamente. Recargá la app para ver los cambios.</p>`;
+    } catch(err) {
+      div.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
+    }
+  });
+}
+
+// ── Refresh alertas badge ─────────────────────────────────────────────────────
+
+async function refreshAlertasBadge() {
+  if (!state.token || !state.tecnico?.es_admin) return;
+  try {
+    const alertas = await apiFetch("/api/alertas");
+    state.alertasCount = alertas.length;
+  } catch (_) {}
+}
+
 function navigate(path) {
   history.pushState({}, "", path);
   render().catch(err => window.alert(err.message));
@@ -1407,7 +1694,29 @@ async function render() {
     const section = parts[1];
     const subId = parts[2];
     const subAction = parts[3];
-    if (section === "tecnicos" && subId && subAction === "password") {
+    if (section === "dashboard") {
+      await renderDashboard();
+    } else if (section === "alertas") {
+      await renderAlertas();
+    } else if (section === "generar") {
+      await renderGenerarOrdenes();
+    } else if (section === "base-datos") {
+      renderBaseDatos();
+    } else if (section === "electricidad") {
+      if (subId === "nuevo-medidor") {
+        await renderAdminForm("medidor", null);
+      } else if (subId && subAction === "nueva-factura") {
+        await renderAdminForm("factura-nueva", Number(subId));
+      } else if (subId && subAction === "factura" && parts[4]) {
+        await renderAdminForm("factura", Number(parts[4]), Number(subId));
+      } else if (subId && !isNaN(Number(subId))) {
+        await renderElectricidad(Number(subId));
+      } else {
+        await renderElectricidad();
+      }
+    } else if (section === "equipos" && subId && subAction === "historial") {
+      await renderHistorialEquipo(Number(subId));
+    } else if (section === "tecnicos" && subId && subAction === "password") {
       await renderAdminPasswordForm(Number(subId));
     } else if (section === "programas" && subId && !isNaN(Number(subId)) && subAction === "pasos") {
       await renderAdminPasos(Number(subId));

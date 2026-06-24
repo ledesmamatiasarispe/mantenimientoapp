@@ -225,4 +225,67 @@ interface ApiService {
 
     @DELETE("api/admin/ordenes/{id}")
     suspend fun eliminarOrden(@Path("id") id: Int): Response<Unit>
+
+    // ── Admin – Dashboard ─────────────────────────────────────────────────────
+    @GET("api/admin/dashboard")
+    suspend fun getDashboard(): DashboardStatsDto
+
+    // ── Admin – Horas ─────────────────────────────────────────────────────────
+    @PATCH("api/admin/ordenes/{id}/horas")
+    suspend fun setHorasOrden(@Path("id") id: Int, @Body request: HorasOrdenRequestDto): Response<Unit>
+
+    @PATCH("api/admin/equipos/{id}/horas")
+    suspend fun setHorasEquipo(@Path("id") id: Int, @Body request: HorasEquipoRequestDto): Response<Unit>
+
+    // ── Admin – Historial equipo ──────────────────────────────────────────────
+    @GET("api/admin/equipos/{id}/historial")
+    suspend fun getHistorialEquipo(@Path("id") id: Int): List<HistorialEquipoItemDto>
+
+    // ── Admin – Generar órdenes ───────────────────────────────────────────────
+    @POST("api/admin/generar-ordenes")
+    suspend fun generarOrdenes(@Body request: GenerarOrdenesRequestDto): GenerarOrdenesResultDto
+
+    // ── Admin – DB Export/Import ──────────────────────────────────────────────
+    @Streaming
+    @GET("api/admin/db/exportar")
+    suspend fun exportarDb(): Response<ResponseBody>
+
+    @Multipart
+    @POST("api/admin/db/importar")
+    suspend fun importarDb(@Part file: MultipartBody.Part): Response<Unit>
+
+    // ── Alertas ───────────────────────────────────────────────────────────────
+    @GET("api/alertas")
+    suspend fun getAlertas(): List<AlertaItemDto>
+
+    @POST("api/alertas/{key}/snooze")
+    suspend fun snoozeAlerta(@Path("key") key: String, @Body request: SnoozeRequestDto): Response<Unit>
+
+    @POST("api/alertas/{key}/ignorar")
+    suspend fun ignorarAlerta(@Path("key") key: String, @Body body: Map<String, String> = emptyMap()): Response<Unit>
+
+    // ── Electricidad ──────────────────────────────────────────────────────────
+    @GET("api/admin/electricidad/medidores")
+    suspend fun getMedidores(): List<MedidorItemDto>
+
+    @POST("api/admin/electricidad/medidores")
+    suspend fun crearMedidor(@Body request: MedidorRequestDto): MedidorItemDto
+
+    @PUT("api/admin/electricidad/medidores/{id}")
+    suspend fun actualizarMedidor(@Path("id") id: Int, @Body request: MedidorRequestDto): MedidorItemDto
+
+    @DELETE("api/admin/electricidad/medidores/{id}")
+    suspend fun eliminarMedidor(@Path("id") id: Int): Response<Unit>
+
+    @GET("api/admin/electricidad/medidores/{id}/facturas")
+    suspend fun getFacturas(@Path("id") medidorId: Int): List<FacturaElectricaItemDto>
+
+    @POST("api/admin/electricidad/medidores/{id}/facturas")
+    suspend fun crearFactura(@Path("id") medidorId: Int, @Body request: FacturaElectricaRequestDto): FacturaElectricaItemDto
+
+    @DELETE("api/admin/electricidad/medidores/{id}/facturas/{fid}")
+    suspend fun eliminarFactura(@Path("id") medidorId: Int, @Path("fid") facturaId: Int): Response<Unit>
+
+    @GET("api/admin/electricidad/medidores/{id}/graficos")
+    suspend fun getGraficos(@Path("id") medidorId: Int): GraficoElectricidadDto
 }
