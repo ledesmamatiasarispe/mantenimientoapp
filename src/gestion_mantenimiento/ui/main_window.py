@@ -2463,6 +2463,27 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._nav_list_widget)
         layout.addLayout(nav_btn_row)
 
+        # ── Base de datos ────────────────────────────────────────────────────
+        layout.addWidget(_section_title("Base de datos"))
+
+        db_info = QLabel(
+            "Exportar genera una copia de seguridad del archivo de base de datos.\n"
+            "Importar reemplaza la base de datos actual y reinicia la aplicación."
+        )
+        db_info.setObjectName("muted")
+        db_info.setWordWrap(True)
+        layout.addWidget(db_info)
+
+        db_btn_row = QHBoxLayout()
+        btn_export_db = QPushButton("Exportar base de datos")
+        btn_import_db = _danger_button("Importar base de datos")
+        btn_export_db.clicked.connect(self._db_exportar)
+        btn_import_db.clicked.connect(self._db_importar)
+        db_btn_row.addWidget(btn_export_db)
+        db_btn_row.addWidget(btn_import_db)
+        db_btn_row.addStretch()
+        layout.addLayout(db_btn_row)
+
         # ── Apariencia ───────────────────────────────────────────────────────
         layout.addWidget(_section_title("Apariencia"))
 
@@ -2575,6 +2596,79 @@ class MainWindow(QMainWindow):
         from gestion_mantenimiento.data.paths import get_theme_path
         save_theme_colors(get_theme_path(), self._current_theme)
         QMessageBox.information(self, "Opciones", "Colores guardados correctamente.")
+
+    def _db_exportar(self) -> None:
+        from gestion_mantenimiento.data.paths import get_database_path
+        from pathlib import Path as _Path
+        from datetime import date as _date
+        db_src = get_database_path()
+        nombre_default = f"gestion_mantenimiento_backup_{_date.today()}.sqlite3"
+        dest, _ = QFileDialog.getSaveFileName(
+            self, "Exportar base de datos",
+            str(_Path.home() / nombre_default),
+            "Base de datos SQLite (*.sqlite3 *.db)",
+            options=QFileDialog.Option.DontUseNativeDialog,
+        )
+        if not dest:
+            return
+        import shutil as _shutil
+        try:
+            _shutil.copy2(db_src, dest)
+            QMessageBox.information(self, "Exportar", f"Base de datos exportada correctamente:\n{dest}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Error al exportar", str(exc))
+
+    def _db_importar(self) -> None:
+        reply = QMessageBox.warning(
+            self, "Importar base de datos",
+            "Esto reemplazará toda la base de datos actual.\n"
+            "Se creará una copia de seguridad automáticamente antes de importar.\n\n"
+            "¿Continuar?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        from pathlib import Path as _Path
+        src_path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar base de datos a importar",
+            str(_Path.home()),
+            "Base de datos SQLite (*.sqlite3 *.db)",
+            options=QFileDialog.Option.DontUseNativeDialog,
+        )
+        if not src_path:
+            return
+
+        from gestion_mantenimiento.data.paths import get_database_path
+        from datetime import datetime as _dt
+        import sqlite3 as _sqlite3
+        import shutil as _shutil
+
+        db_dst = get_database_path()
+        backup = db_dst.parent / f"backup_{_dt.now().strftime('%Y%m%d_%H%M%S')}.sqlite3"
+        try:
+            _shutil.copy2(db_dst, backup)
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", f"No se pudo crear el backup:\n{exc}")
+            return
+
+        try:
+            with _sqlite3.connect(src_path) as src_conn:
+                with _sqlite3.connect(str(db_dst)) as dst_conn:
+                    src_conn.backup(dst_conn)
+        except Exception as exc:
+            QMessageBox.critical(self, "Error al importar", str(exc))
+            return
+
+        QMessageBox.information(
+            self, "Importar",
+            "Base de datos importada correctamente.\n"
+            f"Backup guardado en:\n{backup}\n\n"
+            "La aplicación se reiniciará ahora."
+        )
+        import sys as _sys, subprocess as _sp
+        _sp.Popen([_sys.executable] + _sys.argv)
+        _sys.exit(0)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
