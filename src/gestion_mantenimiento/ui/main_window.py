@@ -2256,6 +2256,7 @@ class MainWindow(QMainWindow):
             self, "Seleccionar facturas EDESUR (PDF)",
             str(_Path.home()),
             "Archivos PDF (*.pdf *.PDF)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if not paths:
             return
@@ -5059,7 +5060,7 @@ class FacturaElectricaDialog(QDialog):
         lbl_import = QLabel("Cargá el PDF de EDESUR para completar el formulario automáticamente:")
         lbl_import.setObjectName("muted")
         btn_import = _primary_button("Importar PDF")
-        btn_import.clicked.connect(self._importar_pdf)
+        btn_import.clicked.connect(lambda: self._importar_pdf())
         ib_layout.addWidget(lbl_import, 1)
         ib_layout.addWidget(btn_import)
         outer.addWidget(import_bar)
@@ -5396,6 +5397,7 @@ class FacturaElectricaDialog(QDialog):
                 self, "Seleccionar factura EDESUR (PDF)",
                 str(_Path.home()),
                 "Archivos PDF (*.pdf *.PDF)",
+                options=QFileDialog.Option.DontUseNativeDialog,
             )
         if not pdf_path:
             return

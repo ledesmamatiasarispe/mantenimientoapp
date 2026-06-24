@@ -78,13 +78,17 @@ def main():
         if r.returncode != 0:
             abort("No se pudieron instalar las dependencias.")
 
+        print("Descargando navegador para integracion EDESUR (~200 MB, solo una vez)...")
+        subprocess.run([str(VENV_PY), "-m", "playwright", "install", "chromium"])
+
     check = subprocess.run(
-        [str(VENV_PY), "-c", "import PySide6, certifi, openpyxl, reportlab"],
+        [str(VENV_PY), "-c", "import PySide6, certifi, openpyxl, reportlab, pdfplumber, playwright"],
         capture_output=True,
     )
     if check.returncode != 0:
         print("Actualizando dependencias...")
         subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", str(ROOT), "-q"])
+        subprocess.run([str(VENV_PY), "-m", "playwright", "install", "chromium"])
 
     print("Iniciando Gestion Mantenimiento...")
     r = subprocess.run([str(VENV_PY), "-m", "gestion_mantenimiento.main"])
