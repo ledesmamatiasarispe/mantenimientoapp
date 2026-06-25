@@ -3135,8 +3135,6 @@ class TecnicoDialog(QDialog):
         self._especialidad.setText(tec.especialidad)
         self._activo.setChecked(tec.activo)
         self._es_admin.setChecked(tec.es_admin)
-        if tec.es_admin:
-            self._es_admin.setEnabled(False)
 
     def _save(self) -> None:
         nombre = self._nombre.text().strip()
