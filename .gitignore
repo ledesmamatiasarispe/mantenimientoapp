@@ -25,3 +25,4 @@ build/
 # Entorno local
 .env
 .env.local
+_version.txt
