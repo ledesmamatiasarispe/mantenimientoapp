@@ -152,6 +152,10 @@ async function apiFetch(path, options = {}) {
       : String(detail || "Error inesperado.");
     throw new Error(message);
   }
+  // Respuestas sin cuerpo (204 No Content, 205)
+  if (response.status === 204 || response.status === 205) return null;
+  const ct = response.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) return null;
   return response.json();
 }
 
