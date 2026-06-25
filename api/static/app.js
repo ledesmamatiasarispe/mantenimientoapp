@@ -1584,26 +1584,111 @@ function dibujarGrafico(canvasId, puntos, color, unidad, baseline = null) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || puntos.length === 0) return;
   const ctx = canvas.getContext("2d");
+
   const W = canvas.offsetWidth || 300;
-  const H = 100;
+  const H = 110;
   canvas.width = W;
   canvas.height = H;
+
   const valores = puntos.map(p => p.valor);
   const max = Math.max(...valores) || 1;
   const min = baseline !== null ? baseline : 0;
   const range = (max - min) || 1;
   const barW = Math.max(2, (W - 20) / puntos.length - 2);
-  ctx.clearRect(0, 0, W, H);
-  puntos.forEach((p, i) => {
-    const x = 10 + i * (barW + 2);
-    const barH = Math.max(0, ((p.valor - min) / range) * (H - 20));
-    ctx.fillStyle = color;
-    ctx.fillRect(x, H - barH - 10, barW, barH);
-  });
-  ctx.fillStyle = "#666";
-  ctx.font = "9px sans-serif";
-  ctx.fillText(`${max.toFixed(unidad === "cos φ" ? 3 : 0)} ${unidad}`, 2, 10);
-  if (min > 0) ctx.fillText(min.toFixed(3), 2, H - 2);
+  const esMobile = window.matchMedia("(hover: none)").matches || "ontouchstart" in window;
+  const decimales = unidad === "cos φ" ? 3 : 1;
+
+  // Aclara un color hex para resaltar la barra activa
+  function colorActivo(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgba(${Math.min(255,r+70)},${Math.min(255,g+70)},${Math.min(255,b+70)},1)`;
+  }
+
+  // Convierte coordenada X del cliente al índice de barra
+  function barIdx(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const relX = (clientX - rect.left) * scaleX;
+    const i = Math.floor((relX - 10) / (barW + 2));
+    return (i >= 0 && i < puntos.length) ? i : null;
+  }
+
+  function draw(activeIdx = null) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Barras
+    puntos.forEach((p, i) => {
+      const x = 10 + i * (barW + 2);
+      const barH = Math.max(0, ((p.valor - min) / range) * (H - 30));
+      ctx.fillStyle = i === activeIdx ? colorActivo(color) : color;
+      ctx.fillRect(x, H - barH - 18, barW, barH);
+    });
+
+    // Etiquetas de escala
+    ctx.fillStyle = "#888";
+    ctx.font = "9px sans-serif";
+    ctx.fillText(`${max.toFixed(decimales)} ${unidad}`, 2, 10);
+    if (min > 0) ctx.fillText(min.toFixed(decimales), 2, H - 6);
+
+    // Tooltip de la barra activa
+    if (activeIdx !== null) {
+      const p = puntos[activeIdx];
+      const x = 10 + activeIdx * (barW + 2);
+      const barH = Math.max(0, ((p.valor - min) / range) * (H - 30));
+      const label = `${p.periodo}  ${p.valor.toFixed(decimales)} ${unidad}`;
+
+      ctx.font = "bold 10px sans-serif";
+      const tw = ctx.measureText(label).width;
+      const pad = 5;
+      let tx = x + barW / 2 - tw / 2 - pad;
+      tx = Math.max(0, Math.min(tx, W - tw - pad * 2 - 4));
+      const ty = H - barH - 40;
+      const tooltipY = Math.max(2, ty);
+
+      ctx.fillStyle = "rgba(30,30,30,0.82)";
+      ctx.beginPath();
+      ctx.rect(tx, tooltipY, tw + pad * 2, 18);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText(label, tx + pad, tooltipY + 13);
+
+      // Línea vertical indicadora
+      ctx.strokeStyle = "rgba(30,30,30,0.35)";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x + barW / 2, tooltipY + 18);
+      ctx.lineTo(x + barW / 2, H - barH - 18);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Dibujo inicial
+  draw();
+
+  // ── Desktop: hover ────────────────────────────────────────────────────────
+  if (!esMobile) {
+    canvas.addEventListener("mousemove", e => draw(barIdx(e.clientX)));
+    canvas.addEventListener("mouseleave", () => draw());
+  }
+
+  // ── Mobile: toque persistente ─────────────────────────────────────────────
+  if (esMobile) {
+    let selected = null;
+    canvas.addEventListener("touchstart", e => {
+      e.preventDefault();
+      const i = barIdx(e.touches[0].clientX);
+      selected = (i !== null && i !== selected) ? i : null;
+      draw(selected);
+    }, { passive: false });
+    // Toque fuera del canvas deselecciona
+    document.addEventListener("touchstart", e => {
+      if (!canvas.contains(e.target) && selected !== null) {
+        selected = null;
+        draw();
+      }
+    }, { passive: true });
+  }
 }
 
 // ── Base de datos (export/import) ─────────────────────────────────────────────
