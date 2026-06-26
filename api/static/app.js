@@ -1999,9 +1999,9 @@ async function renderAdminRepuestosProveedor(repuestoId) {
           </tr>`).join("")}
           </tbody></table>`}
 
-      ${disponibles.length > 0 ? `
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
-          <h3 style="margin-bottom:12px">Agregar proveedor</h3>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+        <h3 style="margin-bottom:12px">Agregar proveedor</h3>
+        ${disponibles.length > 0 ? `
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
             <div class="field" style="margin:0"><label>Proveedor</label>
               <select id="new-prov-id" style="min-width:200px">
@@ -2013,8 +2013,12 @@ async function renderAdminRepuestosProveedor(repuestoId) {
               <label><input type="checkbox" id="new-prov-principal" /> Principal</label>
             </div>
             <button id="btn-add-prov" class="button primary">+ Vincular</button>
-          </div>
-        </div>` : ""}
+          </div>` : `
+          <p style="color:#666;font-size:13px">
+            Todos los proveedores del catálogo ya están vinculados a este repuesto.
+            <a href="/admin/proveedores/nuevo" style="color:#3b82f6">+ Crear nuevo proveedor</a>
+          </p>`}
+      </div>
     </div>
   `);
 
