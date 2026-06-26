@@ -984,9 +984,8 @@ class MainWindow(QMainWindow):
             tabla.setItem(row, 0, QTableWidgetItem(str(r.id)))
             tabla.setItem(row, 1, QTableWidgetItem(r.nombre))
             tabla.setItem(row, 2, QTableWidgetItem(f"{r.stock_actual:g}"))
-            tabla.setItem(row, 3, QTableWidgetItem(f"{r.stock_minimo:g}"))
-            estado_stock = "BAJO STOCK" if r.bajo_stock else "OK"
-            tabla.setItem(row, 4, QTableWidgetItem(estado_stock))
+            tabla.setItem(row, 3, QTableWidgetItem("—"))  # mínimo ahora es por equipo
+            tabla.setItem(row, 4, QTableWidgetItem("OK"))
             tabla.setItem(row, 5, QTableWidgetItem(r.observaciones))
             tabla.setItem(row, 6, QTableWidgetItem("Activo" if r.activo else "Inactivo"))
             item_id = tabla.item(row, 0)
@@ -3697,18 +3696,12 @@ class RepuestoCatalogDialog(QDialog):
         self._stock_actual.setDecimals(3)
         self._stock_actual.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
-        self._stock_minimo = QDoubleSpinBox()
-        self._stock_minimo.setRange(0, 999_999)
-        self._stock_minimo.setDecimals(3)
-        self._stock_minimo.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-
         self._activo = QCheckBox("Activo")
         self._activo.setChecked(True)
 
         form.addRow("Nombre *", self._nombre)
         form.addRow("Observaciones", self._observaciones)
         form.addRow("Cantidad en stock", self._stock_actual)
-        form.addRow("Stock mínimo", self._stock_minimo)
         form.addRow("", self._activo)
 
         layout.addLayout(form)
@@ -3727,7 +3720,6 @@ class RepuestoCatalogDialog(QDialog):
         self._nombre.setText(rep.nombre)
         self._observaciones.setPlainText(rep.observaciones)
         self._stock_actual.setValue(rep.stock_actual)
-        self._stock_minimo.setValue(rep.stock_minimo)
         self._activo.setChecked(rep.activo)
 
     def _save(self) -> None:
@@ -3741,7 +3733,6 @@ class RepuestoCatalogDialog(QDialog):
                     nombre,
                     self._observaciones.toPlainText().strip(),
                     self._stock_actual.value(),
-                    self._stock_minimo.value(),
                 )
             else:
                 self._repo.update(
@@ -3749,8 +3740,7 @@ class RepuestoCatalogDialog(QDialog):
                     nombre,
                     self._observaciones.toPlainText().strip(),
                     self._stock_actual.value(),
-                    self._stock_minimo.value(),
-                    self._activo.isChecked(),
+                    activo=self._activo.isChecked(),
                 )
             self.accept()
         except Exception as exc:

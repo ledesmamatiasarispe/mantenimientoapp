@@ -27,7 +27,7 @@ class RepuestoRepository:
 
     def list_all(self, search: str = "", *, solo_activos: bool = False) -> list[Repuesto]:
         query = """
-            SELECT id, nombre, COALESCE(observaciones, ''), stock_actual, stock_minimo, activo
+            SELECT id, nombre, COALESCE(descripcion,''), COALESCE(observaciones, ''), stock_actual, activo
             FROM repuestos
         """
         conditions: list[str] = []
@@ -36,8 +36,8 @@ class RepuestoRepository:
             conditions.append("activo = 1")
         if search.strip():
             term = f"%{search.strip()}%"
-            conditions.append("(nombre LIKE ? OR observaciones LIKE ?)")
-            params.extend([term, term])
+            conditions.append("(nombre LIKE ? OR observaciones LIKE ? OR descripcion LIKE ?)")
+            params.extend([term, term, term])
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY nombre"
@@ -45,8 +45,8 @@ class RepuestoRepository:
             rows = conn.execute(query, params).fetchall()
         return [
             Repuesto(
-                id=r[0], nombre=r[1], observaciones=r[2],
-                stock_actual=float(r[3]), stock_minimo=float(r[4]), activo=bool(r[5]),
+                id=r[0], nombre=r[1], descripcion=r[2], observaciones=r[3],
+                stock_actual=float(r[4]), activo=bool(r[5]),
             )
             for r in rows
         ]
@@ -54,25 +54,25 @@ class RepuestoRepository:
     def get_by_id(self, repuesto_id: int) -> Repuesto | None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             row = conn.execute(
-                "SELECT id, nombre, COALESCE(observaciones,''), stock_actual, stock_minimo, activo"
+                "SELECT id, nombre, COALESCE(descripcion,''), COALESCE(observaciones,''), stock_actual, activo"
                 " FROM repuestos WHERE id = ?",
                 (repuesto_id,),
             ).fetchone()
         if row is None:
             return None
         return Repuesto(
-            id=row[0], nombre=row[1], observaciones=row[2],
-            stock_actual=float(row[3]), stock_minimo=float(row[4]), activo=bool(row[5]),
+            id=row[0], nombre=row[1], descripcion=row[2], observaciones=row[3],
+            stock_actual=float(row[4]), activo=bool(row[5]),
         )
 
     def create(
-        self, nombre: str, observaciones: str, stock_actual: float, stock_minimo: float
+        self, nombre: str, observaciones: str, stock_actual: float, stock_minimo: float = 0
     ) -> int:
         with closing(sqlite3.connect(self.database_path)) as conn:
             cur = conn.execute(
-                "INSERT INTO repuestos (nombre, observaciones, stock_actual, stock_minimo)"
-                " VALUES (?, ?, ?, ?)",
-                (nombre.strip(), observaciones.strip(), stock_actual, stock_minimo),
+                "INSERT INTO repuestos (nombre, observaciones, stock_actual)"
+                " VALUES (?, ?, ?)",
+                (nombre.strip(), observaciones.strip(), stock_actual),
             )
             conn.commit()
             return cur.lastrowid or 0
@@ -83,18 +83,18 @@ class RepuestoRepository:
         nombre: str,
         observaciones: str,
         stock_actual: float,
-        stock_minimo: float,
-        activo: bool,
+        stock_minimo: float = 0,
+        activo: bool = True,
     ) -> None:
         with closing(sqlite3.connect(self.database_path)) as conn:
             conn.execute(
                 """
                 UPDATE repuestos SET
-                    nombre = ?, observaciones = ?, stock_actual = ?, stock_minimo = ?,
+                    nombre = ?, observaciones = ?, stock_actual = ?,
                     activo = ?, actualizado_en = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
-                (nombre.strip(), observaciones.strip(), stock_actual, stock_minimo,
+                (nombre.strip(), observaciones.strip(), stock_actual,
                  int(activo), repuesto_id),
             )
             conn.commit()
@@ -943,17 +943,23 @@ class AlertaRepository:
                 ).fetchall()
             }
 
-            # ── Repuestos en stock mínimo o por debajo ─────────────────────
+            # ── Repuestos con stock bajo según mínimos por equipo ──────────
             for r in conn.execute(
-                "SELECT id, nombre, stock_actual, stock_minimo"
-                " FROM repuestos WHERE stock_actual <= stock_minimo AND activo = 1"
+                """
+                SELECT r.id, r.nombre, r.stock_actual, SUM(re.stock_minimo) AS suma_min
+                FROM repuestos r
+                JOIN repuestos_equipo re ON re.repuesto_id = r.id
+                WHERE r.activo = 1
+                GROUP BY r.id, r.nombre, r.stock_actual
+                HAVING r.stock_actual <= suma_min
+                """
             ).fetchall():
                 key = f"stock_bajo_{r[0]}"
                 if key not in snoozed:
                     alertas.append(Alerta(
                         key=key, tipo="STOCK_BAJO",
                         titulo=f"Stock bajo: {r[1]}",
-                        mensaje=f"Actual {r[2]:g} ≤ mínimo {r[3]:g}",
+                        mensaje=f"Actual {r[2]:g} ≤ mínimo total {r[3]:g}",
                         entidad_id=r[0],
                     ))
 

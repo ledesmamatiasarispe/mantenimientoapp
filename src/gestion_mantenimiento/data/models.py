@@ -92,14 +92,14 @@ class OrdenTrabajoCreate:
 class Repuesto:
     id: int
     nombre: str
+    descripcion: str
     observaciones: str
     stock_actual: float
-    stock_minimo: float
     activo: bool
 
     @property
     def bajo_stock(self) -> bool:
-        return self.stock_actual <= self.stock_minimo
+        return False  # stock_minimo eliminado; usar repuestos_equipo
 
 
 @dataclass(frozen=True)
