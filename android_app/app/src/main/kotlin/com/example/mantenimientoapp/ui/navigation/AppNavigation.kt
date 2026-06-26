@@ -69,7 +69,6 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToAdminDashboard = { navController.navigate(Routes.ADMIN_DASHBOARD) },
                 onNavigateToAdminAlertas = { navController.navigate(Routes.ADMIN_ALERTAS) },
                 onNavigateToAdminEquipos = { navController.navigate(Routes.ADMIN_EQUIPOS) },
-                onNavigateToAdminProgramas = { navController.navigate(Routes.ADMIN_PROGRAMAS) },
                 onNavigateToAdminRepuestos = { navController.navigate(Routes.ADMIN_REPUESTOS) },
                 onNavigateToConsolidado = { navController.navigate(Routes.ADMIN_REPUESTOS_CONSOLIDADO) },
                 onNavigateToProveedores = { navController.navigate(Routes.ADMIN_PROVEEDORES) },

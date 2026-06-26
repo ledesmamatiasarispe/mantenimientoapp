@@ -876,7 +876,7 @@ function renderAdminHub() {
       items: [
         { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Máquinas y activos" },
         { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías" },
-        { href: "/admin/programas", icon: "📋", label: "Programas", desc: "Mantenimiento preventivo" },
+        { href: "/admin/equipos", icon: "🏭", label: "Equipos", desc: "Máquinas, programas, repuestos e historial" },
         { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo de repuestos" },
         { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Mínimos por equipo y alertas" },
         { href: "/admin/proveedores", icon: "🏢", label: "Proveedores", desc: "Empresas proveedoras de repuestos" },
@@ -941,8 +941,9 @@ async function renderAdminList(section) {
       <td class="muted">${r.id}</td><td>${escapeHtml(r.nombre)}</td><td>${escapeHtml(r.tipo_nombre)}</td>
       <td>${escapeHtml(r.ubicacion)}</td><td>${r.activo ? "✓" : "–"}</td>
       <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/equipos/${r.id}/programas" title="Programas de mantenimiento">🗓️</a>
         <a class="btn-icon" href="/admin/equipos/${r.id}/repuestos" title="Repuestos del equipo">📦</a>
-        <a class="btn-icon" href="/admin/equipos/${r.id}/historial" title="Historial">📋</a>
+        <a class="btn-icon" href="/admin/equipos/${r.id}/historial" title="Historial de órdenes">📋</a>
         <a class="btn-icon" href="/admin/equipos/${r.id}" title="Editar">✏️</a>
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
       </td></tr>`).join("");
@@ -1063,7 +1064,7 @@ async function renderAdminList(section) {
   }
 }
 
-async function renderAdminForm(section, id) {
+async function renderAdminForm(section, id, _extras = {}, equipoIdOrigen = null) {
   renderLoading("Cargando...");
   const apiSection = section === "tipos" ? "tipos-equipo" : section;
   const isNew = id === null;
@@ -1105,10 +1106,14 @@ async function renderAdminForm(section, id) {
       <div class="field"><label>Observaciones</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
       <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
   } else if (section === "programas") {
+    const equipoFijo = equipoIdOrigen ?? item?.equipo_id ?? null;
+    const equipoNombreFijo = equipoFijo ? (extras.equipos.find(e => e.id === equipoFijo)?.nombre ?? `#${equipoFijo}`) : null;
     const equipoOpts = extras.equipos.filter(e => e.activo || item?.equipo_id === e.id)
-      .map(e => `<option value="${e.id}" ${item?.equipo_id === e.id ? "selected" : ""}>${escapeHtml(e.nombre)}</option>`).join("");
+      .map(e => `<option value="${e.id}" ${(item?.equipo_id ?? equipoFijo) === e.id ? "selected" : ""}>${escapeHtml(e.nombre)}</option>`).join("");
     fields = `
-      <div class="field"><label>Equipo *</label><select name="equipo_id" required><option value="">Seleccionar...</option>${equipoOpts}</select></div>
+      ${equipoFijo
+        ? `<div class="field"><label>Equipo</label><strong>${escapeHtml(equipoNombreFijo)}</strong><input type="hidden" name="equipo_id" value="${equipoFijo}" /></div>`
+        : `<div class="field"><label>Equipo *</label><select name="equipo_id" required><option value="">Seleccionar...</option>${equipoOpts}</select></div>`}
       <div class="field"><label>Descripción *</label><input name="descripcion" value="${escapeHtml(item?.descripcion ?? "")}" required /></div>
       <div class="field"><label>Frecuencia (meses) *</label><input name="frecuencia_meses" type="number" min="1" max="120" value="${item?.frecuencia_meses ?? 1}" required /></div>
       <div class="field"><label>Última ejecución</label><input name="ultima_ejecucion" type="date" value="${escapeHtml(item?.ultima_ejecucion ?? "")}" /></div>
@@ -1247,7 +1252,12 @@ async function renderAdminForm(section, id) {
           await apiFetch(`/api/admin/repuestos/${savedId}/imagen`, { method: "DELETE" });
         }
       }
-      navigate(`/admin/${section}`);
+      // Si viene desde un equipo, volver a sus programas
+      if (section === "programas" && equipoIdOrigen) {
+        navigate(`/admin/equipos/${equipoIdOrigen}/programas`);
+      } else {
+        navigate(`/admin/${section}`);
+      }
     } catch (err) {
       window.alert(err.message);
       btn.disabled = false;
@@ -1288,6 +1298,57 @@ async function renderAdminPasswordForm(tecnicoId) {
       window.alert(err.message);
       btn.disabled = false;
     }
+  });
+}
+
+// ── Programas de un equipo ────────────────────────────────────────────────────
+
+async function renderAdminProgramasEquipo(equipoId) {
+  renderLoading("Cargando programas...");
+  const [equipos, todosProgramas] = await Promise.all([
+    apiFetch("/api/admin/equipos"),
+    apiFetch("/api/admin/programas"),
+  ]);
+  const equipo = equipos.find(e => e.id === equipoId);
+  const programas = todosProgramas.filter(p => p.equipo_id === equipoId);
+  const titulo = equipo ? escapeHtml(equipo.nombre) : `Equipo #${equipoId}`;
+
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
+    <div class="topbar">
+      <div>
+        <a class="back-link" href="/admin/equipos">← Equipos</a>
+        <h1>${titulo} — Programas de mantenimiento</h1>
+      </div>
+      <a class="button primary" href="/admin/equipos/${equipoId}/programas/nuevo" style="font-size:13px;padding:6px 14px">+ Nuevo programa</a>
+    </div>
+
+    ${programas.length === 0
+      ? `<p class="muted" style="text-align:center;padding:32px">Sin programas definidos para este equipo.<br>
+         <a href="/admin/equipos/${equipoId}/programas/nuevo" class="button primary" style="display:inline-block;margin-top:12px;padding:8px 16px">+ Crear primer programa</a></p>`
+      : `<table class="admin-table"><thead><tr>
+          <th>Descripción</th><th>Frecuencia</th><th>Última ejec.</th><th>Próxima ejec.</th><th>Activo</th><th></th>
+        </tr></thead><tbody>
+        ${programas.map(p => `<tr>
+          <td><strong>${escapeHtml(p.descripcion)}</strong></td>
+          <td>Cada ${p.frecuencia_meses} mes${p.frecuencia_meses !== 1 ? "es" : ""}</td>
+          <td>${p.ultima_ejecucion ? p.ultima_ejecucion.slice(0,10) : "—"}</td>
+          <td>${p.proxima_ejecucion ? `<span style="color:${new Date(p.proxima_ejecucion) < new Date() ? "#ef4444" : "#10b981"}">${p.proxima_ejecucion.slice(0,10)}</span>` : "—"}</td>
+          <td>${p.activo ? "✓" : "–"}</td>
+          <td style="white-space:nowrap">
+            <a class="btn-icon" href="/admin/equipos/${equipoId}/programas/${p.id}/pasos" title="Pasos">🗂️</a>
+            <a class="btn-icon" href="/admin/equipos/${equipoId}/programas/${p.id}" title="Editar">✏️</a>
+            <button class="btn-icon" data-delete-prog="${p.id}" title="Eliminar">🗑️</button>
+          </td>
+        </tr>`).join("")}
+        </tbody></table>`}
+  `);
+
+  document.querySelectorAll("[data-delete-prog]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Eliminar este programa?")) return;
+      await apiFetch(`/api/admin/programas/${btn.dataset.deleteProg}`, { method: "DELETE" });
+      await renderAdminProgramasEquipo(equipoId);
+    });
   });
 }
 
@@ -1345,9 +1406,10 @@ async function renderAdminPasos(programaId) {
       </div>
     </div>`;
 
-  document.querySelector("#app").innerHTML = layoutAdmin("programas", `
+  const backToEquipo = prog ? `/admin/equipos/${prog.equipo_id}/programas` : "/admin/equipos";
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
     <div class="panel" style="padding:10px 14px">
-      <a class="back-link" href="/admin/programas/${programaId}" style="font-size:13px">← Volver al programa</a>
+      <a class="back-link" href="${backToEquipo}" style="font-size:13px">← Volver a programas de ${prog ? escapeHtml(prog.equipo_nombre) : "equipo"}</a>
       <div style="margin-top:6px"><strong>Pasos:</strong> ${titulo}</div>
     </div>
     ${pasos.length ? pasos.map(pasoCard).join("") : `<div class="muted" style="padding:12px">Sin pasos definidos.</div>`}
@@ -2227,6 +2289,17 @@ async function render() {
       await renderAdminConsolidado();
     } else if (section === "repuestos" && subId && !isNaN(Number(subId)) && subAction === "proveedores") {
       await renderAdminRepuestosProveedor(Number(subId));
+    } else if (section === "equipos" && subId && !isNaN(Number(subId)) && subAction === "programas") {
+      const subSubId = parts[4];  // /admin/equipos/{id}/programas/{progId}
+      if (subSubId === "nuevo") {
+        await renderAdminForm("programas", null, {}, Number(subId));
+      } else if (subSubId && !isNaN(Number(subSubId)) && parts[5] === "pasos") {
+        await renderAdminPasos(Number(subSubId));
+      } else if (subSubId && !isNaN(Number(subSubId))) {
+        await renderAdminForm("programas", Number(subSubId), {}, Number(subId));
+      } else {
+        await renderAdminProgramasEquipo(Number(subId));
+      }
     } else if (section === "equipos" && subId && !isNaN(Number(subId)) && subAction === "repuestos") {
       await renderAdminRepuestosEquipo(Number(subId));
     } else if (section === "equipos" && subId && subAction === "historial") {

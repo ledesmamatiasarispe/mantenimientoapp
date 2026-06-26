@@ -17,7 +17,6 @@ fun AdminScreen(
     onDashboard: () -> Unit,
     onAlertas: () -> Unit,
     onEquipos: () -> Unit,
-    onProgramas: () -> Unit,
     onRepuestos: () -> Unit,
     onConsolidado: () -> Unit,
     onProveedores: () -> Unit,
@@ -42,8 +41,7 @@ fun AdminScreen(
 
         // ── Gestión ───────────────────────────────────────────────────────────
         GrupoHeader("⚙️ Gestión")
-        AdminCard("Equipos", "Máquinas y activos", Icons.Default.Build, onEquipos)
-        AdminCard("Programas de mantenimiento", "Programas preventivos y sus pasos", Icons.Default.EventNote, onProgramas)
+        AdminCard("Equipos", "Máquinas, programas, repuestos e historial", Icons.Default.Build, onEquipos)
         AdminCard("Repuestos", "Catálogo de repuestos", Icons.Default.Inventory, onRepuestos)
         AdminCard("Stock consolidado", "Mínimos por equipo y alertas", Icons.Default.BarChart, onConsolidado)
         AdminCard("Proveedores", "Empresas proveedoras de repuestos", Icons.Default.Business, onProveedores)
