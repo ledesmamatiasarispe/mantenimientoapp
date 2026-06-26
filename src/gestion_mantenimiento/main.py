@@ -27,42 +27,25 @@ def main() -> int:
         print(__version__)
         return 0
 
-    from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication, QStyleFactory
 
-    from gestion_mantenimiento.data.paths import get_database_path, get_theme_path
+    from gestion_mantenimiento.data.paths import get_database_path
     from gestion_mantenimiento.data.schema import initialize_database
-    from gestion_mantenimiento.ui.main_window import MainWindow
-    from gestion_mantenimiento.ui.theme import (
-        build_app_palette,
-        build_app_styles,
-        get_theme,
-        load_theme_colors,
-        load_theme_mode,
-    )
 
     app = QApplication(sys.argv)
     app.setApplicationName("Gestion Mantenimiento")
     app.setOrganizationName("Mantenimiento")
     app.setStyle(QStyleFactory.create("Fusion"))
+    # No cerrar la app cuando se cierra la consola
+    app.setQuitOnLastWindowClosed(False)
 
     database_path = get_database_path()
     initialize_database(database_path, seed=False)
 
-    theme_path = get_theme_path()
-    mode = load_theme_mode(theme_path)
-    theme = load_theme_colors(theme_path, get_theme(mode))
-    app.setStyleSheet(build_app_styles(theme))
-    app.setPalette(build_app_palette(theme))
-
-    window = MainWindow(database_path, theme_mode=mode, initial_theme=theme)
-    window.show()
-
     server_proc = _start_api_server(database_path)
     from gestion_mantenimiento.ui.server_console import ServerConsoleWindow
-    console = ServerConsoleWindow(server_proc)  # muestra aunque proc sea None
+    console = ServerConsoleWindow(server_proc)
     console.show()
-    # Guardar en app para evitar garbage collection
     app._server_console = console  # type: ignore[attr-defined]
 
     return app.exec()
