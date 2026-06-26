@@ -171,7 +171,7 @@ class ServerConsoleWindow(QWidget):
 
 def _launch_uvicorn(port: int = 54321, database_path: "Path | None" = None) -> "subprocess.Popen | None":
     """Encuentra y lanza uvicorn con stdout capturado. Retorna None si no lo encuentra."""
-    repo_root = Path(__file__).resolve().parents[4]
+    repo_root = Path(__file__).resolve().parents[3]
 
     if sys.platform == "win32":
         candidates = [
