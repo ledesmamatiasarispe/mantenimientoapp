@@ -16,7 +16,6 @@ class _OutputReader(QThread):
     def __init__(self, process: subprocess.Popen) -> None:
         super().__init__()
         self._process = process
-        self.setDaemon(True)
 
     def run(self) -> None:
         try:
