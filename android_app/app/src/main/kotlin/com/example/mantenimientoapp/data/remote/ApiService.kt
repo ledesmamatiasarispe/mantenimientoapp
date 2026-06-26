@@ -176,6 +176,9 @@ interface ApiService {
     ): Response<Unit>
 
     // ── Admin – Repuestos ─────────────────────────────────────────────────────
+    @GET("api/admin/repuestos/consolidado")
+    suspend fun getRepuestosConsolidado(): List<RepuestoConsolidadoItemDto>
+
     @GET("api/admin/repuestos")
     suspend fun getAdminRepuestos(): List<AdminRepuestoItemDto>
 
@@ -190,6 +193,39 @@ interface ApiService {
 
     @DELETE("api/admin/repuestos/{id}")
     suspend fun eliminarRepuesto(@Path("id") id: Int): Response<Unit>
+
+    @Multipart
+    @POST("api/admin/repuestos/{id}/imagen")
+    suspend fun subirImagenRepuesto(
+        @Path("id") id: Int,
+        @Part imagen: MultipartBody.Part
+    ): Response<Unit>
+
+    @DELETE("api/admin/repuestos/{id}/imagen")
+    suspend fun eliminarImagenRepuesto(@Path("id") id: Int): Response<Unit>
+
+    // ── Admin – Repuestos por equipo ──────────────────────────────────────────
+    @GET("api/admin/equipos/{equipoId}/repuestos")
+    suspend fun getRepuestosEquipo(@Path("equipoId") equipoId: Int): List<RepuestoEquipoItemDto>
+
+    @POST("api/admin/equipos/{equipoId}/repuestos")
+    suspend fun vincularRepuesto(
+        @Path("equipoId") equipoId: Int,
+        @Body request: RepuestoEquipoRequestDto
+    ): RepuestoEquipoItemDto
+
+    @PUT("api/admin/equipos/{equipoId}/repuestos/{vid}")
+    suspend fun actualizarVinculo(
+        @Path("equipoId") equipoId: Int,
+        @Path("vid") vid: Int,
+        @Body request: RepuestoEquipoUpdateDto
+    ): RepuestoEquipoItemDto
+
+    @DELETE("api/admin/equipos/{equipoId}/repuestos/{vid}")
+    suspend fun desvincularRepuesto(
+        @Path("equipoId") equipoId: Int,
+        @Path("vid") vid: Int
+    ): Response<Unit>
 
     // ── Admin – Técnicos ──────────────────────────────────────────────────────
     @GET("api/admin/tecnicos")

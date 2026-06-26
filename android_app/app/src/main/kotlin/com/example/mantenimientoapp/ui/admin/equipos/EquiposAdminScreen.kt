@@ -22,6 +22,7 @@ import com.example.mantenimientoapp.ui.components.*
 fun EquiposAdminScreen(
     onBack: () -> Unit,
     onHistorial: (Int, String) -> Unit = { _, _ -> },
+    onRepuestosEquipo: (Int, String) -> Unit = { _, _ -> },
     vm: EquiposAdminViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
@@ -60,6 +61,7 @@ fun EquiposAdminScreen(
                     items(state.equipos, key = { it.id }) { equipo ->
                         EquipoItem(
                             equipo = equipo,
+                            onRepuestos = { onRepuestosEquipo(equipo.id, equipo.nombre) },
                             onHistorial = { onHistorial(equipo.id, equipo.nombre) },
                             onEdit = { showDialog = equipo },
                             onDelete = { confirmDelete = equipo.id }
@@ -98,7 +100,7 @@ fun EquiposAdminScreen(
 }
 
 @Composable
-private fun EquipoItem(equipo: AdminEquipoItemDto, onHistorial: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun EquipoItem(equipo: AdminEquipoItemDto, onRepuestos: () -> Unit, onHistorial: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -117,6 +119,7 @@ private fun EquipoItem(equipo: AdminEquipoItemDto, onHistorial: () -> Unit, onEd
                 if (equipo.ubicacion.isNotBlank()) Text("📍 ${equipo.ubicacion}", style = MaterialTheme.typography.bodySmall)
             }
             Row {
+                IconButton(onClick = onRepuestos) { Icon(Icons.Default.Inventory, "Repuestos", Modifier.size(18.dp)) }
                 IconButton(onClick = onHistorial) { Icon(Icons.Default.History, "Historial", Modifier.size(18.dp)) }
                 IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Editar", Modifier.size(18.dp)) }
                 IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Eliminar", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }

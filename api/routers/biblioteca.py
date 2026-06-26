@@ -81,7 +81,8 @@ def ver_adjunto_paso(paso_id: int, _: CurrentTecnicoDep, connection: ConnectionD
 def list_repuestos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[RepuestoDisponible]:
     rows = connection.execute(
         """
-        SELECT id, nombre, stock_actual, stock_minimo
+        SELECT id, nombre, COALESCE(descripcion,'') AS descripcion,
+               stock_actual, COALESCE(imagen_nombre,'') AS imagen_nombre
         FROM repuestos
         WHERE activo = 1
         ORDER BY nombre
@@ -91,8 +92,9 @@ def list_repuestos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[Repu
         RepuestoDisponible(
             id=int(r["id"]),
             nombre=str(r["nombre"]),
+            descripcion=str(r["descripcion"]),
             stock_actual=float(r["stock_actual"] or 0),
-            stock_minimo=float(r["stock_minimo"] or 0),
+            tiene_imagen=bool(r["imagen_nombre"]),
         )
         for r in rows
     ]

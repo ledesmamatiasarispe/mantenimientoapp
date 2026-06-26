@@ -113,8 +113,9 @@ class AgregarRepuestoOrdenRequest(BaseModel):
 class RepuestoDisponible(BaseModel):
     id: int
     nombre: str
+    descripcion: str = ""
     stock_actual: float
-    stock_minimo: float
+    tiene_imagen: bool = False
 
 
 class HistorialOrdenItem(BaseModel):
@@ -248,17 +249,18 @@ class AdminProgramaRequest(BaseModel):
 class AdminRepuestoItem(BaseModel):
     id: int
     nombre: str
+    descripcion: str
     observaciones: str
     stock_actual: float
-    stock_minimo: float
     activo: bool
+    tiene_imagen: bool
 
 
 class AdminRepuestoRequest(BaseModel):
     nombre: str
+    descripcion: str = ""
     observaciones: str = ""
     stock_actual: float = 0
-    stock_minimo: float = 0
     activo: bool = True
 
 
@@ -449,4 +451,46 @@ class HistorialEquipoItem(BaseModel):
     horas_trabajo: float
     costo_mano_obra: float
     observaciones: str
+
+
+# ── Repuestos por equipo ──────────────────────────────────────────────────────
+
+class RepuestoEquipoItem(BaseModel):
+    id: int
+    equipo_id: int
+    equipo_nombre: str
+    repuesto_id: int
+    repuesto_nombre: str
+    repuesto_descripcion: str
+    tiene_imagen: bool
+    stock_minimo: float
+    observaciones: str
+
+
+class RepuestoEquipoRequest(BaseModel):
+    repuesto_id: int
+    stock_minimo: float = 0.0
+    observaciones: str = ""
+
+
+class RepuestoEquipoUpdate(BaseModel):
+    stock_minimo: float
+    observaciones: str = ""
+
+
+class RepuestoConsolidadoEquipoUso(BaseModel):
+    equipo_id: int
+    equipo_nombre: str
+    stock_minimo: float
+
+
+class RepuestoConsolidadoItem(BaseModel):
+    repuesto_id: int
+    repuesto_nombre: str
+    repuesto_descripcion: str
+    tiene_imagen: bool
+    stock_actual: float
+    suma_minimos: float
+    en_alerta: bool
+    equipos: list[RepuestoConsolidadoEquipoUso]
 

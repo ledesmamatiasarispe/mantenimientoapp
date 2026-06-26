@@ -12,6 +12,8 @@ from fastapi.responses import FileResponse
 
 from api.auth import AdminTecnicoDep, hash_password
 from api.database import get_db, resolve_database_path
+import uuid
+
 from api.models import (
     AdminEquipoItem,
     AdminEquipoRequest,
@@ -33,6 +35,11 @@ from api.models import (
     HorasOrdenRequest,
     OrdenCard,
     OrdenDetail,
+    RepuestoConsolidadoEquipoUso,
+    RepuestoConsolidadoItem,
+    RepuestoEquipoItem,
+    RepuestoEquipoRequest,
+    RepuestoEquipoUpdate,
     SetPasswordRequest,
     TipoEquipoItem,
     TipoEquipoRequest,
@@ -415,62 +422,252 @@ def ver_paso_adjunto(programa_id: int, paso_id: int, _: AdminTecnicoDep, connect
 
 # ── Repuestos ─────────────────────────────────────────────────────────────────
 
+_REP_SELECT = (
+    "SELECT id, nombre, COALESCE(descripcion,'') AS descripcion, "
+    "COALESCE(observaciones,'') AS observaciones, "
+    "stock_actual, activo, "
+    "COALESCE(imagen_nombre,'') AS imagen_nombre "
+    "FROM repuestos"
+)
+
+
 def _repuesto_row_to_item(row: sqlite3.Row) -> AdminRepuestoItem:
     return AdminRepuestoItem(
         id=int(row["id"]),
         nombre=str(row["nombre"] or ""),
+        descripcion=str(row["descripcion"] or ""),
         observaciones=str(row["observaciones"] or ""),
         stock_actual=float(row["stock_actual"] or 0),
-        stock_minimo=float(row["stock_minimo"] or 0),
         activo=bool(row["activo"]),
+        tiene_imagen=bool(row["imagen_nombre"]),
     )
+
+
+def _repuestos_img_dir() -> Path:
+    from api.database import resolve_database_path
+    return resolve_database_path().parent / "repuestos_imagenes"
+
+
+@router.get("/repuestos/consolidado", response_model=list[RepuestoConsolidadoItem])
+def get_repuestos_consolidado(_: AdminTecnicoDep, connection: ConnectionDep) -> list[RepuestoConsolidadoItem]:
+    rows = connection.execute(
+        """
+        SELECT r.id, r.nombre, COALESCE(r.descripcion,'') AS descripcion,
+               COALESCE(r.imagen_nombre,'') AS imagen_nombre,
+               r.stock_actual,
+               COALESCE(SUM(re.stock_minimo), 0) AS suma_minimos
+        FROM repuestos r
+        LEFT JOIN repuestos_equipo re ON re.repuesto_id = r.id
+        WHERE r.activo = 1
+        GROUP BY r.id, r.nombre, r.descripcion, r.imagen_nombre, r.stock_actual
+        ORDER BY r.nombre
+        """
+    ).fetchall()
+    # Cargar equipos por repuesto en un segundo query
+    vinc_rows = connection.execute(
+        """
+        SELECT re.repuesto_id, re.equipo_id, e.nombre AS equipo_nombre, re.stock_minimo
+        FROM repuestos_equipo re
+        JOIN equipos e ON e.id = re.equipo_id
+        ORDER BY e.nombre
+        """
+    ).fetchall()
+    equipos_by_rep: dict[int, list[RepuestoConsolidadoEquipoUso]] = {}
+    for v in vinc_rows:
+        equipos_by_rep.setdefault(int(v["repuesto_id"]), []).append(
+            RepuestoConsolidadoEquipoUso(
+                equipo_id=int(v["equipo_id"]),
+                equipo_nombre=str(v["equipo_nombre"]),
+                stock_minimo=float(v["stock_minimo"]),
+            )
+        )
+    result = []
+    for r in rows:
+        rid = int(r["id"])
+        suma = float(r["suma_minimos"])
+        stock = float(r["stock_actual"])
+        result.append(RepuestoConsolidadoItem(
+            repuesto_id=rid,
+            repuesto_nombre=str(r["nombre"]),
+            repuesto_descripcion=str(r["descripcion"]),
+            tiene_imagen=bool(r["imagen_nombre"]),
+            stock_actual=stock,
+            suma_minimos=suma,
+            en_alerta=stock < suma,
+            equipos=equipos_by_rep.get(rid, []),
+        ))
+    return result
 
 
 @router.get("/repuestos", response_model=list[AdminRepuestoItem])
 def list_repuestos_admin(_: AdminTecnicoDep, connection: ConnectionDep) -> list[AdminRepuestoItem]:
-    rows = connection.execute(
-        "SELECT id, nombre, COALESCE(observaciones,'') AS observaciones, stock_actual, stock_minimo, activo FROM repuestos ORDER BY nombre"
-    ).fetchall()
+    rows = connection.execute(f"{_REP_SELECT} ORDER BY nombre").fetchall()
     return [_repuesto_row_to_item(r) for r in rows]
 
 
 @router.post("/repuestos", response_model=AdminRepuestoItem, status_code=status.HTTP_201_CREATED)
 def create_repuesto(payload: AdminRepuestoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> AdminRepuestoItem:
     cur = connection.execute(
-        "INSERT INTO repuestos (nombre, observaciones, stock_actual, stock_minimo, activo) VALUES (?, ?, ?, ?, ?)",
-        (payload.nombre.strip(), payload.observaciones, payload.stock_actual, payload.stock_minimo, int(payload.activo)),
+        "INSERT INTO repuestos (nombre, descripcion, observaciones, stock_actual, activo) VALUES (?, ?, ?, ?, ?)",
+        (payload.nombre.strip(), payload.descripcion, payload.observaciones, payload.stock_actual, int(payload.activo)),
     )
     connection.commit()
-    row = connection.execute(
-        "SELECT id, nombre, COALESCE(observaciones,'') AS observaciones, stock_actual, stock_minimo, activo FROM repuestos WHERE id = ?",
-        (cur.lastrowid,),
-    ).fetchone()
+    row = connection.execute(f"{_REP_SELECT} WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _repuesto_row_to_item(row)
 
 
 @router.put("/repuestos/{repuesto_id}", response_model=AdminRepuestoItem)
 def update_repuesto(repuesto_id: int, payload: AdminRepuestoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> AdminRepuestoItem:
     affected = connection.execute(
-        """UPDATE repuestos SET nombre=?, observaciones=?, stock_actual=?, stock_minimo=?, activo=?,
-           actualizado_en=CURRENT_TIMESTAMP WHERE id=?""",
-        (payload.nombre.strip(), payload.observaciones, payload.stock_actual, payload.stock_minimo,
-         int(payload.activo), repuesto_id),
+        """UPDATE repuestos SET nombre=?, descripcion=?, observaciones=?, stock_actual=?,
+           activo=?, actualizado_en=CURRENT_TIMESTAMP WHERE id=?""",
+        (payload.nombre.strip(), payload.descripcion, payload.observaciones,
+         payload.stock_actual, int(payload.activo), repuesto_id),
     ).rowcount
     if not affected:
         raise HTTPException(status_code=404, detail="Repuesto no encontrado.")
     connection.commit()
-    row = connection.execute(
-        "SELECT id, nombre, COALESCE(observaciones,'') AS observaciones, stock_actual, stock_minimo, activo FROM repuestos WHERE id = ?",
-        (repuesto_id,),
-    ).fetchone()
+    row = connection.execute(f"{_REP_SELECT} WHERE id = ?", (repuesto_id,)).fetchone()
     return _repuesto_row_to_item(row)
 
 
 @router.delete("/repuestos/{repuesto_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_repuesto(repuesto_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    # Eliminar imagen si existe
+    row = connection.execute("SELECT imagen_ruta FROM repuestos WHERE id = ?", (repuesto_id,)).fetchone()
+    if row and row["imagen_ruta"]:
+        try:
+            Path(row["imagen_ruta"]).unlink(missing_ok=True)
+        except Exception:
+            pass
     affected = connection.execute("DELETE FROM repuestos WHERE id = ?", (repuesto_id,)).rowcount
     if not affected:
         raise HTTPException(status_code=404, detail="Repuesto no encontrado.")
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/repuestos/{repuesto_id}/imagen", status_code=status.HTTP_204_NO_CONTENT)
+async def upload_imagen_repuesto(
+    repuesto_id: int, imagen: UploadFile, _: AdminTecnicoDep, connection: ConnectionDep
+) -> Response:
+    row = connection.execute("SELECT id, imagen_ruta FROM repuestos WHERE id = ?", (repuesto_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Repuesto no encontrado.")
+    img_dir = _repuestos_img_dir()
+    img_dir.mkdir(parents=True, exist_ok=True)
+    # Eliminar imagen anterior
+    if row["imagen_ruta"]:
+        try:
+            Path(row["imagen_ruta"]).unlink(missing_ok=True)
+        except Exception:
+            pass
+    ext = Path(imagen.filename or "foto.jpg").suffix or ".jpg"
+    nombre = f"repuesto_{repuesto_id}_{uuid.uuid4().hex[:8]}{ext}"
+    ruta = img_dir / nombre
+    ruta.write_bytes(await imagen.read())
+    connection.execute(
+        "UPDATE repuestos SET imagen_nombre=?, imagen_ruta=?, actualizado_en=CURRENT_TIMESTAMP WHERE id=?",
+        (nombre, str(ruta), repuesto_id),
+    )
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/repuestos/{repuesto_id}/imagen")
+def get_imagen_repuesto(repuesto_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> FileResponse:
+    row = connection.execute(
+        "SELECT imagen_nombre, imagen_ruta FROM repuestos WHERE id = ?", (repuesto_id,)
+    ).fetchone()
+    if row is None or not row["imagen_ruta"] or not Path(row["imagen_ruta"]).exists():
+        raise HTTPException(status_code=404, detail="Imagen no encontrada.")
+    return FileResponse(path=row["imagen_ruta"], filename=row["imagen_nombre"])
+
+
+@router.delete("/repuestos/{repuesto_id}/imagen", status_code=status.HTTP_204_NO_CONTENT)
+def delete_imagen_repuesto(repuesto_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    row = connection.execute("SELECT imagen_ruta FROM repuestos WHERE id = ?", (repuesto_id,)).fetchone()
+    if row and row["imagen_ruta"]:
+        try:
+            Path(row["imagen_ruta"]).unlink(missing_ok=True)
+        except Exception:
+            pass
+    connection.execute(
+        "UPDATE repuestos SET imagen_nombre='', imagen_ruta='', actualizado_en=CURRENT_TIMESTAMP WHERE id=?",
+        (repuesto_id,),
+    )
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Repuestos por equipo ──────────────────────────────────────────────────────
+
+def _vinculo_row_to_item(row: sqlite3.Row) -> RepuestoEquipoItem:
+    return RepuestoEquipoItem(
+        id=int(row["id"]),
+        equipo_id=int(row["equipo_id"]),
+        equipo_nombre=str(row["equipo_nombre"]),
+        repuesto_id=int(row["repuesto_id"]),
+        repuesto_nombre=str(row["repuesto_nombre"]),
+        repuesto_descripcion=str(row["repuesto_descripcion"] or ""),
+        tiene_imagen=bool(row["imagen_nombre"]),
+        stock_minimo=float(row["stock_minimo"]),
+        observaciones=str(row["observaciones"] or ""),
+    )
+
+
+_VINCULO_SELECT = """
+    SELECT re.id, re.equipo_id, e.nombre AS equipo_nombre,
+           re.repuesto_id, r.nombre AS repuesto_nombre,
+           COALESCE(r.descripcion,'') AS repuesto_descripcion,
+           COALESCE(r.imagen_nombre,'') AS imagen_nombre,
+           re.stock_minimo, COALESCE(re.observaciones,'') AS observaciones
+    FROM repuestos_equipo re
+    JOIN equipos e ON e.id = re.equipo_id
+    JOIN repuestos r ON r.id = re.repuesto_id
+"""
+
+
+@router.get("/equipos/{equipo_id}/repuestos", response_model=list[RepuestoEquipoItem])
+def list_repuestos_equipo(equipo_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> list[RepuestoEquipoItem]:
+    rows = connection.execute(
+        f"{_VINCULO_SELECT} WHERE re.equipo_id = ? ORDER BY r.nombre", (equipo_id,)
+    ).fetchall()
+    return [_vinculo_row_to_item(r) for r in rows]
+
+
+@router.post("/equipos/{equipo_id}/repuestos", response_model=RepuestoEquipoItem, status_code=status.HTTP_201_CREATED)
+def vincular_repuesto_equipo(equipo_id: int, payload: RepuestoEquipoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> RepuestoEquipoItem:
+    try:
+        cur = connection.execute(
+            "INSERT INTO repuestos_equipo (equipo_id, repuesto_id, stock_minimo, observaciones) VALUES (?, ?, ?, ?)",
+            (equipo_id, payload.repuesto_id, payload.stock_minimo, payload.observaciones),
+        )
+        connection.commit()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Este repuesto ya está vinculado a este equipo.")
+    row = connection.execute(f"{_VINCULO_SELECT} WHERE re.id = ?", (cur.lastrowid,)).fetchone()
+    return _vinculo_row_to_item(row)
+
+
+@router.put("/equipos/{equipo_id}/repuestos/{vinculo_id}", response_model=RepuestoEquipoItem)
+def update_vinculo_repuesto(equipo_id: int, vinculo_id: int, payload: RepuestoEquipoUpdate, _: AdminTecnicoDep, connection: ConnectionDep) -> RepuestoEquipoItem:
+    affected = connection.execute(
+        "UPDATE repuestos_equipo SET stock_minimo=?, observaciones=?, actualizado_en=CURRENT_TIMESTAMP WHERE id=? AND equipo_id=?",
+        (payload.stock_minimo, payload.observaciones, vinculo_id, equipo_id),
+    ).rowcount
+    if not affected:
+        raise HTTPException(status_code=404, detail="Vínculo no encontrado.")
+    connection.commit()
+    row = connection.execute(f"{_VINCULO_SELECT} WHERE re.id = ?", (vinculo_id,)).fetchone()
+    return _vinculo_row_to_item(row)
+
+
+@router.delete("/equipos/{equipo_id}/repuestos/{vinculo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def desvincular_repuesto_equipo(equipo_id: int, vinculo_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    connection.execute(
+        "DELETE FROM repuestos_equipo WHERE id=? AND equipo_id=?", (vinculo_id, equipo_id)
+    )
     connection.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

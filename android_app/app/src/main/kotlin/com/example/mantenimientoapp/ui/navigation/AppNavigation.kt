@@ -12,7 +12,9 @@ import com.example.mantenimientoapp.ui.admin.equipos.EquiposAdminScreen
 import com.example.mantenimientoapp.ui.admin.generar.GenerarOrdenesScreen
 import com.example.mantenimientoapp.ui.admin.historial.HistorialEquipoScreen
 import com.example.mantenimientoapp.ui.admin.programas.ProgramasAdminScreen
+import com.example.mantenimientoapp.ui.admin.repuestos.ConsolidadoRepuestosScreen
 import com.example.mantenimientoapp.ui.admin.repuestos.RepuestosAdminScreen
+import com.example.mantenimientoapp.ui.admin.repuestos.RepuestosEquipoScreen
 import com.example.mantenimientoapp.ui.admin.tecnicos.TecnicosAdminScreen
 import com.example.mantenimientoapp.ui.auth.LoginScreen
 import com.example.mantenimientoapp.ui.home.HomeScreen
@@ -29,13 +31,16 @@ object Routes {
     const val ADMIN_EQUIPOS = "admin/equipos"
     const val ADMIN_PROGRAMAS = "admin/programas"
     const val ADMIN_REPUESTOS = "admin/repuestos"
+    const val ADMIN_REPUESTOS_CONSOLIDADO = "admin/repuestos/consolidado"
     const val ADMIN_TECNICOS = "admin/tecnicos"
     const val ADMIN_GENERAR = "admin/generar"
     const val ADMIN_HISTORIAL = "admin/equipos/{equipoId}/historial?nombre={nombre}"
+    const val ADMIN_REPUESTOS_EQUIPO = "admin/equipos/{equipoId}/repuestos?nombre={nombre}"
     const val ADMIN_ELECTRICIDAD = "admin/electricidad"
 
     fun ordenDetail(id: Int) = "orden/$id"
     fun historialEquipo(id: Int, nombre: String) = "admin/equipos/$id/historial?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
+    fun repuestosEquipo(id: Int, nombre: String) = "admin/equipos/$id/repuestos?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
 }
 
 @Composable
@@ -61,6 +66,7 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToAdminEquipos = { navController.navigate(Routes.ADMIN_EQUIPOS) },
                 onNavigateToAdminProgramas = { navController.navigate(Routes.ADMIN_PROGRAMAS) },
                 onNavigateToAdminRepuestos = { navController.navigate(Routes.ADMIN_REPUESTOS) },
+                onNavigateToConsolidado = { navController.navigate(Routes.ADMIN_REPUESTOS_CONSOLIDADO) },
                 onNavigateToAdminTecnicos = { navController.navigate(Routes.ADMIN_TECNICOS) },
                 onNavigateToGenerarOrdenes = { navController.navigate(Routes.ADMIN_GENERAR) },
                 onNavigateToElectricidad = { navController.navigate(Routes.ADMIN_ELECTRICIDAD) },
@@ -78,11 +84,26 @@ fun AppNavigation(navController: NavHostController) {
         composable(Routes.ADMIN_EQUIPOS) {
             EquiposAdminScreen(
                 onBack = { navController.popBackStack() },
-                onHistorial = { id, nombre -> navController.navigate(Routes.historialEquipo(id, nombre)) }
+                onHistorial = { id, nombre -> navController.navigate(Routes.historialEquipo(id, nombre)) },
+                onRepuestosEquipo = { id, nombre -> navController.navigate(Routes.repuestosEquipo(id, nombre)) }
             )
         }
         composable(Routes.ADMIN_PROGRAMAS) { ProgramasAdminScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ADMIN_REPUESTOS) { RepuestosAdminScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_REPUESTOS_CONSOLIDADO) { ConsolidadoRepuestosScreen(onBack = { navController.popBackStack() }) }
+        composable(
+            route = "admin/equipos/{equipoId}/repuestos?nombre={nombre}",
+            arguments = listOf(
+                navArgument("equipoId") { type = NavType.IntType },
+                navArgument("nombre") { defaultValue = "" }
+            )
+        ) { back ->
+            RepuestosEquipoScreen(
+                equipoId = back.arguments!!.getInt("equipoId"),
+                equipoNombre = back.arguments!!.getString("nombre") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable(Routes.ADMIN_TECNICOS) { TecnicosAdminScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ADMIN_GENERAR) { GenerarOrdenesScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ADMIN_ELECTRICIDAD) {

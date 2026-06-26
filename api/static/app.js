@@ -848,7 +848,7 @@ async function renderCronograma() {
 const ADMIN_LABELS = {
   dashboard: "Dashboard", alertas: "Alertas",
   equipos: "Equipos", tipos: "Tipos de equipo", programas: "Programas de mantenimiento",
-  repuestos: "Repuestos", tecnicos: "Técnicos", ordenes: "Órdenes",
+  repuestos: "Repuestos", consolidado: "Stock consolidado", tecnicos: "Técnicos", ordenes: "Órdenes",
   generar: "Generar órdenes", electricidad: "Electricidad", "base-datos": "Base de datos",
 };
 
@@ -877,7 +877,8 @@ function renderAdminHub() {
         { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Máquinas y activos" },
         { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías" },
         { href: "/admin/programas", icon: "📋", label: "Programas", desc: "Mantenimiento preventivo" },
-        { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Inventario y stock" },
+        { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo de repuestos" },
+        { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Mínimos por equipo y alertas" },
         { href: "/admin/tecnicos",  icon: "👷", label: "Técnicos",  desc: "Usuarios del sistema" },
         { href: "/admin/ordenes",   icon: "📝", label: "Órdenes",   desc: "Gestión completa de órdenes" },
       ],
@@ -939,6 +940,7 @@ async function renderAdminList(section) {
       <td class="muted">${r.id}</td><td>${escapeHtml(r.nombre)}</td><td>${escapeHtml(r.tipo_nombre)}</td>
       <td>${escapeHtml(r.ubicacion)}</td><td>${r.activo ? "✓" : "–"}</td>
       <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/equipos/${r.id}/repuestos" title="Repuestos del equipo">📦</a>
         <a class="btn-icon" href="/admin/equipos/${r.id}/historial" title="Historial">📋</a>
         <a class="btn-icon" href="/admin/equipos/${r.id}" title="Editar">✏️</a>
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
@@ -973,12 +975,19 @@ async function renderAdminList(section) {
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
       </td></tr>`).join("");
   } else if (section === "repuestos") {
-    tableHead = `<tr><th>#</th><th>Nombre</th><th>Stock</th><th>Mín.</th><th>Activo</th><th></th></tr>`;
+    tableHead = `<tr><th></th><th>Nombre</th><th>Descripción</th><th>Stock</th><th>Activo</th><th></th></tr>`;
     tableRows = items.map(r => `<tr>
-      <td class="muted">${r.id}</td><td>${escapeHtml(r.nombre)}</td>
-      <td>${r.stock_actual}</td><td>${r.stock_minimo}</td><td>${r.activo ? "✓" : "–"}</td>
-      <td><a class="btn-icon" href="/admin/repuestos/${r.id}" title="Editar">✏️</a>
-          <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button></td></tr>`).join("");
+      <td style="width:36px">${r.tiene_imagen
+        ? `<img src="${state.serverBase}/api/admin/repuestos/${r.id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+        : `<span style="font-size:20px">📦</span>`}</td>
+      <td><strong>${escapeHtml(r.nombre)}</strong></td>
+      <td class="muted" style="font-size:12px">${escapeHtml(r.descripcion || "")}</td>
+      <td>${r.stock_actual}</td>
+      <td>${r.activo ? "✓" : "–"}</td>
+      <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/repuestos/${r.id}" title="Editar">✏️</a>
+        <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
+      </td></tr>`).join("");
   } else if (section === "tecnicos") {
     tableHead = `<tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Legajo</th><th>Activo</th><th></th></tr>`;
     tableRows = items.map(r => `<tr>
@@ -1092,9 +1101,14 @@ async function renderAdminForm(section, id) {
   } else if (section === "repuestos") {
     fields = `
       <div class="field"><label>Nombre *</label><input name="nombre" value="${escapeHtml(item?.nombre ?? "")}" required /></div>
-      <div class="field"><label>Observaciones</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
+      <div class="field"><label>Descripción</label><textarea name="descripcion" rows="2">${escapeHtml(item?.descripcion ?? "")}</textarea></div>
+      <div class="field"><label>Observaciones internas</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
       <div class="field"><label>Stock actual</label><input name="stock_actual" type="number" step="0.001" value="${item?.stock_actual ?? 0}" /></div>
-      <div class="field"><label>Stock mínimo</label><input name="stock_minimo" type="number" step="0.001" value="${item?.stock_minimo ?? 0}" /></div>
+      ${item ? `<div class="field"><label>Imagen del repuesto</label>
+        ${item.tiene_imagen ? `<img src="${state.serverBase}/api/admin/repuestos/${item.id}/imagen" style="height:80px;border-radius:6px;margin-bottom:6px;display:block" />` : ""}
+        <input type="file" id="repuesto-img-input" accept="image/*" />
+        ${item.tiene_imagen ? `<button type="button" id="repuesto-img-delete" class="button secondary" style="font-size:12px;margin-top:4px">🗑 Quitar imagen</button>` : ""}
+      </div>` : ""}
       <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
   } else if (section === "tecnicos") {
     fields = `
@@ -1138,6 +1152,10 @@ async function renderAdminForm(section, id) {
     </div>
   `);
 
+  // Botón eliminar imagen de repuesto
+  const delImgBtn = document.getElementById("repuesto-img-delete");
+  if (delImgBtn) delImgBtn.addEventListener("click", () => { delImgBtn.dataset.clicked = "1"; delImgBtn.textContent = "✓ Se eliminará al guardar"; delImgBtn.disabled = true; });
+
   document.querySelector("#admin-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.currentTarget;
@@ -1160,8 +1178,9 @@ async function renderAdminForm(section, id) {
         body = { equipo_id: gNum("equipo_id"), descripcion: g("descripcion"),
                  frecuencia_meses: gNum("frecuencia_meses"), ultima_ejecucion: g("ultima_ejecucion"), activo: gBool("activo") };
       } else if (section === "repuestos") {
-        body = { nombre: g("nombre"), observaciones: g("observaciones"),
-                 stock_actual: gNum("stock_actual"), stock_minimo: gNum("stock_minimo"), activo: gBool("activo") };
+        body = { nombre: g("nombre"), descripcion: g("descripcion"),
+                 observaciones: g("observaciones"),
+                 stock_actual: gNum("stock_actual"), activo: gBool("activo") };
       } else if (section === "tecnicos") {
         if (isNew) {
           body = { nombre: g("nombre"), apellido: g("apellido"), legajo: g("legajo"),
@@ -1177,10 +1196,27 @@ async function renderAdminForm(section, id) {
       }
 
       const apiSec = section === "tipos" ? "tipos-equipo" : section;
+      let savedId = id;
       if (isNew) {
-        await apiFetch(`/api/admin/${apiSec}`, { method: "POST", body: JSON.stringify(body) });
+        const saved = await apiFetch(`/api/admin/${apiSec}`, { method: "POST", body: JSON.stringify(body) });
+        savedId = saved?.id ?? id;
       } else {
         await apiFetch(`/api/admin/${apiSec}/${id}`, { method: "PUT", body: JSON.stringify(body) });
+      }
+      // Upload imagen de repuesto si se seleccionó una
+      if (section === "repuestos" && savedId) {
+        const imgInput = document.getElementById("repuesto-img-input");
+        if (imgInput?.files?.length) {
+          const fd = new FormData();
+          fd.append("imagen", imgInput.files[0]);
+          await fetch(`${state.serverBase}/api/admin/repuestos/${savedId}/imagen`, {
+            method: "POST", headers: { Authorization: `Bearer ${state.token}` }, body: fd,
+          });
+        }
+        const delBtn = document.getElementById("repuesto-img-delete");
+        if (delBtn?.dataset?.clicked) {
+          await apiFetch(`/api/admin/repuestos/${savedId}/imagen`, { method: "DELETE" });
+        }
       }
       navigate(`/admin/${section}`);
     } catch (err) {
@@ -1785,6 +1821,169 @@ function dibujarGrafico(canvasId, puntos, color, unidad, baseline = null) {
 
 // ── Base de datos (export/import) ─────────────────────────────────────────────
 
+// ── Repuestos por equipo ──────────────────────────────────────────────────────
+
+async function renderAdminRepuestosEquipo(equipoId) {
+  renderLoading("Cargando repuestos del equipo...");
+  const [equipos, vinculos, catalogo] = await Promise.all([
+    apiFetch("/api/admin/equipos"),
+    apiFetch(`/api/admin/equipos/${equipoId}/repuestos`),
+    apiFetch("/api/admin/repuestos"),
+  ]);
+  const equipo = equipos.find(e => e.id === equipoId);
+  const titulo = equipo ? escapeHtml(equipo.nombre) : `Equipo #${equipoId}`;
+  const vinculadosIds = new Set(vinculos.map(v => v.repuesto_id));
+  const disponibles = catalogo.filter(r => r.activo && !vinculadosIds.has(r.id));
+
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
+    <div class="topbar">
+      <div><a class="back-link" href="/admin/equipos">← Equipos</a><h1>${titulo} — Repuestos</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${vinculos.length === 0
+        ? `<p class="muted" style="text-align:center;padding:24px">Sin repuestos vinculados a este equipo.</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th></th><th>Repuesto</th><th>Descripción</th><th>Stock global</th><th>Mínimo este equipo</th><th>Observaciones</th><th></th>
+          </tr></thead><tbody>
+          ${vinculos.map(v => `<tr>
+            <td style="width:36px">${v.tiene_imagen
+              ? `<img src="${state.serverBase}/api/admin/repuestos/${v.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+              : `<span style="font-size:18px">📦</span>`}</td>
+            <td><strong>${escapeHtml(v.repuesto_nombre)}</strong></td>
+            <td class="muted" style="font-size:12px">${escapeHtml(v.repuesto_descripcion || "")}</td>
+            <td>${v.stock_actual ?? "—"}</td>
+            <td>
+              <input type="number" step="0.001" min="0" value="${v.stock_minimo}"
+                data-vinculo-id="${v.id}" data-field="stock_minimo"
+                style="width:70px;padding:3px 6px;border:1px solid #ccc;border-radius:4px" />
+            </td>
+            <td>
+              <input type="text" value="${escapeHtml(v.observaciones)}"
+                data-vinculo-id="${v.id}" data-field="observaciones"
+                style="width:140px;padding:3px 6px;border:1px solid #ccc;border-radius:4px" />
+            </td>
+            <td>
+              <button class="btn-icon" data-save-vinculo="${v.id}" title="Guardar">💾</button>
+              <button class="btn-icon" data-del-vinculo="${v.id}" title="Desvincular">🗑️</button>
+            </td>
+          </tr>`).join("")}
+          </tbody></table>`}
+
+      ${disponibles.length > 0 ? `
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+          <h3 style="margin-bottom:12px">Agregar repuesto</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="margin:0"><label>Repuesto</label>
+              <select id="new-rep-id" style="min-width:180px">
+                <option value="">Seleccionar...</option>
+                ${disponibles.map(r => `<option value="${r.id}">${escapeHtml(r.nombre)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field" style="margin:0"><label>Stock mínimo</label>
+              <input id="new-rep-min" type="number" step="0.001" min="0" value="0" style="width:80px" />
+            </div>
+            <div class="field" style="margin:0"><label>Observaciones</label>
+              <input id="new-rep-obs" type="text" style="width:140px" />
+            </div>
+            <button id="btn-add-vinculo" class="button primary">+ Vincular</button>
+          </div>
+        </div>` : ""}
+    </div>
+  `);
+
+  // Guardar cambios en vínculo existente
+  document.querySelectorAll("[data-save-vinculo]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const vid = btn.dataset.saveVinculo;
+      const row = btn.closest("tr");
+      const minInput = row.querySelector(`[data-vinculo-id="${vid}"][data-field="stock_minimo"]`);
+      const obsInput = row.querySelector(`[data-vinculo-id="${vid}"][data-field="observaciones"]`);
+      await apiFetch(`/api/admin/equipos/${equipoId}/repuestos/${vid}`, {
+        method: "PUT",
+        body: JSON.stringify({ stock_minimo: Number(minInput.value), observaciones: obsInput.value }),
+      });
+      btn.textContent = "✓";
+      setTimeout(() => { btn.textContent = "💾"; }, 1500);
+    });
+  });
+
+  // Desvincular
+  document.querySelectorAll("[data-del-vinculo]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Desvincular este repuesto del equipo?")) return;
+      await apiFetch(`/api/admin/equipos/${equipoId}/repuestos/${btn.dataset.delVinculo}`, { method: "DELETE" });
+      await renderAdminRepuestosEquipo(equipoId);
+    });
+  });
+
+  // Agregar nuevo vínculo
+  document.getElementById("btn-add-vinculo")?.addEventListener("click", async () => {
+    const repId = Number(document.getElementById("new-rep-id").value);
+    if (!repId) { window.alert("Seleccioná un repuesto."); return; }
+    const minimo = Number(document.getElementById("new-rep-min").value);
+    const obs = document.getElementById("new-rep-obs").value;
+    try {
+      await apiFetch(`/api/admin/equipos/${equipoId}/repuestos`, {
+        method: "POST",
+        body: JSON.stringify({ repuesto_id: repId, stock_minimo: minimo, observaciones: obs }),
+      });
+      await renderAdminRepuestosEquipo(equipoId);
+    } catch (err) { window.alert(err.message); }
+  });
+}
+
+// ── Vista consolidada de stock ────────────────────────────────────────────────
+
+async function renderAdminConsolidado() {
+  renderLoading("Cargando stock consolidado...");
+  const items = await apiFetch("/api/admin/repuestos/consolidado");
+  const alertas = items.filter(i => i.en_alerta).length;
+
+  document.querySelector("#app").innerHTML = layoutAdmin("consolidado", `
+    <div class="topbar">
+      <div><h1>Stock consolidado ${alertas > 0 ? `<span style="background:#ef4444;color:#fff;border-radius:10px;font-size:13px;padding:2px 10px;margin-left:8px">${alertas} con alerta</span>` : ""}</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${items.length === 0
+        ? `<p class="muted" style="text-align:center;padding:32px">Sin repuestos en el sistema.</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th></th><th>Repuesto</th><th>Descripción</th><th>Stock actual</th><th>Suma mínimos</th><th>Estado</th><th>Equipos</th>
+          </tr></thead><tbody>
+          ${items.map((it, idx) => `
+            <tr style="${it.en_alerta ? "background:#fff5f5" : ""}">
+              <td style="width:36px">${it.tiene_imagen
+                ? `<img src="${state.serverBase}/api/admin/repuestos/${it.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+                : `<span style="font-size:18px">📦</span>`}</td>
+              <td><strong>${escapeHtml(it.repuesto_nombre)}</strong></td>
+              <td class="muted" style="font-size:12px">${escapeHtml(it.repuesto_descripcion || "")}</td>
+              <td><strong>${it.stock_actual}</strong></td>
+              <td>${it.suma_minimos}</td>
+              <td>${it.en_alerta
+                ? `<span style="background:#ef4444;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px">⚠ BAJO STOCK</span>`
+                : `<span style="background:#10b981;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px">✓ OK</span>`}</td>
+              <td>
+                ${it.equipos.length === 0
+                  ? `<span class="muted">—</span>`
+                  : `<button class="button secondary" style="font-size:11px;padding:2px 8px" data-expand="${idx}">Ver (${it.equipos.length})</button>
+                     <div id="equipos-${idx}" style="display:none;margin-top:6px;font-size:12px">
+                       ${it.equipos.map(e => `<div>• ${escapeHtml(e.equipo_nombre)}: mín. <strong>${e.stock_minimo}</strong></div>`).join("")}
+                     </div>`}
+              </td>
+            </tr>`).join("")}
+          </tbody></table>`}
+    </div>
+  `);
+
+  // Expandir/colapsar equipos
+  document.querySelectorAll("[data-expand]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const div = document.getElementById(`equipos-${btn.dataset.expand}`);
+      if (div.style.display === "none") { div.style.display = "block"; btn.textContent = "Ocultar"; }
+      else { div.style.display = "none"; btn.textContent = `Ver (${div.querySelectorAll("div").length})`; }
+    });
+  });
+}
+
 function renderBaseDatos() {
   document.querySelector("#app").innerHTML = layoutAdmin("base-datos", `
     <div class="topbar"><div><h1>Base de datos</h1></div></div>
@@ -1901,6 +2100,10 @@ async function render() {
       } else {
         await renderElectricidad();
       }
+    } else if (section === "repuestos" && subId === "consolidado") {
+      await renderAdminConsolidado();
+    } else if (section === "equipos" && subId && !isNaN(Number(subId)) && subAction === "repuestos") {
+      await renderAdminRepuestosEquipo(Number(subId));
     } else if (section === "equipos" && subId && subAction === "historial") {
       await renderHistorialEquipo(Number(subId));
     } else if (section === "tecnicos" && subId && subAction === "password") {

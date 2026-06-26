@@ -19,6 +19,7 @@ fun AdminScreen(
     onEquipos: () -> Unit,
     onProgramas: () -> Unit,
     onRepuestos: () -> Unit,
+    onConsolidado: () -> Unit,
     onTecnicos: () -> Unit,
     onGenerarOrdenes: () -> Unit,
     onElectricidad: () -> Unit,
@@ -42,7 +43,8 @@ fun AdminScreen(
         GrupoHeader("⚙️ Gestión")
         AdminCard("Equipos", "Máquinas y activos", Icons.Default.Build, onEquipos)
         AdminCard("Programas de mantenimiento", "Programas preventivos y sus pasos", Icons.Default.EventNote, onProgramas)
-        AdminCard("Repuestos", "Inventario y stock", Icons.Default.Inventory, onRepuestos)
+        AdminCard("Repuestos", "Catálogo de repuestos", Icons.Default.Inventory, onRepuestos)
+        AdminCard("Stock consolidado", "Mínimos por equipo y alertas", Icons.Default.BarChart, onConsolidado)
         AdminCard("Técnicos", "Usuarios del sistema", Icons.Default.People, onTecnicos)
 
         Spacer(Modifier.height(8.dp))

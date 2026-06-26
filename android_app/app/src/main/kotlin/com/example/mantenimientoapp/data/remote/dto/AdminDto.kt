@@ -68,17 +68,18 @@ data class AdminPasoRequestDto(
 data class AdminRepuestoItemDto(
     val id: Int,
     val nombre: String,
-    val observaciones: String,
+    val descripcion: String = "",
+    val observaciones: String = "",
     @SerializedName("stock_actual") val stockActual: Double,
-    @SerializedName("stock_minimo") val stockMinimo: Double,
-    val activo: Boolean
+    val activo: Boolean,
+    @SerializedName("tiene_imagen") val tieneImagen: Boolean = false
 )
 
 data class AdminRepuestoRequestDto(
     val nombre: String,
+    val descripcion: String = "",
     val observaciones: String = "",
     @SerializedName("stock_actual") val stockActual: Double = 0.0,
-    @SerializedName("stock_minimo") val stockMinimo: Double = 0.0,
     val activo: Boolean = true
 )
 
@@ -239,4 +240,46 @@ data class GraficoElectricidadDto(
     @SerializedName("factor_potencia") val factorPotencia: List<GraficoPuntoDto>,
     @SerializedName("energia_reactiva") val energiaReactiva: List<GraficoPuntoDto>,
     @SerializedName("costo_total") val costoTotal: List<GraficoPuntoDto>
+)
+
+// ── Repuestos por equipo ──────────────────────────────────────────────────────
+
+data class RepuestoEquipoItemDto(
+    val id: Int,
+    @SerializedName("equipo_id") val equipoId: Int,
+    @SerializedName("equipo_nombre") val equipoNombre: String,
+    @SerializedName("repuesto_id") val repuestoId: Int,
+    @SerializedName("repuesto_nombre") val repuestoNombre: String,
+    @SerializedName("repuesto_descripcion") val repuestoDescripcion: String = "",
+    @SerializedName("tiene_imagen") val tieneImagen: Boolean = false,
+    @SerializedName("stock_minimo") val stockMinimo: Double,
+    val observaciones: String = ""
+)
+
+data class RepuestoEquipoRequestDto(
+    @SerializedName("repuesto_id") val repuestoId: Int,
+    @SerializedName("stock_minimo") val stockMinimo: Double = 0.0,
+    val observaciones: String = ""
+)
+
+data class RepuestoEquipoUpdateDto(
+    @SerializedName("stock_minimo") val stockMinimo: Double,
+    val observaciones: String = ""
+)
+
+data class RepuestoConsolidadoEquipoUsoDto(
+    @SerializedName("equipo_id") val equipoId: Int,
+    @SerializedName("equipo_nombre") val equipoNombre: String,
+    @SerializedName("stock_minimo") val stockMinimo: Double
+)
+
+data class RepuestoConsolidadoItemDto(
+    @SerializedName("repuesto_id") val repuestoId: Int,
+    @SerializedName("repuesto_nombre") val repuestoNombre: String,
+    @SerializedName("repuesto_descripcion") val repuestoDescripcion: String = "",
+    @SerializedName("tiene_imagen") val tieneImagen: Boolean = false,
+    @SerializedName("stock_actual") val stockActual: Double,
+    @SerializedName("suma_minimos") val sumaMinimos: Double,
+    @SerializedName("en_alerta") val enAlerta: Boolean,
+    val equipos: List<RepuestoConsolidadoEquipoUsoDto>
 )

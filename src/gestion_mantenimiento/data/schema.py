@@ -289,6 +289,8 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_facturas_electricas_v2(connection)
         _migrate_equipos_horas_trabajo(connection)
         _migrate_ordenes_horas_trabajo(connection)
+        _migrate_repuestos_descripcion_imagen(connection)
+        _migrate_repuestos_equipo(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
@@ -305,6 +307,7 @@ def clear_database(database_path: Path) -> None:
             "programa_adjuntos",
             "orden_colaboradores",
             "orden_programas",
+            "repuestos_equipo",
             "repuestos_orden",
             "ordenes_trabajo",
             "programas_mantenimiento",
@@ -688,6 +691,54 @@ def _migrate_ordenes_horas_trabajo(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE ordenes_trabajo ADD COLUMN horas_trabajo REAL"
         )
+
+
+def _migrate_repuestos_descripcion_imagen(connection: sqlite3.Connection) -> None:
+    """Agrega descripcion e imagen al catálogo; elimina stock_minimo global."""
+    if not _table_exists(connection, "repuestos"):
+        return
+    cols = _table_columns(connection, "repuestos")
+    if "descripcion" not in cols:
+        connection.execute(
+            "ALTER TABLE repuestos ADD COLUMN descripcion TEXT NOT NULL DEFAULT ''"
+        )
+    if "imagen_nombre" not in cols:
+        connection.execute(
+            "ALTER TABLE repuestos ADD COLUMN imagen_nombre TEXT NOT NULL DEFAULT ''"
+        )
+    if "imagen_ruta" not in cols:
+        connection.execute(
+            "ALTER TABLE repuestos ADD COLUMN imagen_ruta TEXT NOT NULL DEFAULT ''"
+        )
+    # El mínimo vive ahora exclusivamente en repuestos_equipo
+    if "stock_minimo" in cols:
+        connection.execute("ALTER TABLE repuestos DROP COLUMN stock_minimo")
+
+
+def _migrate_repuestos_equipo(connection: sqlite3.Connection) -> None:
+    """Nueva tabla: mínimos de repuesto por equipo."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS repuestos_equipo (
+            id            INTEGER PRIMARY KEY,
+            equipo_id     INTEGER NOT NULL,
+            repuesto_id   INTEGER NOT NULL,
+            stock_minimo  NUMERIC NOT NULL DEFAULT 0,
+            observaciones TEXT NOT NULL DEFAULT '',
+            creado_en     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (equipo_id, repuesto_id),
+            FOREIGN KEY (equipo_id)   REFERENCES equipos(id),
+            FOREIGN KEY (repuesto_id) REFERENCES repuestos(id)
+        )
+    """)
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_repuestos_equipo_equipo"
+        " ON repuestos_equipo(equipo_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_repuestos_equipo_repuesto"
+        " ON repuestos_equipo(repuesto_id)"
+    )
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
