@@ -175,6 +175,31 @@ interface ApiService {
         @Path("pasoId") pasoId: Int
     ): Response<Unit>
 
+    // ── Admin – Proveedores ───────────────────────────────────────────────────
+    @GET("api/admin/proveedores")
+    suspend fun getProveedores(): List<ProveedorItemDto>
+
+    @POST("api/admin/proveedores")
+    suspend fun crearProveedor(@Body request: ProveedorRequestDto): ProveedorItemDto
+
+    @PUT("api/admin/proveedores/{id}")
+    suspend fun actualizarProveedor(@Path("id") id: Int, @Body request: ProveedorRequestDto): ProveedorItemDto
+
+    @DELETE("api/admin/proveedores/{id}")
+    suspend fun eliminarProveedor(@Path("id") id: Int): Response<Unit>
+
+    @GET("api/admin/repuestos/{id}/proveedores")
+    suspend fun getRepuestoProveedores(@Path("id") repuestoId: Int): List<RepuestoProveedorItemDto>
+
+    @POST("api/admin/repuestos/{id}/proveedores")
+    suspend fun vincularProveedor(@Path("id") repId: Int, @Body req: RepuestoProveedorRequestDto): RepuestoProveedorItemDto
+
+    @PUT("api/admin/repuestos/{id}/proveedores/{vid}")
+    suspend fun actualizarVinculoProveedor(@Path("id") repId: Int, @Path("vid") vid: Int, @Body req: RepuestoProveedorUpdateDto): RepuestoProveedorItemDto
+
+    @DELETE("api/admin/repuestos/{id}/proveedores/{vid}")
+    suspend fun desvincularProveedor(@Path("id") repId: Int, @Path("vid") vid: Int): Response<Unit>
+
     // ── Admin – Repuestos ─────────────────────────────────────────────────────
     @GET("api/admin/repuestos/consolidado")
     suspend fun getRepuestosConsolidado(): List<RepuestoConsolidadoItemDto>

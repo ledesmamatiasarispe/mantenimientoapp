@@ -291,6 +291,8 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_ordenes_horas_trabajo(connection)
         _migrate_repuestos_descripcion_imagen(connection)
         _migrate_repuestos_equipo(connection)
+        _migrate_proveedores(connection)
+        _migrate_repuesto_proveedor(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
@@ -307,6 +309,8 @@ def clear_database(database_path: Path) -> None:
             "programa_adjuntos",
             "orden_colaboradores",
             "orden_programas",
+            "repuesto_proveedor",
+            "proveedores",
             "repuestos_equipo",
             "repuestos_orden",
             "ordenes_trabajo",
@@ -738,6 +742,50 @@ def _migrate_repuestos_equipo(connection: sqlite3.Connection) -> None:
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_repuestos_equipo_repuesto"
         " ON repuestos_equipo(repuesto_id)"
+    )
+
+
+def _migrate_proveedores(connection: sqlite3.Connection) -> None:
+    """Tabla de proveedores de repuestos."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS proveedores (
+            id             INTEGER PRIMARY KEY,
+            nombre         TEXT NOT NULL,
+            cuit           TEXT NOT NULL DEFAULT '',
+            contacto       TEXT NOT NULL DEFAULT '',
+            telefono       TEXT NOT NULL DEFAULT '',
+            email          TEXT NOT NULL DEFAULT '',
+            direccion      TEXT NOT NULL DEFAULT '',
+            notas          TEXT NOT NULL DEFAULT '',
+            activo         INTEGER NOT NULL DEFAULT 1,
+            creado_en      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_proveedores_nombre ON proveedores(nombre)"
+    )
+
+
+def _migrate_repuesto_proveedor(connection: sqlite3.Connection) -> None:
+    """Relación muchos-a-muchos repuestos ↔ proveedores."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS repuesto_proveedor (
+            id            INTEGER PRIMARY KEY,
+            repuesto_id   INTEGER NOT NULL,
+            proveedor_id  INTEGER NOT NULL,
+            es_principal  INTEGER NOT NULL DEFAULT 0,
+            creado_en     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (repuesto_id, proveedor_id),
+            FOREIGN KEY (repuesto_id)  REFERENCES repuestos(id),
+            FOREIGN KEY (proveedor_id) REFERENCES proveedores(id)
+        )
+    """)
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rp_repuesto ON repuesto_proveedor(repuesto_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rp_proveedor ON repuesto_proveedor(proveedor_id)"
     )
 
 

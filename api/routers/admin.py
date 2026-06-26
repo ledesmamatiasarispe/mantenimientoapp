@@ -35,11 +35,16 @@ from api.models import (
     HorasOrdenRequest,
     OrdenCard,
     OrdenDetail,
+    ProveedorItem,
+    ProveedorRequest,
     RepuestoConsolidadoEquipoUso,
     RepuestoConsolidadoItem,
     RepuestoEquipoItem,
     RepuestoEquipoRequest,
     RepuestoEquipoUpdate,
+    RepuestoProveedorItem,
+    RepuestoProveedorRequest,
+    RepuestoProveedorUpdate,
     SetPasswordRequest,
     TipoEquipoItem,
     TipoEquipoRequest,
@@ -973,3 +978,139 @@ async def importar_db(file: UploadFile, _: AdminTecnicoDep) -> Response:
     data = await file.read()
     db_path.write_bytes(data)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Proveedores ───────────────────────────────────────────────────────────────
+
+_PROV_SELECT = (
+    "SELECT id, nombre, COALESCE(cuit,'') AS cuit, COALESCE(contacto,'') AS contacto,"
+    " COALESCE(telefono,'') AS telefono, COALESCE(email,'') AS email,"
+    " COALESCE(direccion,'') AS direccion, COALESCE(notas,'') AS notas, activo"
+    " FROM proveedores"
+)
+
+
+def _proveedor_row(row: sqlite3.Row) -> ProveedorItem:
+    return ProveedorItem(
+        id=int(row["id"]), nombre=str(row["nombre"]),
+        cuit=str(row["cuit"]), contacto=str(row["contacto"]),
+        telefono=str(row["telefono"]), email=str(row["email"]),
+        direccion=str(row["direccion"]), notas=str(row["notas"]),
+        activo=bool(row["activo"]),
+    )
+
+
+@router.get("/proveedores", response_model=list[ProveedorItem])
+def list_proveedores(_: AdminTecnicoDep, connection: ConnectionDep) -> list[ProveedorItem]:
+    rows = connection.execute(f"{_PROV_SELECT} ORDER BY nombre").fetchall()
+    return [_proveedor_row(r) for r in rows]
+
+
+@router.post("/proveedores", response_model=ProveedorItem, status_code=status.HTTP_201_CREATED)
+def create_proveedor(payload: ProveedorRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> ProveedorItem:
+    cur = connection.execute(
+        "INSERT INTO proveedores (nombre, cuit, contacto, telefono, email, direccion, notas, activo)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (payload.nombre.strip(), payload.cuit, payload.contacto, payload.telefono,
+         payload.email, payload.direccion, payload.notas, int(payload.activo)),
+    )
+    connection.commit()
+    row = connection.execute(f"{_PROV_SELECT} WHERE id=?", (cur.lastrowid,)).fetchone()
+    return _proveedor_row(row)
+
+
+@router.put("/proveedores/{proveedor_id}", response_model=ProveedorItem)
+def update_proveedor(proveedor_id: int, payload: ProveedorRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> ProveedorItem:
+    affected = connection.execute(
+        "UPDATE proveedores SET nombre=?,cuit=?,contacto=?,telefono=?,email=?,direccion=?,notas=?,activo=?,"
+        "actualizado_en=CURRENT_TIMESTAMP WHERE id=?",
+        (payload.nombre.strip(), payload.cuit, payload.contacto, payload.telefono,
+         payload.email, payload.direccion, payload.notas, int(payload.activo), proveedor_id),
+    ).rowcount
+    if not affected:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado.")
+    connection.commit()
+    row = connection.execute(f"{_PROV_SELECT} WHERE id=?", (proveedor_id,)).fetchone()
+    return _proveedor_row(row)
+
+
+@router.delete("/proveedores/{proveedor_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_proveedor(proveedor_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    connection.execute("DELETE FROM proveedores WHERE id=?", (proveedor_id,))
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Proveedores de un repuesto ────────────────────────────────────────────────
+
+_RP_SELECT = """
+    SELECT rp.id, rp.repuesto_id, r.nombre AS repuesto_nombre,
+           rp.proveedor_id, p.nombre AS proveedor_nombre,
+           COALESCE(p.contacto,'') AS proveedor_contacto,
+           COALESCE(p.telefono,'') AS proveedor_telefono,
+           COALESCE(p.email,'') AS proveedor_email,
+           rp.es_principal
+    FROM repuesto_proveedor rp
+    JOIN repuestos r ON r.id = rp.repuesto_id
+    JOIN proveedores p ON p.id = rp.proveedor_id
+"""
+
+
+def _rp_row(row: sqlite3.Row) -> RepuestoProveedorItem:
+    return RepuestoProveedorItem(
+        id=int(row["id"]),
+        repuesto_id=int(row["repuesto_id"]),
+        repuesto_nombre=str(row["repuesto_nombre"]),
+        proveedor_id=int(row["proveedor_id"]),
+        proveedor_nombre=str(row["proveedor_nombre"]),
+        proveedor_contacto=str(row["proveedor_contacto"]),
+        proveedor_telefono=str(row["proveedor_telefono"]),
+        proveedor_email=str(row["proveedor_email"]),
+        es_principal=bool(row["es_principal"]),
+    )
+
+
+@router.get("/repuestos/{repuesto_id}/proveedores", response_model=list[RepuestoProveedorItem])
+def list_repuesto_proveedores(repuesto_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> list[RepuestoProveedorItem]:
+    rows = connection.execute(f"{_RP_SELECT} WHERE rp.repuesto_id=? ORDER BY rp.es_principal DESC, p.nombre", (repuesto_id,)).fetchall()
+    return [_rp_row(r) for r in rows]
+
+
+@router.post("/repuestos/{repuesto_id}/proveedores", response_model=RepuestoProveedorItem, status_code=status.HTTP_201_CREATED)
+def vincular_proveedor_repuesto(repuesto_id: int, payload: RepuestoProveedorRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> RepuestoProveedorItem:
+    if payload.es_principal:
+        connection.execute("UPDATE repuesto_proveedor SET es_principal=0 WHERE repuesto_id=?", (repuesto_id,))
+    try:
+        cur = connection.execute(
+            "INSERT INTO repuesto_proveedor (repuesto_id, proveedor_id, es_principal) VALUES (?,?,?)",
+            (repuesto_id, payload.proveedor_id, int(payload.es_principal)),
+        )
+        connection.commit()
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Este proveedor ya está vinculado a este repuesto.")
+    row = connection.execute(f"{_RP_SELECT} WHERE rp.id=?", (cur.lastrowid,)).fetchone()
+    return _rp_row(row)
+
+
+@router.put("/repuestos/{repuesto_id}/proveedores/{vinculo_id}", response_model=RepuestoProveedorItem)
+def update_repuesto_proveedor(repuesto_id: int, vinculo_id: int, payload: RepuestoProveedorUpdate, _: AdminTecnicoDep, connection: ConnectionDep) -> RepuestoProveedorItem:
+    if payload.es_principal:
+        # Solo uno puede ser principal por repuesto
+        connection.execute("UPDATE repuesto_proveedor SET es_principal=0 WHERE repuesto_id=?", (repuesto_id,))
+    affected = connection.execute(
+        "UPDATE repuesto_proveedor SET es_principal=? WHERE id=? AND repuesto_id=?",
+        (int(payload.es_principal), vinculo_id, repuesto_id),
+    ).rowcount
+    if not affected:
+        raise HTTPException(status_code=404, detail="Vínculo no encontrado.")
+    connection.commit()
+    row = connection.execute(f"{_RP_SELECT} WHERE rp.id=?", (vinculo_id,)).fetchone()
+    return _rp_row(row)
+
+
+@router.delete("/repuestos/{repuesto_id}/proveedores/{vinculo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def desvincular_proveedor_repuesto(repuesto_id: int, vinculo_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> Response:
+    connection.execute("DELETE FROM repuesto_proveedor WHERE id=? AND repuesto_id=?", (vinculo_id, repuesto_id))
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+

@@ -273,6 +273,52 @@ data class RepuestoConsolidadoEquipoUsoDto(
     @SerializedName("stock_minimo") val stockMinimo: Double
 )
 
+// ── Proveedores ───────────────────────────────────────────────────────────────
+
+data class ProveedorItemDto(
+    val id: Int,
+    val nombre: String,
+    val cuit: String = "",
+    val contacto: String = "",
+    val telefono: String = "",
+    val email: String = "",
+    val direccion: String = "",
+    val notas: String = "",
+    val activo: Boolean
+)
+
+data class ProveedorRequestDto(
+    val nombre: String,
+    val cuit: String = "",
+    val contacto: String = "",
+    val telefono: String = "",
+    val email: String = "",
+    val direccion: String = "",
+    val notas: String = "",
+    val activo: Boolean = true
+)
+
+data class RepuestoProveedorItemDto(
+    val id: Int,
+    @SerializedName("repuesto_id") val repuestoId: Int,
+    @SerializedName("repuesto_nombre") val repuestoNombre: String,
+    @SerializedName("proveedor_id") val proveedorId: Int,
+    @SerializedName("proveedor_nombre") val proveedorNombre: String,
+    @SerializedName("proveedor_contacto") val proveedorContacto: String = "",
+    @SerializedName("proveedor_telefono") val proveedorTelefono: String = "",
+    @SerializedName("proveedor_email") val proveedorEmail: String = "",
+    @SerializedName("es_principal") val esPrincipal: Boolean
+)
+
+data class RepuestoProveedorRequestDto(
+    @SerializedName("proveedor_id") val proveedorId: Int,
+    @SerializedName("es_principal") val esPrincipal: Boolean = false
+)
+
+data class RepuestoProveedorUpdateDto(
+    @SerializedName("es_principal") val esPrincipal: Boolean
+)
+
 data class RepuestoConsolidadoItemDto(
     @SerializedName("repuesto_id") val repuestoId: Int,
     @SerializedName("repuesto_nombre") val repuestoNombre: String,

@@ -38,6 +38,7 @@ class RepuestosAdminUrlViewModel @Inject constructor(session: SessionManager) : 
 @Composable
 fun RepuestosAdminScreen(
     onBack: () -> Unit,
+    onProveedores: (Int, String) -> Unit = { _, _ -> },
     vm: RepuestosAdminViewModel = hiltViewModel(),
     urlVm: RepuestosAdminUrlViewModel = hiltViewModel()
 ) {
@@ -67,6 +68,7 @@ fun RepuestosAdminScreen(
                         RepuestoItem(
                             rep = rep,
                             baseUrl = baseUrl,
+                            onProveedores = { onProveedores(rep.id, rep.nombre) },
                             onEdit = { showDialog = rep },
                             onDelete = { confirmDelete = rep.id }
                         )
@@ -90,7 +92,7 @@ fun RepuestosAdminScreen(
 }
 
 @Composable
-private fun RepuestoItem(rep: AdminRepuestoItemDto, baseUrl: String, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun RepuestoItem(rep: AdminRepuestoItemDto, baseUrl: String, onProveedores: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (rep.tieneImagen) {
@@ -110,6 +112,7 @@ private fun RepuestoItem(rep: AdminRepuestoItemDto, baseUrl: String, onEdit: () 
                 if (rep.observaciones.isNotBlank()) Text(rep.observaciones, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
             Row {
+                IconButton(onClick = onProveedores) { Icon(Icons.Default.Business, "Proveedores", Modifier.size(18.dp)) }
                 IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, null, Modifier.size(18.dp)) }
                 IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) }
             }

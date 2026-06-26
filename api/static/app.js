@@ -848,7 +848,7 @@ async function renderCronograma() {
 const ADMIN_LABELS = {
   dashboard: "Dashboard", alertas: "Alertas",
   equipos: "Equipos", tipos: "Tipos de equipo", programas: "Programas de mantenimiento",
-  repuestos: "Repuestos", consolidado: "Stock consolidado", tecnicos: "Técnicos", ordenes: "Órdenes",
+  repuestos: "Repuestos", consolidado: "Stock consolidado", proveedores: "Proveedores", tecnicos: "Técnicos", ordenes: "Órdenes",
   generar: "Generar órdenes", electricidad: "Electricidad", "base-datos": "Base de datos",
 };
 
@@ -879,6 +879,7 @@ function renderAdminHub() {
         { href: "/admin/programas", icon: "📋", label: "Programas", desc: "Mantenimiento preventivo" },
         { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo de repuestos" },
         { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Mínimos por equipo y alertas" },
+        { href: "/admin/proveedores", icon: "🏢", label: "Proveedores", desc: "Empresas proveedoras de repuestos" },
         { href: "/admin/tecnicos",  icon: "👷", label: "Técnicos",  desc: "Usuarios del sistema" },
         { href: "/admin/ordenes",   icon: "📝", label: "Órdenes",   desc: "Gestión completa de órdenes" },
       ],
@@ -985,7 +986,21 @@ async function renderAdminList(section) {
       <td>${r.stock_actual}</td>
       <td>${r.activo ? "✓" : "–"}</td>
       <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/repuestos/${r.id}/proveedores" title="Proveedores">🏢</a>
         <a class="btn-icon" href="/admin/repuestos/${r.id}" title="Editar">✏️</a>
+        <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
+      </td></tr>`).join("");
+  } else if (section === "proveedores") {
+    tableHead = `<tr><th>Nombre</th><th>CUIT</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Activo</th><th></th></tr>`;
+    tableRows = items.map(r => `<tr>
+      <td><strong>${escapeHtml(r.nombre)}</strong></td>
+      <td>${escapeHtml(r.cuit)}</td>
+      <td>${escapeHtml(r.contacto)}</td>
+      <td>${escapeHtml(r.telefono)}</td>
+      <td>${escapeHtml(r.email)}</td>
+      <td>${r.activo ? "✓" : "–"}</td>
+      <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/proveedores/${r.id}" title="Editar">✏️</a>
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
       </td></tr>`).join("");
   } else if (section === "tecnicos") {
@@ -1110,6 +1125,16 @@ async function renderAdminForm(section, id) {
         ${item.tiene_imagen ? `<button type="button" id="repuesto-img-delete" class="button secondary" style="font-size:12px;margin-top:4px">🗑 Quitar imagen</button>` : ""}
       </div>` : ""}
       <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
+  } else if (section === "proveedores") {
+    fields = `
+      <div class="field"><label>Nombre *</label><input name="nombre" value="${escapeHtml(item?.nombre ?? "")}" required /></div>
+      <div class="field"><label>CUIT</label><input name="cuit" value="${escapeHtml(item?.cuit ?? "")}" /></div>
+      <div class="field"><label>Contacto</label><input name="contacto" value="${escapeHtml(item?.contacto ?? "")}" /></div>
+      <div class="field"><label>Teléfono</label><input name="telefono" value="${escapeHtml(item?.telefono ?? "")}" /></div>
+      <div class="field"><label>Email</label><input name="email" type="email" value="${escapeHtml(item?.email ?? "")}" /></div>
+      <div class="field"><label>Dirección</label><input name="direccion" value="${escapeHtml(item?.direccion ?? "")}" /></div>
+      <div class="field"><label>Notas / condiciones</label><textarea name="notas" rows="3">${escapeHtml(item?.notas ?? "")}</textarea></div>
+      <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
   } else if (section === "tecnicos") {
     fields = `
       <div class="field"><label>Nombre *</label><input name="nombre" value="${escapeHtml(item?.nombre ?? "")}" required /></div>
@@ -1181,6 +1206,10 @@ async function renderAdminForm(section, id) {
         body = { nombre: g("nombre"), descripcion: g("descripcion"),
                  observaciones: g("observaciones"),
                  stock_actual: gNum("stock_actual"), activo: gBool("activo") };
+      } else if (section === "proveedores") {
+        body = { nombre: g("nombre"), cuit: g("cuit"), contacto: g("contacto"),
+                 telefono: g("telefono"), email: g("email"), direccion: g("direccion"),
+                 notas: g("notas"), activo: gBool("activo") };
       } else if (section === "tecnicos") {
         if (isNew) {
           body = { nombre: g("nombre"), apellido: g("apellido"), legajo: g("legajo"),
@@ -1932,6 +1961,96 @@ async function renderAdminRepuestosEquipo(equipoId) {
   });
 }
 
+// ── Proveedores de un repuesto ────────────────────────────────────────────────
+
+async function renderAdminRepuestosProveedor(repuestoId) {
+  renderLoading("Cargando proveedores del repuesto...");
+  const [repuestos, vinculos, catalogoProv] = await Promise.all([
+    apiFetch("/api/admin/repuestos"),
+    apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores`),
+    apiFetch("/api/admin/proveedores"),
+  ]);
+  const repuesto = repuestos.find(r => r.id === repuestoId);
+  const titulo = repuesto ? escapeHtml(repuesto.nombre) : `Repuesto #${repuestoId}`;
+  const vinculadosIds = new Set(vinculos.map(v => v.proveedor_id));
+  const disponibles = catalogoProv.filter(p => p.activo && !vinculadosIds.has(p.id));
+
+  document.querySelector("#app").innerHTML = layoutAdmin("repuestos", `
+    <div class="topbar">
+      <div><a class="back-link" href="/admin/repuestos">← Repuestos</a><h1>${titulo} — Proveedores</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${vinculos.length === 0
+        ? `<p class="muted" style="text-align:center;padding:24px">Sin proveedores vinculados.</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Principal</th><th></th>
+          </tr></thead><tbody>
+          ${vinculos.map(v => `<tr>
+            <td><strong>${escapeHtml(v.proveedor_nombre)}</strong></td>
+            <td>${escapeHtml(v.proveedor_contacto)}</td>
+            <td>${escapeHtml(v.proveedor_telefono)}</td>
+            <td>${escapeHtml(v.proveedor_email)}</td>
+            <td style="text-align:center">
+              ${v.es_principal
+                ? `<span style="background:#10b981;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px">⭐ Principal</span>`
+                : `<button class="button secondary" style="font-size:11px;padding:2px 8px" data-set-principal="${v.id}">Marcar principal</button>`}
+            </td>
+            <td><button class="btn-icon" data-del-vinculo-prov="${v.id}" title="Desvincular">🗑️</button></td>
+          </tr>`).join("")}
+          </tbody></table>`}
+
+      ${disponibles.length > 0 ? `
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+          <h3 style="margin-bottom:12px">Agregar proveedor</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="margin:0"><label>Proveedor</label>
+              <select id="new-prov-id" style="min-width:200px">
+                <option value="">Seleccionar...</option>
+                ${disponibles.map(p => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field" style="margin:0">
+              <label><input type="checkbox" id="new-prov-principal" /> Principal</label>
+            </div>
+            <button id="btn-add-prov" class="button primary">+ Vincular</button>
+          </div>
+        </div>` : ""}
+    </div>
+  `);
+
+  // Marcar como principal
+  document.querySelectorAll("[data-set-principal]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores/${btn.dataset.setPrincipal}`, {
+        method: "PUT", body: JSON.stringify({ es_principal: true }),
+      });
+      await renderAdminRepuestosProveedor(repuestoId);
+    });
+  });
+
+  // Desvincular
+  document.querySelectorAll("[data-del-vinculo-prov]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Desvincular este proveedor?")) return;
+      await apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores/${btn.dataset.delVinculoProv}`, { method: "DELETE" });
+      await renderAdminRepuestosProveedor(repuestoId);
+    });
+  });
+
+  // Agregar
+  document.getElementById("btn-add-prov")?.addEventListener("click", async () => {
+    const provId = Number(document.getElementById("new-prov-id").value);
+    if (!provId) { window.alert("Seleccioná un proveedor."); return; }
+    const esPrincipal = document.getElementById("new-prov-principal").checked;
+    try {
+      await apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores`, {
+        method: "POST", body: JSON.stringify({ proveedor_id: provId, es_principal: esPrincipal }),
+      });
+      await renderAdminRepuestosProveedor(repuestoId);
+    } catch (err) { window.alert(err.message); }
+  });
+}
+
 // ── Vista consolidada de stock ────────────────────────────────────────────────
 
 async function renderAdminConsolidado() {
@@ -2102,6 +2221,8 @@ async function render() {
       }
     } else if (section === "repuestos" && subId === "consolidado") {
       await renderAdminConsolidado();
+    } else if (section === "repuestos" && subId && !isNaN(Number(subId)) && subAction === "proveedores") {
+      await renderAdminRepuestosProveedor(Number(subId));
     } else if (section === "equipos" && subId && !isNaN(Number(subId)) && subAction === "repuestos") {
       await renderAdminRepuestosEquipo(Number(subId));
     } else if (section === "equipos" && subId && subAction === "historial") {

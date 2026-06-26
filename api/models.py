@@ -494,3 +494,49 @@ class RepuestoConsolidadoItem(BaseModel):
     en_alerta: bool
     equipos: list[RepuestoConsolidadoEquipoUso]
 
+
+# ── Proveedores ───────────────────────────────────────────────────────────────
+
+class ProveedorItem(BaseModel):
+    id: int
+    nombre: str
+    cuit: str
+    contacto: str
+    telefono: str
+    email: str
+    direccion: str
+    notas: str
+    activo: bool
+
+
+class ProveedorRequest(BaseModel):
+    nombre: str
+    cuit: str = ""
+    contacto: str = ""
+    telefono: str = ""
+    email: str = ""
+    direccion: str = ""
+    notas: str = ""
+    activo: bool = True
+
+
+class RepuestoProveedorItem(BaseModel):
+    id: int
+    repuesto_id: int
+    repuesto_nombre: str
+    proveedor_id: int
+    proveedor_nombre: str
+    proveedor_contacto: str
+    proveedor_telefono: str
+    proveedor_email: str
+    es_principal: bool
+
+
+class RepuestoProveedorRequest(BaseModel):
+    proveedor_id: int
+    es_principal: bool = False
+
+
+class RepuestoProveedorUpdate(BaseModel):
+    es_principal: bool
+

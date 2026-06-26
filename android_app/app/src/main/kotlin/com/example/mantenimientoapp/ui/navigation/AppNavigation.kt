@@ -12,7 +12,9 @@ import com.example.mantenimientoapp.ui.admin.equipos.EquiposAdminScreen
 import com.example.mantenimientoapp.ui.admin.generar.GenerarOrdenesScreen
 import com.example.mantenimientoapp.ui.admin.historial.HistorialEquipoScreen
 import com.example.mantenimientoapp.ui.admin.programas.ProgramasAdminScreen
+import com.example.mantenimientoapp.ui.admin.proveedores.ProveedoresAdminScreen
 import com.example.mantenimientoapp.ui.admin.repuestos.ConsolidadoRepuestosScreen
+import com.example.mantenimientoapp.ui.admin.repuestos.RepuestoProveedoresScreen
 import com.example.mantenimientoapp.ui.admin.repuestos.RepuestosAdminScreen
 import com.example.mantenimientoapp.ui.admin.repuestos.RepuestosEquipoScreen
 import com.example.mantenimientoapp.ui.admin.tecnicos.TecnicosAdminScreen
@@ -32,6 +34,8 @@ object Routes {
     const val ADMIN_PROGRAMAS = "admin/programas"
     const val ADMIN_REPUESTOS = "admin/repuestos"
     const val ADMIN_REPUESTOS_CONSOLIDADO = "admin/repuestos/consolidado"
+    const val ADMIN_PROVEEDORES = "admin/proveedores"
+    const val ADMIN_REPUESTO_PROVEEDORES = "admin/repuestos/{repuestoId}/proveedores?nombre={nombre}"
     const val ADMIN_TECNICOS = "admin/tecnicos"
     const val ADMIN_GENERAR = "admin/generar"
     const val ADMIN_HISTORIAL = "admin/equipos/{equipoId}/historial?nombre={nombre}"
@@ -41,6 +45,7 @@ object Routes {
     fun ordenDetail(id: Int) = "orden/$id"
     fun historialEquipo(id: Int, nombre: String) = "admin/equipos/$id/historial?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
     fun repuestosEquipo(id: Int, nombre: String) = "admin/equipos/$id/repuestos?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
+    fun repuestoProveedores(id: Int, nombre: String) = "admin/repuestos/$id/proveedores?nombre=${java.net.URLEncoder.encode(nombre, "UTF-8")}"
 }
 
 @Composable
@@ -67,6 +72,7 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToAdminProgramas = { navController.navigate(Routes.ADMIN_PROGRAMAS) },
                 onNavigateToAdminRepuestos = { navController.navigate(Routes.ADMIN_REPUESTOS) },
                 onNavigateToConsolidado = { navController.navigate(Routes.ADMIN_REPUESTOS_CONSOLIDADO) },
+                onNavigateToProveedores = { navController.navigate(Routes.ADMIN_PROVEEDORES) },
                 onNavigateToAdminTecnicos = { navController.navigate(Routes.ADMIN_TECNICOS) },
                 onNavigateToGenerarOrdenes = { navController.navigate(Routes.ADMIN_GENERAR) },
                 onNavigateToElectricidad = { navController.navigate(Routes.ADMIN_ELECTRICIDAD) },
@@ -89,8 +95,27 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
         composable(Routes.ADMIN_PROGRAMAS) { ProgramasAdminScreen(onBack = { navController.popBackStack() }) }
-        composable(Routes.ADMIN_REPUESTOS) { RepuestosAdminScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_REPUESTOS) {
+            RepuestosAdminScreen(
+                onBack = { navController.popBackStack() },
+                onProveedores = { id, nombre -> navController.navigate(Routes.repuestoProveedores(id, nombre)) }
+            )
+        }
         composable(Routes.ADMIN_REPUESTOS_CONSOLIDADO) { ConsolidadoRepuestosScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ADMIN_PROVEEDORES) { ProveedoresAdminScreen(onBack = { navController.popBackStack() }) }
+        composable(
+            route = "admin/repuestos/{repuestoId}/proveedores?nombre={nombre}",
+            arguments = listOf(
+                navArgument("repuestoId") { type = NavType.IntType },
+                navArgument("nombre") { defaultValue = "" }
+            )
+        ) { back ->
+            RepuestoProveedoresScreen(
+                repuestoId = back.arguments!!.getInt("repuestoId"),
+                repuestoNombre = back.arguments!!.getString("nombre") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable(
             route = "admin/equipos/{equipoId}/repuestos?nombre={nombre}",
             arguments = listOf(
