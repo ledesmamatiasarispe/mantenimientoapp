@@ -1477,17 +1477,18 @@ async function renderAlertas(tab = _alertasTab) {
     conteos[t.key] = t.tipo ? _alertasData.filter(a => a.tipo === t.tipo).length : _alertasData.length;
   });
 
+  const tabColors = { todas: "#6b7280", stock: "#f97316", ordenes: "#3b82f6", mantenimiento: "#10b981" };
+
   document.querySelector("#app").innerHTML = layoutAdmin("alertas", `
     <div class="topbar"><div><h1>Alertas (${_alertasData.length})</h1></div></div>
 
     <div class="tabs" style="grid-template-columns:repeat(${ALERTA_TABS.length},1fr)">
       ${ALERTA_TABS.map(t => `
-        <button class="tab ${t.key === tab ? "active" : ""}"
-          onclick="renderAlertas('${t.key}')"
-          style="position:relative;border:none;background:none;cursor:pointer">
+        <button class="tab ${t.key === tab ? "active" : ""}" data-alerta-tab="${t.key}"
+          style="border:none;background:none;cursor:pointer">
           ${t.label}
           ${conteos[t.key] > 0
-            ? `<span style="margin-left:4px;background:${t.key==="todas"?"#6b7280":t.key==="stock"?"#f97316":t.key==="ordenes"?"#3b82f6":"#10b981"};color:#fff;border-radius:10px;font-size:10px;padding:1px 6px">${conteos[t.key]}</span>`
+            ? `<span style="margin-left:4px;background:${tabColors[t.key]||"#999"};color:#fff;border-radius:10px;font-size:10px;padding:1px 6px">${conteos[t.key]}</span>`
             : ""}
         </button>`).join("")}
     </div>
@@ -1500,24 +1501,33 @@ async function renderAlertas(tab = _alertasTab) {
             <div style="font-weight:600;margin-bottom:6px">${escapeHtml(a.mensaje)}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               <span style="font-size:11px;background:${colores[a.severidad]}22;color:${colores[a.severidad]};padding:2px 8px;border-radius:12px">${a.severidad}</span>
-              <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="snoozeAlerta('${escapeHtml(a.key)}')">Posponer 7d</button>
-              <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="ignorarAlerta('${escapeHtml(a.key)}')">Ignorar</button>
+              <button class="button secondary" style="font-size:11px;padding:2px 10px" data-snooze="${escapeHtml(a.key)}">Posponer 7d</button>
+              <button class="button secondary" style="font-size:11px;padding:2px 10px" data-ignorar="${escapeHtml(a.key)}">Ignorar</button>
             </div>
           </div>`).join("")}
     </div>
   `);
-}
 
-async function snoozeAlerta(key) {
-  await apiFetch(`/api/alertas/${encodeURIComponent(key)}/snooze`, { method: "POST", body: JSON.stringify({ dias: 7 }) });
-  _alertasData = []; // limpiar cache para recargar
-  await renderAlertas(_alertasTab);
-}
+  // Tabs — event listeners (necesario porque type="module" no expone globales a onclick)
+  document.querySelectorAll("[data-alerta-tab]").forEach(btn => {
+    btn.addEventListener("click", () => renderAlertas(btn.dataset.alertaTab));
+  });
 
-async function ignorarAlerta(key) {
-  await apiFetch(`/api/alertas/${encodeURIComponent(key)}/ignorar`, { method: "POST", body: JSON.stringify({}) });
-  _alertasData = [];
-  await renderAlertas(_alertasTab);
+  // Snooze / Ignorar — event delegation
+  document.querySelectorAll("[data-snooze]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/alertas/${encodeURIComponent(btn.dataset.snooze)}/snooze`, { method: "POST", body: JSON.stringify({ dias: 7 }) });
+      _alertasData = [];
+      await renderAlertas(_alertasTab);
+    });
+  });
+  document.querySelectorAll("[data-ignorar]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/alertas/${encodeURIComponent(btn.dataset.ignorar)}/ignorar`, { method: "POST", body: JSON.stringify({}) });
+      _alertasData = [];
+      await renderAlertas(_alertasTab);
+    });
+  });
 }
 
 // ── Generar órdenes ───────────────────────────────────────────────────────────
