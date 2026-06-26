@@ -32,7 +32,7 @@ class _OutputReader(QThread):
 class ServerConsoleWindow(QWidget):
     """Ventana que muestra los logs del servidor uvicorn en tiempo real."""
 
-    def __init__(self, process: subprocess.Popen, port: int = 54321, parent: QWidget | None = None) -> None:
+    def __init__(self, process: "subprocess.Popen | None", port: int = 54321, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._process = process
         self.setWindowTitle(f"Servidor — Puerto {port}")
@@ -43,7 +43,7 @@ class ServerConsoleWindow(QWidget):
         layout.setSpacing(0)
 
         # Barra de título
-        header = QLabel(f"  🖥  Servidor API  ·  http://0.0.0.0:{port}  ·  http://192.168.100.228:{port}")
+        header = QLabel(f"  \U0001f5a5  Servidor API  ·  http://0.0.0.0:{port}  ·  http://192.168.100.228:{port}")
         header.setStyleSheet(
             "background:#161b22;color:#58a6ff;padding:8px 12px;"
             "font-weight:bold;font-size:12px;border-bottom:1px solid #30363d;"
@@ -66,15 +66,20 @@ class ServerConsoleWindow(QWidget):
         )
         layout.addWidget(self._console)
 
-        # Hilo lector
-        self._reader = _OutputReader(process)
-        self._reader.line_received.connect(self._on_line)
-        self._reader.start()
-
-        self._append_system("Servidor iniciado — escuchando en el puerto " + str(port))
+        if process is not None:
+            self._reader: _OutputReader | None = _OutputReader(process)
+            self._reader.line_received.connect(self._on_line)
+            self._reader.start()
+            self._append_system("Servidor iniciado — escuchando en el puerto " + str(port))
+        else:
+            self._reader = None
+            self._append_error("No se encontró el ejecutable de uvicorn. Verificá que el entorno virtual esté instalado.")
 
     def _append_system(self, msg: str) -> None:
-        self._console.append(f'<span style="color:#58a6ff">▶ {_esc(msg)}</span>')
+        self._console.append(f'<span style="color:#58a6ff">&#9654; {_esc(msg)}</span>')
+
+    def _append_error(self, msg: str) -> None:
+        self._console.append(f'<span style="color:#ff7b72">&#10006; {_esc(msg)}</span>')
 
     def _on_line(self, line: str) -> None:
         lower = line.lower()

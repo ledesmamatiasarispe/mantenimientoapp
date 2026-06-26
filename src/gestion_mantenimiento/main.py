@@ -59,10 +59,11 @@ def main() -> int:
     window.show()
 
     server_proc = _start_api_server(database_path)
-    if server_proc is not None:
-        from gestion_mantenimiento.ui.server_console import ServerConsoleWindow
-        console = ServerConsoleWindow(server_proc)
-        console.show()
+    from gestion_mantenimiento.ui.server_console import ServerConsoleWindow
+    console = ServerConsoleWindow(server_proc)  # muestra aunque proc sea None
+    console.show()
+    # Guardar en app para evitar garbage collection
+    app._server_console = console  # type: ignore[attr-defined]
 
     return app.exec()
 
@@ -95,6 +96,16 @@ def _start_api_server(database_path: Path) -> "subprocess.Popen | None":
                 ["taskkill", "/IM", "uvicorn.exe", "/F"],
                 capture_output=True, timeout=5,
             )
+        except Exception:
+            pass
+    else:
+        # Linux/Mac: matar instancias previas de uvicorn para liberar el puerto
+        try:
+            subprocess.run(
+                ["pkill", "-f", "uvicorn api.main"],
+                capture_output=True, timeout=3,
+            )
+            import time; time.sleep(0.8)  # esperar que libere el puerto
         except Exception:
             pass
 
