@@ -930,7 +930,7 @@ async function renderAdminList(section) {
 
   let tableHead = "";
   let tableRows = "";
-  let title = ADMIN_SECTIONS.find(s => s.key === section)?.label ?? section;
+  let title = ADMIN_LABELS[section] ?? section;
   let extraHeader = "";
 
   if (section === "equipos") {
@@ -1124,7 +1124,7 @@ async function renderAdminForm(section, id) {
       <div class="field"><label>Observaciones</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>`;
   }
 
-  const title = `${isNew ? "Nuevo" : "Editar"} — ${ADMIN_SECTIONS.find(s => s.key === section)?.label ?? section}`;
+  const title = `${isNew ? "Nuevo" : "Editar"} — ${ADMIN_LABELS[section] ?? section}`;
   document.querySelector("#app").innerHTML = layoutAdmin(section, `
     <div class="panel">
       <h3 style="margin:0 0 12px">${title}</h3>
