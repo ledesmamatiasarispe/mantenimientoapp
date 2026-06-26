@@ -42,9 +42,9 @@ def main() -> int:
     database_path = get_database_path()
     initialize_database(database_path, seed=False)
 
+    from gestion_mantenimiento.ui.server_console import ServerConsoleWindow, _launch_uvicorn
     server_proc = _start_api_server(database_path)
-    from gestion_mantenimiento.ui.server_console import ServerConsoleWindow
-    console = ServerConsoleWindow(server_proc)
+    console = ServerConsoleWindow(server_proc, database_path=database_path)
     console.show()
     app._server_console = console  # type: ignore[attr-defined]
 
