@@ -237,7 +237,7 @@ function layout(content, active = "ordenes") {
     <nav class="bottom-nav">
       <a class="nav-link ${active === "ordenes" ? "active" : ""}" href="/ordenes">Órdenes</a>
       <a class="nav-link ${active === "cronograma" ? "active" : ""}" href="/cronograma">Cronograma</a>
-      ${state.tecnico?.es_admin ? `<a class="nav-link ${active === "admin" ? "active" : ""}" href="/admin/dashboard">Admin ${state.alertasCount > 0 ? `<span class="badge">${state.alertasCount}</span>` : ""}</a>` : ""}
+      ${state.tecnico?.es_admin ? `<a class="nav-link ${active === "admin" ? "active" : ""}" href="/admin/hub">Admin ${state.alertasCount > 0 ? `<span class="badge">${state.alertasCount}</span>` : ""}</a>` : ""}
     </nav>
   `;
 }
@@ -844,32 +844,74 @@ async function renderCronograma() {
 
 // ── Admin ──────────────────────────────────────────────────────────────────
 
-const ADMIN_SECTIONS = [
-  { key: "dashboard",   label: "🏠 Inicio" },
-  { key: "alertas",     label: "🔔 Alertas" },
-  { key: "equipos",     label: "Equipos" },
-  { key: "tipos",       label: "Tipos" },
-  { key: "programas",   label: "Programas" },
-  { key: "repuestos",   label: "Repuestos" },
-  { key: "tecnicos",    label: "Técnicos" },
-  { key: "ordenes",     label: "Órdenes" },
-  { key: "generar",     label: "📅 Generar" },
-  { key: "electricidad",label: "⚡ Electr." },
-  { key: "base-datos",  label: "💾 DB" },
-];
-
-function adminTabs(active) {
-  return `<div class="tabs" style="grid-template-columns:repeat(${ADMIN_SECTIONS.length},1fr)">
-    ${ADMIN_SECTIONS.map(s => `<a class="tab ${active === s.key ? "active" : ""}" href="/admin/${s.key}">${s.label}</a>`).join("")}
-  </div>`;
-}
+// Nombre legible por sección para el topbar
+const ADMIN_LABELS = {
+  dashboard: "Dashboard", alertas: "Alertas",
+  equipos: "Equipos", tipos: "Tipos de equipo", programas: "Programas de mantenimiento",
+  repuestos: "Repuestos", tecnicos: "Técnicos", ordenes: "Órdenes",
+  generar: "Generar órdenes", electricidad: "Electricidad", "base-datos": "Base de datos",
+};
 
 function layoutAdmin(section, content) {
+  const esHub = section === "hub";
+  const titulo = esHub ? "Administración" : (ADMIN_LABELS[section] ?? section);
+  const backLink = esHub ? "" : `<a class="back-link" href="/admin/hub" style="margin-right:10px">← Panel</a>`;
   return layout(`
-    <div class="topbar"><div><h1>Administración</h1></div></div>
-    ${adminTabs(section)}
+    <div class="topbar"><div>${backLink}<h1>${titulo}</h1></div></div>
     ${content}
   `, "admin");
+}
+
+function renderAdminHub() {
+  const grupos = [
+    {
+      titulo: "🔔 Monitoreo",
+      items: [
+        { href: "/admin/dashboard", icon: "📊", label: "Dashboard", desc: "Resumen del sistema" },
+        { href: "/admin/alertas",   icon: "🔔", label: "Alertas",   desc: "Stock bajo, órdenes sin asignar, mantenimientos vencidos" },
+      ],
+    },
+    {
+      titulo: "⚙️ Gestión",
+      items: [
+        { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Máquinas y activos" },
+        { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías" },
+        { href: "/admin/programas", icon: "📋", label: "Programas", desc: "Mantenimiento preventivo" },
+        { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Inventario y stock" },
+        { href: "/admin/tecnicos",  icon: "👷", label: "Técnicos",  desc: "Usuarios del sistema" },
+        { href: "/admin/ordenes",   icon: "📝", label: "Órdenes",   desc: "Gestión completa de órdenes" },
+      ],
+    },
+    {
+      titulo: "🔧 Herramientas",
+      items: [
+        { href: "/admin/generar",      icon: "📅", label: "Generar órdenes", desc: "Crear preventivos por mes" },
+        { href: "/admin/electricidad", icon: "⚡", label: "Electricidad",    desc: "Medidores y facturas EDESUR" },
+        { href: "/admin/base-datos",   icon: "💾", label: "Base de datos",   desc: "Exportar e importar" },
+      ],
+    },
+  ];
+
+  document.querySelector("#app").innerHTML = layoutAdmin("hub", `
+    <div style="padding:16px;display:flex;flex-direction:column;gap:20px">
+      ${grupos.map(g => `
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:8px;padding:0 2px">${g.titulo}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+            ${g.items.map(it => `
+              <a href="${it.href}" style="text-decoration:none">
+                <div class="admin-hub-card">
+                  <span style="font-size:22px">${it.icon}</span>
+                  <div>
+                    <div style="font-weight:600;font-size:14px">${it.label}</div>
+                    <div style="font-size:11px;color:#888;margin-top:2px">${it.desc}</div>
+                  </div>
+                </div>
+              </a>`).join("")}
+          </div>
+        </div>`).join("")}
+    </div>
+  `);
 }
 
 async function renderAdminList(section) {
@@ -1782,12 +1824,18 @@ async function render() {
     await renderAdjunto();
     return;
   }
+  if (path === "admin" || path === "admin/hub") {
+    renderAdminHub();
+    return;
+  }
   if (path.startsWith("admin/")) {
     const parts = path.split("/");
     const section = parts[1];
     const subId = parts[2];
     const subAction = parts[3];
-    if (section === "dashboard") {
+    if (section === "hub") {
+      renderAdminHub();
+    } else if (section === "dashboard") {
       await renderDashboard();
     } else if (section === "alertas") {
       await renderAlertas();
