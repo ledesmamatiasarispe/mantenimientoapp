@@ -1450,38 +1450,74 @@ async function renderDashboard() {
 
 // ── Alertas ───────────────────────────────────────────────────────────────────
 
-async function renderAlertas() {
-  renderLoading("Cargando alertas...");
-  const alertas = await apiFetch("/api/alertas");
-  state.alertasCount = alertas.length;
+const ALERTA_TABS = [
+  { key: "todas",       label: "Todas",        tipo: null },
+  { key: "stock",       label: "📦 Stock",     tipo: "STOCK_BAJO" },
+  { key: "ordenes",     label: "📝 Órdenes",   tipo: "ORDEN_NUEVA" },
+  { key: "mantenimiento", label: "🔧 Mantenimiento", tipo: "MANT_VENCIDO" },
+];
+
+let _alertasData = [];
+let _alertasTab = "todas";
+
+async function renderAlertas(tab = _alertasTab) {
+  if (_alertasData.length === 0) {
+    renderLoading("Cargando alertas...");
+    _alertasData = await apiFetch("/api/alertas");
+    state.alertasCount = _alertasData.length;
+  }
+  _alertasTab = tab;
+
   const colores = { alta: "#ef4444", media: "#f59e0b", baja: "#10b981" };
+  const tipoActivo = ALERTA_TABS.find(t => t.key === tab)?.tipo ?? null;
+  const lista = tipoActivo ? _alertasData.filter(a => a.tipo === tipoActivo) : _alertasData;
+
+  const conteos = {};
+  ALERTA_TABS.forEach(t => {
+    conteos[t.key] = t.tipo ? _alertasData.filter(a => a.tipo === t.tipo).length : _alertasData.length;
+  });
+
   document.querySelector("#app").innerHTML = layoutAdmin("alertas", `
-    <div class="topbar"><div><h1>Alertas (${alertas.length})</h1></div></div>
+    <div class="topbar"><div><h1>Alertas (${_alertasData.length})</h1></div></div>
+
+    <div class="tabs" style="grid-template-columns:repeat(${ALERTA_TABS.length},1fr)">
+      ${ALERTA_TABS.map(t => `
+        <button class="tab ${t.key === tab ? "active" : ""}"
+          onclick="renderAlertas('${t.key}')"
+          style="position:relative;border:none;background:none;cursor:pointer">
+          ${t.label}
+          ${conteos[t.key] > 0
+            ? `<span style="margin-left:4px;background:${t.key==="todas"?"#6b7280":t.key==="stock"?"#f97316":t.key==="ordenes"?"#3b82f6":"#10b981"};color:#fff;border-radius:10px;font-size:10px;padding:1px 6px">${conteos[t.key]}</span>`
+            : ""}
+        </button>`).join("")}
+    </div>
+
     <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
-      ${alertas.length === 0
-        ? `<p style="color:#666;text-align:center;padding:32px">Sin alertas activas</p>`
-        : alertas.map(a => `
-        <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid ${colores[a.severidad] || "#999"}">
-          <div style="font-weight:600;margin-bottom:6px">${escapeHtml(a.mensaje)}</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <span style="font-size:11px;background:#eee;padding:2px 8px;border-radius:12px">${a.tipo}</span>
-            <span style="font-size:11px;background:${colores[a.severidad]}22;color:${colores[a.severidad]};padding:2px 8px;border-radius:12px">${a.severidad}</span>
-            <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="snoozeAlerta('${escapeHtml(a.key)}')">Posponer 7d</button>
-            <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="ignorarAlerta('${escapeHtml(a.key)}')">Ignorar</button>
-          </div>
-        </div>`).join("")}
+      ${lista.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin alertas en esta categoría</p>`
+        : lista.map(a => `
+          <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid ${colores[a.severidad] || "#999"}">
+            <div style="font-weight:600;margin-bottom:6px">${escapeHtml(a.mensaje)}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <span style="font-size:11px;background:${colores[a.severidad]}22;color:${colores[a.severidad]};padding:2px 8px;border-radius:12px">${a.severidad}</span>
+              <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="snoozeAlerta('${escapeHtml(a.key)}')">Posponer 7d</button>
+              <button class="button secondary" style="font-size:11px;padding:2px 10px" onclick="ignorarAlerta('${escapeHtml(a.key)}')">Ignorar</button>
+            </div>
+          </div>`).join("")}
     </div>
   `);
 }
 
 async function snoozeAlerta(key) {
   await apiFetch(`/api/alertas/${encodeURIComponent(key)}/snooze`, { method: "POST", body: JSON.stringify({ dias: 7 }) });
-  await renderAlertas();
+  _alertasData = []; // limpiar cache para recargar
+  await renderAlertas(_alertasTab);
 }
 
 async function ignorarAlerta(key) {
   await apiFetch(`/api/alertas/${encodeURIComponent(key)}/ignorar`, { method: "POST", body: JSON.stringify({}) });
-  await renderAlertas();
+  _alertasData = [];
+  await renderAlertas(_alertasTab);
 }
 
 // ── Generar órdenes ───────────────────────────────────────────────────────────

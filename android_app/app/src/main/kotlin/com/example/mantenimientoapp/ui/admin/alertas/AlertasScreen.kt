@@ -26,13 +26,19 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class AlertasUiState(val loading: Boolean = true, val error: String? = null, val alertas: List<AlertaItemDto> = emptyList())
+data class AlertasUiState(
+    val loading: Boolean = true,
+    val error: String? = null,
+    val alertas: List<AlertaItemDto> = emptyList()
+)
 
 @HiltViewModel
 class AlertasViewModel @Inject constructor(private val api: ApiService) : ViewModel() {
     private val _state = MutableStateFlow(AlertasUiState())
     val state: StateFlow<AlertasUiState> = _state.asStateFlow()
+
     init { load() }
+
     fun load() {
         viewModelScope.launch {
             _state.value = AlertasUiState(loading = true)
@@ -43,14 +49,42 @@ class AlertasViewModel @Inject constructor(private val api: ApiService) : ViewMo
             }
         }
     }
-    fun snooze(key: String) { viewModelScope.launch { safeApiCall { api.snoozeAlerta(key, SnoozeRequestDto(7)) }; load() } }
-    fun ignorar(key: String) { viewModelScope.launch { safeApiCall { api.ignorarAlerta(key) }; load() } }
+
+    fun snooze(key: String) {
+        viewModelScope.launch {
+            safeApiCall { api.snoozeAlerta(key, SnoozeRequestDto(7)) }
+            load()
+        }
+    }
+
+    fun ignorar(key: String) {
+        viewModelScope.launch {
+            safeApiCall { api.ignorarAlerta(key) }
+            load()
+        }
+    }
 }
+
+private data class AlertaTab(val label: String, val tipo: String?, val color: Color)
+
+private val TABS = listOf(
+    AlertaTab("Todas", null, Color(0xFF6B7280)),
+    AlertaTab("📦 Stock", "STOCK_BAJO", Color(0xFFF97316)),
+    AlertaTab("📝 Órdenes", "ORDEN_NUEVA", Color(0xFF3B82F6)),
+    AlertaTab("🔧 Mantenimiento", "MANT_VENCIDO", Color(0xFF10B981)),
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertasScreen(onBack: () -> Unit, vm: AlertasViewModel = hiltViewModel()) {
     val state by vm.state.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
+
+    val lista = remember(state.alertas, selectedTab) {
+        val tipo = TABS[selectedTab].tipo
+        if (tipo == null) state.alertas else state.alertas.filter { it.tipo == tipo }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -60,15 +94,53 @@ fun AlertasScreen(onBack: () -> Unit, vm: AlertasViewModel = hiltViewModel()) {
             )
         }
     ) { padding ->
-        when {
-            state.loading -> LoadingBox(Modifier.padding(padding))
-            state.error != null -> ErrorBox(state.error!!, onRetry = { vm.load() }, modifier = Modifier.padding(padding))
-            state.alertas.isEmpty() -> Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Sin alertas activas", color = MaterialTheme.colorScheme.outline)
+        Column(Modifier.padding(padding)) {
+            // Tabs con conteo por tipo
+            ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
+                TABS.forEachIndexed { i, tab ->
+                    val count = if (tab.tipo == null) state.alertas.size
+                                else state.alertas.count { it.tipo == tab.tipo }
+                    Tab(
+                        selected = selectedTab == i,
+                        onClick = { selectedTab = i }
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(tab.label, style = MaterialTheme.typography.labelMedium)
+                            if (count > 0) {
+                                Surface(
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                    color = if (selectedTab == i) tab.color else tab.color.copy(alpha = 0.5f)
+                                ) {
+                                    Text(
+                                        "$count",
+                                        Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            else -> LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(state.alertas, key = { it.key }) { alerta ->
-                    AlertaCard(alerta, onSnooze = { vm.snooze(alerta.key) }, onIgnorar = { vm.ignorar(alerta.key) })
+
+            when {
+                state.loading -> LoadingBox()
+                state.error != null -> ErrorBox(state.error!!, onRetry = { vm.load() })
+                lista.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Sin alertas en esta categoría", color = MaterialTheme.colorScheme.outline)
+                }
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(lista, key = { it.key }) { alerta ->
+                        AlertaCard(alerta, onSnooze = { vm.snooze(alerta.key) }, onIgnorar = { vm.ignorar(alerta.key) })
+                    }
                 }
             }
         }
@@ -77,29 +149,37 @@ fun AlertasScreen(onBack: () -> Unit, vm: AlertasViewModel = hiltViewModel()) {
 
 @Composable
 private fun AlertaCard(alerta: AlertaItemDto, onSnooze: () -> Unit, onIgnorar: () -> Unit) {
-    val color = when (alerta.severidad) {
+    val borderColor = when (alerta.severidad) {
         "alta" -> Color(0xFFEF4444)
         "media" -> Color(0xFFF59E0B)
         else -> Color(0xFF10B981)
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        border = androidx.compose.foundation.BorderStroke(2.dp, color)
+        border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(alerta.mensaje, style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = MaterialTheme.shapes.small, color = color.copy(alpha = 0.15f)) {
-                    Text(alerta.tipo, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = color)
-                }
-                Surface(shape = MaterialTheme.shapes.small, color = color.copy(alpha = 0.1f)) {
-                    Text(alerta.severidad, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = color)
+                Surface(shape = MaterialTheme.shapes.small, color = borderColor.copy(alpha = 0.15f)) {
+                    Text(
+                        alerta.severidad,
+                        Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = borderColor
+                    )
                 }
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = onSnooze, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                OutlinedButton(
+                    onClick = onSnooze,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
                     Text("Posponer 7d", style = MaterialTheme.typography.labelSmall)
                 }
-                OutlinedButton(onClick = onIgnorar, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                OutlinedButton(
+                    onClick = onIgnorar,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
                     Text("Ignorar", style = MaterialTheme.typography.labelSmall)
                 }
             }
