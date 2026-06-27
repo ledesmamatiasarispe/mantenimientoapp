@@ -323,6 +323,14 @@ class AdminOrdenRequest(BaseModel):
     observaciones: str = ""
 
 
+class PurgarOrdenesRequest(BaseModel):
+    password: str
+
+
+class PurgarOrdenesResult(BaseModel):
+    eliminadas: int
+
+
 # ── Alertas ───────────────────────────────────────────────────────────────────
 
 class AlertaItem(BaseModel):

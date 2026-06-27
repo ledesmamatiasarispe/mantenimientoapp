@@ -10,7 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
-from api.auth import AdminTecnicoDep, hash_password
+from api.auth import AdminTecnicoDep, CurrentTecnicoDep, hash_password, verify_password
 from api.database import get_db, resolve_database_path
 import uuid
 
@@ -36,6 +36,8 @@ from api.models import (
     OrdenCard,
     OrdenDetail,
     ProveedorItem,
+    PurgarOrdenesRequest,
+    PurgarOrdenesResult,
     ProveedorRequest,
     RepuestoConsolidadoEquipoUso,
     RepuestoConsolidadoItem,
@@ -788,19 +790,53 @@ def delete_orden_admin(orden_id: int, _: AdminTecnicoDep, connection: Connection
     row = connection.execute("SELECT id FROM ordenes_trabajo WHERE id = ?", (orden_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Orden no encontrada.")
-    # Restaurar stock de repuestos antes de eliminar
-    rep_rows = connection.execute(
-        "SELECT repuesto_id, cantidad FROM repuestos_orden WHERE orden_id = ? AND repuesto_id IS NOT NULL",
-        (orden_id,),
+    _delete_orden(connection, orden_id)
+    connection.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/ordenes/purgar", response_model=PurgarOrdenesResult)
+def purgar_ordenes(
+    payload: PurgarOrdenesRequest,
+    current: CurrentTecnicoDep,
+    connection: ConnectionDep,
+) -> PurgarOrdenesResult:
+    """Elimina TODAS las órdenes que no estén COMPLETADAS.
+    Requiere que el técnico sea admin y confirme su contraseña."""
+    if not current.es_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo admins.")
+    # Verificar contraseña del técnico actual
+    row = connection.execute(
+        "SELECT password_hash FROM tecnicos WHERE id=?", (current.id,)
+    ).fetchone()
+    if row is None or not verify_password(payload.password, str(row["password_hash"] or "")):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contraseña incorrecta.")
+
+    ordenes = connection.execute(
+        "SELECT id FROM ordenes_trabajo WHERE estado != 'COMPLETADA'"
     ).fetchall()
-    for rep in rep_rows:
+    for o in ordenes:
+        _delete_orden(connection, int(o["id"]))
+    connection.commit()
+    return PurgarOrdenesResult(eliminadas=len(ordenes))
+
+
+def _delete_orden(connection: sqlite3.Connection, orden_id: int) -> None:
+    """Elimina una orden y todas sus filas hijas, restaurando el stock de repuestos."""
+    # Restaurar stock antes de eliminar
+    for rep in connection.execute(
+        "SELECT repuesto_id, cantidad FROM repuestos_orden WHERE orden_id=? AND repuesto_id IS NOT NULL",
+        (orden_id,),
+    ).fetchall():
         connection.execute(
             "UPDATE repuestos SET stock_actual = stock_actual + ? WHERE id = ?",
             (float(rep["cantidad"]), int(rep["repuesto_id"])),
         )
-    connection.execute("DELETE FROM ordenes_trabajo WHERE id = ?", (orden_id,))
-    connection.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    # Eliminar filas hijas en orden correcto (FK)
+    for table in ("orden_paso_estado", "orden_adjuntos", "orden_colaboradores",
+                  "orden_programas", "repuestos_orden"):
+        connection.execute(f"DELETE FROM {table} WHERE orden_id=?", (orden_id,))
+    connection.execute("DELETE FROM ordenes_trabajo WHERE id=?", (orden_id,))
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────

@@ -2173,11 +2173,13 @@ function renderBaseDatos() {
   document.querySelector("#app").innerHTML = layoutAdmin("base-datos", `
     <div class="topbar"><div><h1>Base de datos</h1></div></div>
     <div style="padding:20px;max-width:480px;display:flex;flex-direction:column;gap:16px">
+
       <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
         <h3 style="margin:0 0 8px">Exportar</h3>
         <p style="color:#555;font-size:13px;margin-bottom:12px">Descargá una copia de la base de datos completa (archivo .sqlite).</p>
         <a class="button primary" href="${state.serverBase}/api/admin/db/exportar" download>⬇ Descargar backup</a>
       </div>
+
       <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
         <h3 style="margin:0 0 8px">Importar</h3>
         <p style="color:#555;font-size:13px;margin-bottom:4px">⚠️ Reemplaza la base de datos actual. Se genera un backup automático antes.</p>
@@ -2187,8 +2189,22 @@ function renderBaseDatos() {
         </form>
         <div id="import-resultado" style="margin-top:8px"></div>
       </div>
+
+      <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);border:1px solid #fca5a5">
+        <h3 style="margin:0 0 8px;color:#b91c1c">🗑 Purgar órdenes no completadas</h3>
+        <p style="color:#555;font-size:13px;margin-bottom:12px">
+          Elimina <strong>permanentemente</strong> todas las órdenes en estado
+          PENDIENTE, EN PROGRESO o CANCELADA. Las órdenes COMPLETADAS se conservan.
+          Esta acción no se puede deshacer.
+        </p>
+        <button id="btn-purgar" class="button danger">Purgar órdenes…</button>
+        <div id="purgar-resultado" style="margin-top:10px"></div>
+      </div>
+
     </div>
   `);
+
+  // Importar
   document.querySelector("#import-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const file = document.querySelector("#import-file").files[0];
@@ -2199,15 +2215,52 @@ function renderBaseDatos() {
       const formData = new FormData();
       formData.append("file", file);
       const resp = await fetch(`${state.serverBase}/api/admin/db/importar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${state.token}` },
-        body: formData,
+        method: "POST", headers: { Authorization: `Bearer ${state.token}` }, body: formData,
       });
       if (!resp.ok) throw new Error(`Error ${resp.status}`);
       div.innerHTML = `<p style="color:#10b981">✅ Importado correctamente. Recargá la app para ver los cambios.</p>`;
     } catch(err) {
       div.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
     }
+  });
+
+  // Purgar órdenes
+  document.querySelector("#btn-purgar").addEventListener("click", () => {
+    const div = document.querySelector("#purgar-resultado");
+    div.innerHTML = `
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px;margin-top:4px">
+        <p style="font-size:13px;color:#7f1d1d;margin:0 0 10px">
+          Ingresá tu contraseña para confirmar la purga:
+        </p>
+        <input id="purgar-pwd" type="password" placeholder="Contraseña"
+          style="width:100%;padding:8px;border:1px solid #fca5a5;border-radius:6px;margin-bottom:8px" />
+        <div style="display:flex;gap:8px">
+          <button id="btn-purgar-confirmar" class="button danger" style="flex:1">Confirmar y purgar</button>
+          <button id="btn-purgar-cancelar" class="button secondary" style="flex:1">Cancelar</button>
+        </div>
+        <div id="purgar-msg" style="margin-top:8px"></div>
+      </div>`;
+
+    document.querySelector("#btn-purgar-cancelar").addEventListener("click", () => {
+      div.innerHTML = "";
+    });
+
+    document.querySelector("#btn-purgar-confirmar").addEventListener("click", async () => {
+      const pwd = document.querySelector("#purgar-pwd").value;
+      const msg = document.querySelector("#purgar-msg");
+      if (!pwd) { msg.innerHTML = `<p style="color:#ef4444">Ingresá tu contraseña.</p>`; return; }
+      msg.innerHTML = `<p style="color:#666">Purgando...</p>`;
+      try {
+        const r = await apiFetch("/api/admin/ordenes/purgar", {
+          method: "POST", body: JSON.stringify({ password: pwd }),
+        });
+        div.innerHTML = `<p style="color:#10b981;margin-top:8px">
+          ✅ Se eliminaron ${r.eliminadas} orden(es) no completadas.
+        </p>`;
+      } catch(err) {
+        msg.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
+      }
+    });
   });
 }
 
