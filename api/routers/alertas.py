@@ -28,15 +28,22 @@ def _compute_alertas(connection: sqlite3.Connection) -> list[AlertaItem]:
         if row["avisar_nuevamente_desde"] and row["avisar_nuevamente_desde"] > hoy:
             snoozed.add(str(row["clave"]))
 
-    # 1. Stock bajo
+    # 1. Stock bajo (compara stock_actual vs suma de mínimos por equipo)
     for rep in connection.execute(
-        "SELECT id, nombre, stock_actual, stock_minimo FROM repuestos WHERE activo=1 AND stock_actual <= stock_minimo"
+        """
+        SELECT r.id, r.nombre, r.stock_actual, SUM(re.stock_minimo) AS suma_min
+        FROM repuestos r
+        JOIN repuestos_equipo re ON re.repuesto_id = r.id
+        WHERE r.activo = 1
+        GROUP BY r.id, r.nombre, r.stock_actual
+        HAVING r.stock_actual <= SUM(re.stock_minimo)
+        """
     ).fetchall():
         key = f"stock_bajo_{rep['id']}"
         if key not in snoozed:
             alertas.append(AlertaItem(
                 key=key, tipo="STOCK_BAJO",
-                mensaje=f"Stock bajo: {rep['nombre']} ({rep['stock_actual']} / mín {rep['stock_minimo']})",
+                mensaje=f"Stock bajo: {rep['nombre']} ({rep['stock_actual']} / mín total {rep['suma_min']})",
                 severidad="alta" if rep["stock_actual"] == 0 else "media",
             ))
 

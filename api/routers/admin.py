@@ -876,9 +876,15 @@ def get_dashboard(_: AdminTecnicoDep, connection: ConnectionDep) -> DashboardSta
     def count(sql: str, *args: object) -> int:
         return int(connection.execute(sql, args).fetchone()[0])
 
-    alertas_stock = count(
-        "SELECT COUNT(*) FROM repuestos WHERE activo=1 AND stock_actual <= stock_minimo"
-    )
+    alertas_stock = int(connection.execute(
+        """SELECT COUNT(*) FROM (
+               SELECT r.id FROM repuestos r
+               JOIN repuestos_equipo re ON re.repuesto_id = r.id
+               WHERE r.activo = 1
+               GROUP BY r.id, r.stock_actual
+               HAVING r.stock_actual <= SUM(re.stock_minimo)
+           )"""
+    ).fetchone()[0])
     alertas_mant = count(
         "SELECT COUNT(*) FROM programas_mantenimiento WHERE activo=1 AND proxima_ejecucion < ?", hoy
     )
