@@ -546,7 +546,14 @@ async function renderOrdenDetalle(ordenId) {
   // Cargar miniaturas de fotos con auth
   cargarMiniaturas();
 
-  // Detalle de paso (toggle)
+  // Abrir automáticamente el primer paso incompleto (o el primero si todos están hechos)
+  const firstUnchecked = document.querySelector(".paso-check:not(:checked)");
+  const autoOpen = firstUnchecked
+    ? document.querySelector(`#paso-det-${firstUnchecked.dataset.pasoId}`)
+    : document.querySelector(".paso-detalle");
+  if (autoOpen) autoOpen.style.display = "block";
+
+  // Detalle de paso (toggle manual con ℹ️)
   document.querySelectorAll(".paso-info-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const det = document.querySelector(`#paso-det-${btn.dataset.pasoId}`);
@@ -753,13 +760,17 @@ async function renderOrdenDetalle(ordenId) {
     checkbox.addEventListener("change", async () => {
       const pasoId = checkbox.dataset.pasoId;
       checkbox.disabled = true;
+      // Cerrar el panel del paso actual antes del refresh
+      const detActual = document.querySelector(`#paso-det-${pasoId}`);
+      if (detActual) detActual.style.display = "none";
       try {
         await apiFetch(`/api/ordenes/${ordenId}/pasos/${pasoId}/toggle`, { method: "POST" });
-        await refresh();
+        await refresh(); // el re-render abrirá automáticamente el primer incompleto
       } catch (error) {
         window.alert(error.message);
         checkbox.checked = !checkbox.checked;
         checkbox.disabled = false;
+        if (detActual) detActual.style.display = "block";
       }
     });
   });
