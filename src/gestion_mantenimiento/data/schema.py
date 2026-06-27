@@ -293,6 +293,7 @@ def initialize_database(database_path: Path, *, seed: bool = False) -> None:
         _migrate_repuestos_equipo(connection)
         _migrate_proveedores(connection)
         _migrate_repuesto_proveedor(connection)
+        _migrate_paso_repuesto(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         if seed:
             connection.executescript(SEED_SQL)
@@ -787,6 +788,17 @@ def _migrate_repuesto_proveedor(connection: sqlite3.Connection) -> None:
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_rp_proveedor ON repuesto_proveedor(proveedor_id)"
     )
+
+
+def _migrate_paso_repuesto(connection: sqlite3.Connection) -> None:
+    """Agrega repuesto_id a programa_pasos (nullable FK -> repuestos)."""
+    if not _table_exists(connection, "programa_pasos"):
+        return
+    if "repuesto_id" not in _table_columns(connection, "programa_pasos"):
+        connection.execute(
+            "ALTER TABLE programa_pasos ADD COLUMN repuesto_id INTEGER "
+            "REFERENCES repuestos(id)"
+        )
 
 
 def _table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:

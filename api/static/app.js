@@ -1353,12 +1353,20 @@ async function renderAdminProgramasEquipo(equipoId) {
 
 async function renderAdminPasos(programaId) {
   renderLoading("Cargando pasos...");
-  const [programas, pasos] = await Promise.all([
+  const [programas, pasos, repuestosEquipo] = await Promise.all([
     apiFetch("/api/admin/programas"),
     apiFetch(`/api/admin/programas/${programaId}/pasos`),
+    apiFetch(`/api/admin/programas/${programaId}/repuestos-equipo`),
   ]);
   const prog = programas.find(p => p.id === programaId);
   const titulo = prog ? `${escapeHtml(prog.equipo_nombre)} — ${escapeHtml(prog.descripcion)}` : `Programa #${programaId}`;
+  const equipoId = prog?.equipo_id ?? null;
+
+  const repuestoOpts = (selectedId) =>
+    `<option value="">— Sin repuesto —</option>` +
+    repuestosEquipo.map(r =>
+      `<option value="${r.repuesto_id}" ${r.repuesto_id === selectedId ? "selected" : ""}>${escapeHtml(r.repuesto_nombre)}</option>`
+    ).join("");
 
   const pasoCard = (p) => `
     <div class="panel" style="padding:10px 14px">
@@ -1368,6 +1376,11 @@ async function renderAdminPasos(programaId) {
           <div style="flex:1">
             <div style="font-weight:600;margin-bottom:2px">${p.posicion}. ${escapeHtml(p.descripcion)}</div>
             ${p.observaciones ? `<div class="muted" style="font-size:13px;margin-bottom:4px">${escapeHtml(p.observaciones)}</div>` : ""}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+              ${p.repuesto_nombre
+                ? `<span style="background:#e0f2fe;color:#0369a1;border-radius:6px;padding:2px 8px;font-size:12px">📦 ${escapeHtml(p.repuesto_nombre)}</span>`
+                : ""}
+            </div>
             <div class="muted" style="font-size:12px">
               ${p.adjunto_nombre
                 ? `📎 <a href="#" class="ver-adjunto-paso" data-url="/api/admin/programas/${programaId}/pasos/${p.id}/adjunto" data-nombre="${escapeHtml(p.adjunto_nombre)}" data-back="/admin/programas/${programaId}/pasos">${escapeHtml(p.adjunto_nombre)}</a>`
@@ -1386,6 +1399,19 @@ async function renderAdminPasos(programaId) {
           <input class="ep-desc" value="${escapeHtml(p.descripcion)}" /></div>
         <div class="field"><label>Observaciones</label>
           <textarea class="ep-obs">${escapeHtml(p.observaciones)}</textarea></div>
+        <div class="field"><label>Repuesto requerido</label>
+          <select class="ep-repuesto">${repuestoOpts(p.repuesto_id)}</select>
+          ${repuestosEquipo.length === 0 && equipoId
+            ? `<div style="font-size:12px;margin-top:4px;color:#6b7280">
+                Sin repuestos en este equipo.
+                <a href="/admin/equipos/${equipoId}/repuestos" style="color:#3b82f6">+ Agregar repuesto al equipo</a>
+               </div>`
+            : equipoId
+              ? `<div style="font-size:12px;margin-top:4px">
+                  <a href="/admin/equipos/${equipoId}/repuestos" style="color:#3b82f6">+ Agregar otro repuesto al equipo</a>
+                 </div>`
+              : ""}
+        </div>
         <div class="field"><label>Adjunto</label>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             ${p.adjunto_nombre
@@ -1419,6 +1445,10 @@ async function renderAdminPasos(programaId) {
           <input id="np-desc" type="text" required placeholder="Descripción del paso..." /></div>
         <div class="field"><label>Observaciones</label>
           <textarea id="np-obs" placeholder="Observaciones opcionales..."></textarea></div>
+        <div class="field"><label>Repuesto requerido</label>
+          <select id="np-repuesto">${repuestoOpts(null)}</select>
+          ${equipoId ? `<div style="font-size:12px;margin-top:4px"><a href="/admin/equipos/${equipoId}/repuestos" style="color:#3b82f6">+ Agregar repuesto al equipo</a></div>` : ""}
+        </div>
         <div class="field"><label>Adjunto</label>
           <input id="np-file" type="file" /></div>
         <button class="button primary" type="submit">Agregar paso</button>
@@ -1446,11 +1476,12 @@ async function renderAdminPasos(programaId) {
       const form = document.querySelector(`#form-${id}`);
       const desc = form.querySelector(".ep-desc").value.trim();
       const obs  = form.querySelector(".ep-obs").value.trim();
+      const repId = Number(form.querySelector(".ep-repuesto").value) || null;
       if (!desc) { window.alert("La descripción no puede estar vacía."); return; }
       btn.disabled = true;
       try {
         await apiFetch(`/api/admin/programas/${programaId}/pasos/${id}`, {
-          method: "PUT", body: JSON.stringify({ descripcion: desc, observaciones: obs }),
+          method: "PUT", body: JSON.stringify({ descripcion: desc, observaciones: obs, repuesto_id: repId }),
         });
         // Subir nuevo adjunto si se seleccionó
         const fileInput = form.querySelector(".ep-file");
@@ -1506,13 +1537,14 @@ async function renderAdminPasos(programaId) {
     e.preventDefault();
     const desc = document.querySelector("#np-desc").value.trim();
     const obs  = document.querySelector("#np-obs").value.trim();
+    const repId = Number(document.querySelector("#np-repuesto").value) || null;
     const file = document.querySelector("#np-file").files[0];
     if (!desc) return;
     const btn = e.currentTarget.querySelector("[type=submit]");
     btn.disabled = true;
     try {
       const nuevoPaso = await apiFetch(`/api/admin/programas/${programaId}/pasos`, {
-        method: "POST", body: JSON.stringify({ descripcion: desc, observaciones: obs }),
+        method: "POST", body: JSON.stringify({ descripcion: desc, observaciones: obs, repuesto_id: repId }),
       });
       if (file) {
         const fd = new FormData();

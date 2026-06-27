@@ -303,12 +303,15 @@ class AdminPasoItem(BaseModel):
     observaciones: str
     adjunto_nombre: str
     activo: bool
+    repuesto_id: int | None = None
+    repuesto_nombre: str = ""
 
 
 class AdminPasoRequest(BaseModel):
     descripcion: str
     posicion: int = 0
     observaciones: str = ""
+    repuesto_id: int | None = None
 
 
 class AdminOrdenRequest(BaseModel):

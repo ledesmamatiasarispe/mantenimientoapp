@@ -282,15 +282,33 @@ def _paso_row_to_item(row: sqlite3.Row) -> AdminPasoItem:
         observaciones=str(row["observaciones"] or ""),
         adjunto_nombre=str(row["adjunto_nombre"] or ""),
         activo=bool(row["activo"]),
+        repuesto_id=row["repuesto_id"] if row["repuesto_id"] is not None else None,
+        repuesto_nombre=str(row["repuesto_nombre"] or ""),
     )
 
 _PASO_SELECT = """
-    SELECT id, posicion, descripcion,
-           COALESCE(observaciones,'') AS observaciones,
-           COALESCE(adjunto_nombre,'') AS adjunto_nombre,
-           COALESCE(adjunto_ruta,'') AS adjunto_ruta, activo
-    FROM programa_pasos WHERE programa_id = ? AND activo = 1
-    ORDER BY posicion, id
+    SELECT pp.id, pp.posicion, pp.descripcion,
+           COALESCE(pp.observaciones,'') AS observaciones,
+           COALESCE(pp.adjunto_nombre,'') AS adjunto_nombre,
+           COALESCE(pp.adjunto_ruta,'') AS adjunto_ruta,
+           pp.activo, pp.repuesto_id,
+           COALESCE(r.nombre,'') AS repuesto_nombre
+    FROM programa_pasos pp
+    LEFT JOIN repuestos r ON r.id = pp.repuesto_id
+    WHERE pp.programa_id = ? AND pp.activo = 1
+    ORDER BY pp.posicion, pp.id
+"""
+
+_PASO_BY_ID = """
+    SELECT pp.id, pp.posicion, pp.descripcion,
+           COALESCE(pp.observaciones,'') AS observaciones,
+           COALESCE(pp.adjunto_nombre,'') AS adjunto_nombre,
+           COALESCE(pp.adjunto_ruta,'') AS adjunto_ruta,
+           pp.activo, pp.repuesto_id,
+           COALESCE(r.nombre,'') AS repuesto_nombre
+    FROM programa_pasos pp
+    LEFT JOIN repuestos r ON r.id = pp.repuesto_id
+    WHERE pp.id = ?
 """
 
 
@@ -300,6 +318,21 @@ def list_pasos(_: AdminTecnicoDep, programa_id: int, connection: ConnectionDep) 
     return [_paso_row_to_item(r) for r in rows]
 
 
+@router.get("/programas/{programa_id}/repuestos-equipo", response_model=list[RepuestoEquipoItem])
+def get_repuestos_equipo_de_programa(programa_id: int, _: AdminTecnicoDep, connection: ConnectionDep) -> list[RepuestoEquipoItem]:
+    """Devuelve los repuestos vinculados al equipo del programa."""
+    prog = connection.execute(
+        "SELECT equipo_id FROM programas_mantenimiento WHERE id=?", (programa_id,)
+    ).fetchone()
+    if prog is None:
+        return []
+    rows = connection.execute(
+        f"{_VINCULO_SELECT} WHERE re.equipo_id=? ORDER BY r.nombre",
+        (int(prog["equipo_id"]),),
+    ).fetchall()
+    return [_vinculo_row_to_item(r) for r in rows]
+
+
 @router.post("/programas/{programa_id}/pasos", response_model=AdminPasoItem, status_code=status.HTTP_201_CREATED)
 def create_paso(programa_id: int, payload: AdminPasoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> AdminPasoItem:
     max_pos = connection.execute(
@@ -307,30 +340,24 @@ def create_paso(programa_id: int, payload: AdminPasoRequest, _: AdminTecnicoDep,
         (programa_id,),
     ).fetchone()[0]
     cur = connection.execute(
-        "INSERT INTO programa_pasos (programa_id, posicion, descripcion, observaciones) VALUES (?, ?, ?, ?)",
-        (programa_id, int(max_pos) + 1, payload.descripcion.strip(), payload.observaciones),
+        "INSERT INTO programa_pasos (programa_id, posicion, descripcion, observaciones, repuesto_id) VALUES (?, ?, ?, ?, ?)",
+        (programa_id, int(max_pos) + 1, payload.descripcion.strip(), payload.observaciones, payload.repuesto_id),
     )
     connection.commit()
-    row = connection.execute(
-        "SELECT id, posicion, descripcion, COALESCE(observaciones,'') AS observaciones, COALESCE(adjunto_nombre,'') AS adjunto_nombre, COALESCE(adjunto_ruta,'') AS adjunto_ruta, activo FROM programa_pasos WHERE id = ?",
-        (cur.lastrowid,),
-    ).fetchone()
+    row = connection.execute(_PASO_BY_ID, (cur.lastrowid,)).fetchone()
     return _paso_row_to_item(row)
 
 
 @router.put("/programas/{programa_id}/pasos/{paso_id}", response_model=AdminPasoItem)
 def update_paso(programa_id: int, paso_id: int, payload: AdminPasoRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> AdminPasoItem:
     affected = connection.execute(
-        "UPDATE programa_pasos SET descripcion = ?, posicion = ?, observaciones = ? WHERE id = ? AND programa_id = ?",
-        (payload.descripcion.strip(), payload.posicion, payload.observaciones, paso_id, programa_id),
+        "UPDATE programa_pasos SET descripcion=?, posicion=?, observaciones=?, repuesto_id=? WHERE id=? AND programa_id=?",
+        (payload.descripcion.strip(), payload.posicion, payload.observaciones, payload.repuesto_id, paso_id, programa_id),
     ).rowcount
     if not affected:
         raise HTTPException(status_code=404, detail="Paso no encontrado.")
     connection.commit()
-    row = connection.execute(
-        "SELECT id, posicion, descripcion, COALESCE(observaciones,'') AS observaciones, COALESCE(adjunto_nombre,'') AS adjunto_nombre, COALESCE(adjunto_ruta,'') AS adjunto_ruta, activo FROM programa_pasos WHERE id = ?",
-        (paso_id,),
-    ).fetchone()
+    row = connection.execute(_PASO_BY_ID, (paso_id,)).fetchone()
     return _paso_row_to_item(row)
 
 
@@ -382,7 +409,7 @@ async def upload_paso_adjunto(
     )
     connection.commit()
     updated = connection.execute(
-        "SELECT id, posicion, descripcion, COALESCE(observaciones,'') AS observaciones, COALESCE(adjunto_nombre,'') AS adjunto_nombre, COALESCE(adjunto_ruta,'') AS adjunto_ruta, activo FROM programa_pasos WHERE id = ?",
+        _PASO_BY_ID.strip(),
         (paso_id,),
     ).fetchone()
     return _paso_row_to_item(updated)
@@ -407,7 +434,7 @@ def delete_paso_adjunto(programa_id: int, paso_id: int, _: AdminTecnicoDep, conn
     )
     connection.commit()
     updated = connection.execute(
-        "SELECT id, posicion, descripcion, COALESCE(observaciones,'') AS observaciones, COALESCE(adjunto_nombre,'') AS adjunto_nombre, COALESCE(adjunto_ruta,'') AS adjunto_ruta, activo FROM programa_pasos WHERE id = ?",
+        _PASO_BY_ID.strip(),
         (paso_id,),
     ).fetchone()
     return _paso_row_to_item(updated)
