@@ -15,6 +15,8 @@ from api.models import (
     CronogramaFila,
     EquipoCard,
     RepuestoDisponible,
+    RepuestoFicha,
+    RepuestoFichaProveedor,
 )
 
 router = APIRouter(tags=["biblioteca"])
@@ -202,3 +204,47 @@ def get_cronograma(
         ))
 
     return filas
+
+
+@router.get("/api/repuestos/{repuesto_id}/ficha", response_model=RepuestoFicha)
+def get_repuesto_ficha(repuesto_id: int, _: CurrentTecnicoDep, connection: ConnectionDep) -> RepuestoFicha:
+    """Ficha completa de un repuesto accesible a cualquier técnico autenticado."""
+    row = connection.execute(
+        """SELECT id, nombre, COALESCE(descripcion,'') AS descripcion,
+                  COALESCE(observaciones,'') AS observaciones,
+                  stock_actual, COALESCE(imagen_nombre,'') AS imagen_nombre
+           FROM repuestos WHERE id=? AND activo=1""",
+        (repuesto_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Repuesto no encontrado.")
+
+    provs = connection.execute(
+        """SELECT p.nombre, COALESCE(p.contacto,'') AS contacto,
+                  COALESCE(p.telefono,'') AS telefono,
+                  COALESCE(p.email,'') AS email,
+                  rp.es_principal
+           FROM repuesto_proveedor rp
+           JOIN proveedores p ON p.id = rp.proveedor_id
+           WHERE rp.repuesto_id=? ORDER BY rp.es_principal DESC, p.nombre""",
+        (repuesto_id,),
+    ).fetchall()
+
+    return RepuestoFicha(
+        id=int(row["id"]),
+        nombre=str(row["nombre"]),
+        descripcion=str(row["descripcion"]),
+        observaciones=str(row["observaciones"]),
+        stock_actual=float(row["stock_actual"] or 0),
+        tiene_imagen=bool(row["imagen_nombre"]),
+        proveedores=[
+            RepuestoFichaProveedor(
+                nombre=str(p["nombre"]),
+                contacto=str(p["contacto"]),
+                telefono=str(p["telefono"]),
+                email=str(p["email"]),
+                es_principal=bool(p["es_principal"]),
+            )
+            for p in provs
+        ],
+    )

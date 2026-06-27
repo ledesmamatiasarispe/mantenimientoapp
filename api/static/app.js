@@ -193,6 +193,62 @@ function abrirAdjunto(url, nombre, backPath) {
   navigate("/adjunto");
 }
 
+async function abrirFichaRepuesto(repuestoId) {
+  // Mostrar modal superpuesto con la ficha del repuesto
+  const overlay = document.createElement("div");
+  overlay.id = "ficha-overlay";
+  overlay.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;width:min(480px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="padding:16px;text-align:center;color:#666">Cargando ficha…</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+
+  try {
+    const f = await apiFetch(`/api/repuestos/${repuestoId}/ficha`);
+    const imgHtml = f.tiene_imagen
+      ? `<img src="${state.serverBase}/api/admin/repuestos/${f.id}/imagen"
+             style="width:100%;max-height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block" />`
+      : "";
+    const provHtml = f.proveedores.length
+      ? `<div style="margin-top:14px">
+           <div style="font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Proveedores</div>
+           ${f.proveedores.map(p => `
+             <div style="background:#f9fafb;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+               <div style="font-weight:600">${escapeHtml(p.nombre)} ${p.es_principal ? `<span style="background:#10b981;color:#fff;border-radius:4px;padding:1px 6px;font-size:11px">Principal</span>` : ""}</div>
+               ${p.contacto ? `<div style="font-size:13px;color:#555;margin-top:2px">👤 ${escapeHtml(p.contacto)}</div>` : ""}
+               ${p.telefono ? `<div style="font-size:13px;color:#555">📞 ${escapeHtml(p.telefono)}</div>` : ""}
+               ${p.email    ? `<div style="font-size:13px;color:#555">✉ ${escapeHtml(p.email)}</div>` : ""}
+             </div>`).join("")}
+         </div>`
+      : `<div style="margin-top:14px;color:#999;font-size:13px">Sin proveedores registrados.</div>`;
+
+    overlay.querySelector("div").innerHTML = `
+      ${imgHtml}
+      <div style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <h2 style="margin:0;font-size:20px">${escapeHtml(f.nombre)}</h2>
+          <button id="close-ficha" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;flex-shrink:0">✕</button>
+        </div>
+        ${f.descripcion ? `<p style="color:#555;font-size:14px;margin:6px 0 0">${escapeHtml(f.descripcion)}</p>` : ""}
+        <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin:14px 0;display:flex;align-items:center;gap:10px">
+          <span style="font-size:28px;font-weight:700;color:#15803d">${f.stock_actual}</span>
+          <span style="color:#555;font-size:13px">unidades en stock</span>
+        </div>
+        ${f.observaciones ? `<div style="font-size:13px;color:#666;background:#fffbeb;padding:8px 12px;border-radius:6px;border-left:3px solid #f59e0b">${escapeHtml(f.observaciones)}</div>` : ""}
+        ${provHtml}
+      </div>`;
+    document.getElementById("close-ficha").addEventListener("click", () => overlay.remove());
+  } catch(err) {
+    overlay.querySelector("div").innerHTML = `
+      <div style="padding:20px;text-align:center">
+        <p style="color:#ef4444">${escapeHtml(err.message)}</p>
+        <button onclick="document.getElementById('ficha-overlay').remove()" class="button secondary">Cerrar</button>
+      </div>`;
+  }
+}
+
 async function renderAdjunto() {
   const viewer = state.adjuntoViewer;
   if (!viewer) { navigate("/ordenes"); return; }
@@ -345,6 +401,12 @@ function programaMarkup(programa, { ordenId = null, puedeTogglear = false } = {}
           <div class="paso-detalle" id="paso-det-${paso.id}" style="display:none">
             <div class="paso-detalle-titulo">${paso.posicion}. ${escapeHtml(paso.descripcion)}</div>
             ${paso.observaciones ? `<div style="font-size:13px;margin:2px 0">${escapeHtml(paso.observaciones)}</div>` : ""}
+            ${paso.repuesto_nombre
+              ? `<a href="#" class="paso-repuesto-link" data-repuesto-id="${paso.repuesto_id}"
+                   style="display:inline-block;background:#e0f2fe;color:#0369a1;border-radius:6px;padding:3px 10px;font-size:12px;text-decoration:none;margin:4px 0">
+                   📦 ${escapeHtml(paso.repuesto_nombre)} — ver ficha
+                 </a>`
+              : ""}
             ${paso.adjunto_nombre
               ? `<a href="#" class="paso-adjunto-link" data-url="/api/pasos/${paso.id}/adjunto" data-nombre="${escapeHtml(paso.adjunto_nombre)}" data-back="/orden/${ordenId ?? ""}">📎 ${escapeHtml(paso.adjunto_nombre)}</a>`
               : `<span class="muted">Sin adjunto</span>`}
@@ -491,6 +553,14 @@ async function renderOrdenDetalle(ordenId) {
       if (det) det.style.display = det.style.display === "none" ? "block" : "none";
     });
   });
+  // Ficha de repuesto desde paso
+  document.querySelectorAll(".paso-repuesto-link").forEach(a => {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      abrirFichaRepuesto(Number(a.dataset.repuestoId));
+    });
+  });
+
   document.querySelectorAll(".paso-adjunto-link").forEach(a => {
     a.addEventListener("click", e => {
       e.preventDefault();

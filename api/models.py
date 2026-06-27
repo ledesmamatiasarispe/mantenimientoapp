@@ -49,6 +49,26 @@ class PasoItem(BaseModel):
     completado: bool = False
     adjunto_nombre: str = ""
     observaciones: str = ""
+    repuesto_id: int | None = None
+    repuesto_nombre: str = ""
+
+
+class RepuestoFichaProveedor(BaseModel):
+    nombre: str
+    contacto: str
+    telefono: str
+    email: str
+    es_principal: bool
+
+
+class RepuestoFicha(BaseModel):
+    id: int
+    nombre: str
+    descripcion: str
+    observaciones: str
+    stock_actual: float
+    tiene_imagen: bool
+    proveedores: list[RepuestoFichaProveedor]
 
 
 class FotoOrdenItem(BaseModel):
