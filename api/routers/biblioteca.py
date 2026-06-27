@@ -65,6 +65,21 @@ def list_equipos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[Equipo
     ]
 
 
+@router.get("/api/repuestos/{repuesto_id}/imagen")
+def get_imagen_repuesto_publica(repuesto_id: int, connection: ConnectionDep) -> FileResponse:
+    """Endpoint público para imágenes de repuestos (sin auth, necesario para <img src>)."""
+    row = connection.execute(
+        "SELECT imagen_nombre, imagen_ruta FROM repuestos WHERE id=? AND activo=1",
+        (repuesto_id,),
+    ).fetchone()
+    if row is None or not str(row["imagen_ruta"] or ""):
+        raise HTTPException(status_code=404, detail="Sin imagen.")
+    path = Path(str(row["imagen_ruta"]))
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco.")
+    return FileResponse(path, filename=str(row["imagen_nombre"] or path.name))
+
+
 @router.get("/api/pasos/{paso_id}/adjunto")
 def ver_adjunto_paso(paso_id: int, _: CurrentTecnicoDep, connection: ConnectionDep) -> FileResponse:
     row = connection.execute(

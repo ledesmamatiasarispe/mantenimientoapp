@@ -208,7 +208,7 @@ async function abrirFichaRepuesto(repuestoId) {
   try {
     const f = await apiFetch(`/api/repuestos/${repuestoId}/ficha`);
     const imgHtml = f.tiene_imagen
-      ? `<img src="${state.serverBase}/api/admin/repuestos/${f.id}/imagen"
+      ? `<img src="${state.serverBase}/api/repuestos/${f.id}/imagen"
              style="width:100%;max-height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block" />`
       : "";
     const provHtml = f.proveedores.length
@@ -1049,7 +1049,7 @@ async function renderAdminList(section) {
     tableHead = `<tr><th></th><th>Nombre</th><th>Descripción</th><th>Stock</th><th>Activo</th><th></th></tr>`;
     tableRows = items.map(r => `<tr>
       <td style="width:36px">${r.tiene_imagen
-        ? `<img src="${state.serverBase}/api/admin/repuestos/${r.id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+        ? `<img src="${state.serverBase}/api/repuestos/${r.id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
         : `<span style="font-size:20px">📦</span>`}</td>
       <td><strong>${escapeHtml(r.nombre)}</strong></td>
       <td class="muted" style="font-size:12px">${escapeHtml(r.descripcion || "")}</td>
@@ -1194,7 +1194,7 @@ async function renderAdminForm(section, id, _extras = {}, equipoIdOrigen = null)
       <div class="field"><label>Observaciones internas</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
       <div class="field"><label>Stock actual</label><input name="stock_actual" type="number" step="0.001" value="${item?.stock_actual ?? 0}" /></div>
       ${item ? `<div class="field"><label>Imagen del repuesto</label>
-        ${item.tiene_imagen ? `<img src="${state.serverBase}/api/admin/repuestos/${item.id}/imagen" style="height:80px;border-radius:6px;margin-bottom:6px;display:block" />` : ""}
+        ${item.tiene_imagen ? `<img src="${state.serverBase}/api/repuestos/${item.id}/imagen" style="height:80px;border-radius:6px;margin-bottom:6px;display:block" />` : ""}
         <input type="file" id="repuesto-img-input" accept="image/*" />
         ${item.tiene_imagen ? `<button type="button" id="repuesto-img-delete" class="button secondary" style="font-size:12px;margin-top:4px">🗑 Quitar imagen</button>` : ""}
       </div>` : ""}
@@ -2039,7 +2039,7 @@ async function renderAdminRepuestosEquipo(equipoId) {
           </tr></thead><tbody>
           ${vinculos.map(v => `<tr>
             <td style="width:36px">${v.tiene_imagen
-              ? `<img src="${state.serverBase}/api/admin/repuestos/${v.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+              ? `<img src="${state.serverBase}/api/repuestos/${v.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
               : `<span style="font-size:18px">📦</span>`}</td>
             <td><strong>${escapeHtml(v.repuesto_nombre)}</strong></td>
             <td class="muted" style="font-size:12px">${escapeHtml(v.repuesto_descripcion || "")}</td>
@@ -2242,7 +2242,7 @@ async function renderAdminConsolidado() {
           ${items.map((it, idx) => `
             <tr style="${it.en_alerta ? "background:#fff5f5" : ""}">
               <td style="width:36px">${it.tiene_imagen
-                ? `<img src="${state.serverBase}/api/admin/repuestos/${it.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+                ? `<img src="${state.serverBase}/api/repuestos/${it.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
                 : `<span style="font-size:18px">📦</span>`}</td>
               <td><strong>${escapeHtml(it.repuesto_nombre)}</strong></td>
               <td class="muted" style="font-size:12px">${escapeHtml(it.repuesto_descripcion || "")}</td>
