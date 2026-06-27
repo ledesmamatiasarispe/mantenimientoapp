@@ -911,6 +911,8 @@ def get_historial_equipo(equipo_id: int, _: AdminTecnicoDep, connection: Connect
 @router.post("/generar-ordenes", response_model=GenerarOrdenesResult)
 def generar_ordenes(payload: GenerarOrdenesRequest, _: AdminTecnicoDep, connection: ConnectionDep) -> GenerarOrdenesResult:
     import calendar as _cal
+    from itertools import groupby
+
     mes, anio = payload.mes, payload.anio
     _, dias_mes = _cal.monthrange(anio, mes)
     inicio = f"{anio:04d}-{mes:02d}-01"
@@ -918,41 +920,74 @@ def generar_ordenes(payload: GenerarOrdenesRequest, _: AdminTecnicoDep, connecti
 
     programas = connection.execute(
         "SELECT id, equipo_id, descripcion FROM programas_mantenimiento "
-        "WHERE activo=1 AND proxima_ejecucion BETWEEN ? AND ?",
+        "WHERE activo=1 AND proxima_ejecucion BETWEEN ? AND ? "
+        "ORDER BY equipo_id",
         (inicio, fin),
     ).fetchall()
 
     creadas = 0
     existentes = 0
     nuevas_ids: list[int] = []
-
     hoy = date.today().isoformat()
-    for prog in programas:
-        # ¿Ya existe orden pendiente/en progreso vinculada a este programa?
+
+    # Agrupar por equipo: una sola orden por equipo aunque tenga N programas
+    for equipo_id, grupo in groupby(programas, key=lambda r: int(r["equipo_id"])):
+        progs = list(grupo)
+        prog_ids = [int(p["id"]) for p in progs]
+
+        # ¿Ya existe alguna orden (pendiente/en progreso) vinculada a cualquiera de estos programas?
+        placeholders = ",".join("?" * len(prog_ids))
         existente = connection.execute(
-            """
+            f"""
             SELECT ot.id FROM ordenes_trabajo ot
             JOIN orden_programas op ON op.orden_id = ot.id
-            WHERE op.programa_id = ? AND ot.estado IN ('PENDIENTE','EN_PROGRESO')
+            WHERE op.programa_id IN ({placeholders}) AND ot.estado IN ('PENDIENTE','EN_PROGRESO')
+            LIMIT 1
             """,
-            (int(prog["id"]),),
+            prog_ids,
         ).fetchone()
+
         if existente:
+            # Vincular los programas que aún no estén en esa orden
+            orden_id_existente = int(existente["id"])
+            ya_vinculados = {
+                int(r["programa_id"])
+                for r in connection.execute(
+                    "SELECT programa_id FROM orden_programas WHERE orden_id=?",
+                    (orden_id_existente,),
+                ).fetchall()
+            }
+            for pid in prog_ids:
+                if pid not in ya_vinculados:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO orden_programas (orden_id, programa_id) VALUES (?,?)",
+                        (orden_id_existente, pid),
+                    )
             existentes += 1
             continue
 
+        # Crear UNA orden para el equipo con todos los programas del mes
+        if len(progs) == 1:
+            desc = str(progs[0]["descripcion"])
+        else:
+            desc = f"Mantenimiento preventivo ({len(progs)} programas)"
+
         connection.execute(
-            "INSERT INTO ordenes_trabajo (equipo_id, tipo, descripcion, estado, fecha_apertura, creado_en, actualizado_en) "
+            "INSERT INTO ordenes_trabajo "
+            "(equipo_id, tipo, descripcion, estado, fecha_apertura, creado_en, actualizado_en) "
             "VALUES (?, 'PREVENTIVO', ?, 'PENDIENTE', ?, ?, ?)",
-            (int(prog["equipo_id"]), str(prog["descripcion"]), hoy, hoy, hoy),
+            (equipo_id, desc, hoy, hoy, hoy),
         )
-        orden_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
-        connection.execute(
-            "INSERT INTO orden_programas (orden_id, programa_id) VALUES (?, ?)",
-            (orden_id, int(prog["id"])),
-        )
+        orden_id = int(connection.execute("SELECT last_insert_rowid()").fetchone()[0])
+
+        for pid in prog_ids:
+            connection.execute(
+                "INSERT INTO orden_programas (orden_id, programa_id) VALUES (?,?)",
+                (orden_id, pid),
+            )
+
         creadas += 1
-        nuevas_ids.append(int(orden_id))
+        nuevas_ids.append(orden_id)
 
     connection.commit()
     return GenerarOrdenesResult(creadas=creadas, existentes=existentes, ordenes=nuevas_ids)
