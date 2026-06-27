@@ -1991,9 +1991,9 @@ async function renderAdminRepuestosEquipo(equipoId) {
           </tr>`).join("")}
           </tbody></table>`}
 
-      ${disponibles.length > 0 ? `
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
-          <h3 style="margin-bottom:12px">Agregar repuesto</h3>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+        <h3 style="margin-bottom:12px">Agregar repuesto</h3>
+        ${disponibles.length > 0 ? `
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
             <div class="field" style="margin:0"><label>Repuesto</label>
               <select id="new-rep-id" style="min-width:180px">
@@ -2008,8 +2008,12 @@ async function renderAdminRepuestosEquipo(equipoId) {
               <input id="new-rep-obs" type="text" style="width:140px" />
             </div>
             <button id="btn-add-vinculo" class="button primary">+ Vincular</button>
-          </div>
-        </div>` : ""}
+          </div>` : `
+          <p style="color:#666;font-size:13px">
+            Todos los repuestos del catálogo ya están vinculados a este equipo.
+            <a href="/admin/repuestos/nuevo" style="color:#3b82f6">+ Crear nuevo repuesto</a>
+          </p>`}
+      </div>
     </div>
   `);
 
