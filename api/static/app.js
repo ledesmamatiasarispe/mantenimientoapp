@@ -874,9 +874,8 @@ function renderAdminHub() {
     {
       titulo: "⚙️ Gestión",
       items: [
-        { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Máquinas y activos" },
+        { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Máquinas, programas, repuestos e historial" },
         { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías" },
-        { href: "/admin/equipos", icon: "🏭", label: "Equipos", desc: "Máquinas, programas, repuestos e historial" },
         { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo de repuestos" },
         { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Mínimos por equipo y alertas" },
         { href: "/admin/proveedores", icon: "🏢", label: "Proveedores", desc: "Empresas proveedoras de repuestos" },
