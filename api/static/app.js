@@ -867,28 +867,28 @@ function renderAdminHub() {
     {
       titulo: "🔔 Monitoreo",
       items: [
-        { href: "/admin/dashboard", icon: "📊", label: "Dashboard", desc: "Resumen del sistema" },
-        { href: "/admin/alertas",   icon: "🔔", label: "Alertas",   desc: "Stock bajo, órdenes sin asignar, mantenimientos vencidos" },
+        { href: "/admin/dashboard", icon: "📊", label: "Dashboard", desc: "Estadísticas globales: órdenes activas, equipos y alertas pendientes" },
+        { href: "/admin/alertas",   icon: "🔔", label: "Alertas",   desc: "Notificaciones de stock bajo, órdenes sin técnico asignado y mantenimientos vencidos" },
       ],
     },
     {
       titulo: "⚙️ Gestión",
       items: [
-        { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Máquinas, programas, repuestos e historial" },
-        { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías" },
-        { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo de repuestos" },
-        { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Mínimos por equipo y alertas" },
-        { href: "/admin/proveedores", icon: "🏢", label: "Proveedores", desc: "Empresas proveedoras de repuestos" },
-        { href: "/admin/tecnicos",  icon: "👷", label: "Técnicos",  desc: "Usuarios del sistema" },
-        { href: "/admin/ordenes",   icon: "📝", label: "Órdenes",   desc: "Gestión completa de órdenes" },
+        { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Gestión de máquinas con programas preventivos, repuestos asignados e historial de órdenes" },
+        { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías para clasificar los equipos (ej: Bomba, Motor, Compresor)" },
+        { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo global de repuestos con descripción, imagen y proveedores" },
+        { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Stock actual vs suma de mínimos requeridos por cada equipo" },
+        { href: "/admin/proveedores", icon: "🏢", label: "Proveedores", desc: "Empresas proveedoras: datos de contacto, CUIT y vínculo con repuestos" },
+        { href: "/admin/tecnicos",  icon: "👷", label: "Técnicos",  desc: "Alta y modificación de usuarios técnicos, roles y contraseñas" },
+        { href: "/admin/ordenes",   icon: "📝", label: "Órdenes",   desc: "Ver, editar y eliminar todas las órdenes de trabajo del sistema" },
       ],
     },
     {
       titulo: "🔧 Herramientas",
       items: [
-        { href: "/admin/generar",      icon: "📅", label: "Generar órdenes", desc: "Crear preventivos por mes" },
-        { href: "/admin/electricidad", icon: "⚡", label: "Electricidad",    desc: "Medidores y facturas EDESUR" },
-        { href: "/admin/base-datos",   icon: "💾", label: "Base de datos",   desc: "Exportar e importar" },
+        { href: "/admin/generar",      icon: "📅", label: "Generar órdenes", desc: "Crea automáticamente órdenes preventivas para los programas que vencen en el mes seleccionado" },
+        { href: "/admin/electricidad", icon: "⚡", label: "Electricidad",    desc: "Medidores EDESUR, carga de facturas y gráficos de consumo, demanda y factor de potencia" },
+        { href: "/admin/base-datos",   icon: "💾", label: "Base de datos",   desc: "Descargar backup, importar datos o purgar órdenes no completadas" },
       ],
     },
   ];
