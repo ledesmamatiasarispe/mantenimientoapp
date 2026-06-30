@@ -15,6 +15,8 @@ from api.models import (
     CronogramaFila,
     EquipoCard,
     RepuestoDisponible,
+    RepuestoFicha,
+    RepuestoFichaProveedor,
 )
 
 router = APIRouter(tags=["biblioteca"])
@@ -63,6 +65,21 @@ def list_equipos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[Equipo
     ]
 
 
+@router.get("/api/repuestos/{repuesto_id}/imagen")
+def get_imagen_repuesto_publica(repuesto_id: int, connection: ConnectionDep) -> FileResponse:
+    """Endpoint público para imágenes de repuestos (sin auth, necesario para <img src>)."""
+    row = connection.execute(
+        "SELECT imagen_nombre, imagen_ruta FROM repuestos WHERE id=? AND activo=1",
+        (repuesto_id,),
+    ).fetchone()
+    if row is None or not str(row["imagen_ruta"] or ""):
+        raise HTTPException(status_code=404, detail="Sin imagen.")
+    path = Path(str(row["imagen_ruta"]))
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco.")
+    return FileResponse(path, filename=str(row["imagen_nombre"] or path.name))
+
+
 @router.get("/api/pasos/{paso_id}/adjunto")
 def ver_adjunto_paso(paso_id: int, _: CurrentTecnicoDep, connection: ConnectionDep) -> FileResponse:
     row = connection.execute(
@@ -81,7 +98,8 @@ def ver_adjunto_paso(paso_id: int, _: CurrentTecnicoDep, connection: ConnectionD
 def list_repuestos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[RepuestoDisponible]:
     rows = connection.execute(
         """
-        SELECT id, nombre, stock_actual, stock_minimo
+        SELECT id, nombre, COALESCE(descripcion,'') AS descripcion,
+               stock_actual, COALESCE(imagen_nombre,'') AS imagen_nombre
         FROM repuestos
         WHERE activo = 1
         ORDER BY nombre
@@ -91,8 +109,9 @@ def list_repuestos(_: CurrentTecnicoDep, connection: ConnectionDep) -> list[Repu
         RepuestoDisponible(
             id=int(r["id"]),
             nombre=str(r["nombre"]),
+            descripcion=str(r["descripcion"]),
             stock_actual=float(r["stock_actual"] or 0),
-            stock_minimo=float(r["stock_minimo"] or 0),
+            tiene_imagen=bool(r["imagen_nombre"]),
         )
         for r in rows
     ]
@@ -200,3 +219,47 @@ def get_cronograma(
         ))
 
     return filas
+
+
+@router.get("/api/repuestos/{repuesto_id}/ficha", response_model=RepuestoFicha)
+def get_repuesto_ficha(repuesto_id: int, _: CurrentTecnicoDep, connection: ConnectionDep) -> RepuestoFicha:
+    """Ficha completa de un repuesto accesible a cualquier técnico autenticado."""
+    row = connection.execute(
+        """SELECT id, nombre, COALESCE(descripcion,'') AS descripcion,
+                  COALESCE(observaciones,'') AS observaciones,
+                  stock_actual, COALESCE(imagen_nombre,'') AS imagen_nombre
+           FROM repuestos WHERE id=? AND activo=1""",
+        (repuesto_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Repuesto no encontrado.")
+
+    provs = connection.execute(
+        """SELECT p.nombre, COALESCE(p.contacto,'') AS contacto,
+                  COALESCE(p.telefono,'') AS telefono,
+                  COALESCE(p.email,'') AS email,
+                  rp.es_principal
+           FROM repuesto_proveedor rp
+           JOIN proveedores p ON p.id = rp.proveedor_id
+           WHERE rp.repuesto_id=? ORDER BY rp.es_principal DESC, p.nombre""",
+        (repuesto_id,),
+    ).fetchall()
+
+    return RepuestoFicha(
+        id=int(row["id"]),
+        nombre=str(row["nombre"]),
+        descripcion=str(row["descripcion"]),
+        observaciones=str(row["observaciones"]),
+        stock_actual=float(row["stock_actual"] or 0),
+        tiene_imagen=bool(row["imagen_nombre"]),
+        proveedores=[
+            RepuestoFichaProveedor(
+                nombre=str(p["nombre"]),
+                contacto=str(p["contacto"]),
+                telefono=str(p["telefono"]),
+                email=str(p["email"]),
+                es_principal=bool(p["es_principal"]),
+            )
+            for p in provs
+        ],
+    )

@@ -145,10 +145,13 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
                 pp.descripcion,
                 COALESCE(pp.adjunto_nombre, '') AS adjunto_nombre,
                 COALESCE(pp.observaciones, '') AS observaciones,
-                COALESCE(ope.completado, 0) AS completado
+                COALESCE(ope.completado, 0) AS completado,
+                pp.repuesto_id,
+                COALESCE(r.nombre, '') AS repuesto_nombre
             FROM programa_pasos pp
             LEFT JOIN orden_paso_estado ope
                 ON ope.paso_id = pp.id AND ope.orden_id = ?
+            LEFT JOIN repuestos r ON r.id = pp.repuesto_id
             WHERE pp.programa_id = ? AND pp.activo = 1
             ORDER BY pp.posicion, pp.id
             """,
@@ -177,6 +180,8 @@ def _programas_for_orden(connection: sqlite3.Connection, orden_id: int) -> list[
                         completado=bool(paso["completado"]),
                         adjunto_nombre=str(paso["adjunto_nombre"]),
                         observaciones=str(paso["observaciones"]),
+                        repuesto_id=paso["repuesto_id"],
+                        repuesto_nombre=str(paso["repuesto_nombre"] or ""),
                     )
                     for paso in paso_rows
                 ],

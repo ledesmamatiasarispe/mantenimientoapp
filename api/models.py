@@ -49,6 +49,26 @@ class PasoItem(BaseModel):
     completado: bool = False
     adjunto_nombre: str = ""
     observaciones: str = ""
+    repuesto_id: int | None = None
+    repuesto_nombre: str = ""
+
+
+class RepuestoFichaProveedor(BaseModel):
+    nombre: str
+    contacto: str
+    telefono: str
+    email: str
+    es_principal: bool
+
+
+class RepuestoFicha(BaseModel):
+    id: int
+    nombre: str
+    descripcion: str
+    observaciones: str
+    stock_actual: float
+    tiene_imagen: bool
+    proveedores: list[RepuestoFichaProveedor]
 
 
 class FotoOrdenItem(BaseModel):
@@ -113,8 +133,9 @@ class AgregarRepuestoOrdenRequest(BaseModel):
 class RepuestoDisponible(BaseModel):
     id: int
     nombre: str
+    descripcion: str = ""
     stock_actual: float
-    stock_minimo: float
+    tiene_imagen: bool = False
 
 
 class HistorialOrdenItem(BaseModel):
@@ -248,17 +269,18 @@ class AdminProgramaRequest(BaseModel):
 class AdminRepuestoItem(BaseModel):
     id: int
     nombre: str
+    descripcion: str
     observaciones: str
     stock_actual: float
-    stock_minimo: float
     activo: bool
+    tiene_imagen: bool
 
 
 class AdminRepuestoRequest(BaseModel):
     nombre: str
+    descripcion: str = ""
     observaciones: str = ""
     stock_actual: float = 0
-    stock_minimo: float = 0
     activo: bool = True
 
 
@@ -301,12 +323,15 @@ class AdminPasoItem(BaseModel):
     observaciones: str
     adjunto_nombre: str
     activo: bool
+    repuesto_id: int | None = None
+    repuesto_nombre: str = ""
 
 
 class AdminPasoRequest(BaseModel):
     descripcion: str
     posicion: int = 0
     observaciones: str = ""
+    repuesto_id: int | None = None
 
 
 class AdminOrdenRequest(BaseModel):
@@ -319,4 +344,230 @@ class AdminOrdenRequest(BaseModel):
     tecnico_id: int | None = None
     costo_mano_obra: float = 0
     observaciones: str = ""
+
+
+class PurgarOrdenesRequest(BaseModel):
+    password: str
+
+
+class PurgarOrdenesResult(BaseModel):
+    eliminadas: int
+
+
+# ── Alertas ───────────────────────────────────────────────────────────────────
+
+class AlertaItem(BaseModel):
+    key: str
+    tipo: str
+    mensaje: str
+    severidad: str
+    puede_posponer: bool = True
+
+
+class SnoozeRequest(BaseModel):
+    dias: int = 7
+
+
+# ── Horas de trabajo ──────────────────────────────────────────────────────────
+
+class HorasOrdenRequest(BaseModel):
+    horas_trabajo: float
+
+
+class HorasEquipoRequest(BaseModel):
+    horas_trabajo_activo: bool | None = None
+    horas_trabajo_actual: float | None = None
+
+
+# ── Generación de órdenes ─────────────────────────────────────────────────────
+
+class GenerarOrdenesRequest(BaseModel):
+    mes: int
+    anio: int
+
+
+class GenerarOrdenesResult(BaseModel):
+    creadas: int
+    existentes: int
+    ordenes: list[int]
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+class DashboardStats(BaseModel):
+    ordenes_pendientes: int
+    ordenes_en_progreso: int
+    ordenes_completadas_mes: int
+    equipos_activos: int
+    alertas_activas: int
+    repuestos_bajo_stock: int
+    programas_vencidos: int
+
+
+# ── Medidores / Electricidad ──────────────────────────────────────────────────
+
+class MedidorItem(BaseModel):
+    id: int
+    nombre: str
+    nro_medidor: str
+    nro_cliente: str
+    descripcion: str
+    activo: bool
+
+
+class MedidorRequest(BaseModel):
+    nombre: str
+    nro_medidor: str = ""
+    nro_cliente: str = ""
+    descripcion: str = ""
+    activo: bool = True
+
+
+class FacturaElectricaItem(BaseModel):
+    id: int
+    medidor_id: int
+    periodo: str
+    tipo_tarifa: str
+    fecha_factura: str
+    kwh_punta: float
+    kwh_valle_noc: float
+    kwh_restantes: float
+    kvar_reactiva: float
+    drp_kw: float
+    drfp_kw: float
+    importe: float
+    observaciones: str
+
+
+class FacturaElectricaRequest(BaseModel):
+    periodo: str
+    tipo_tarifa: str = "T2"
+    fecha_factura: str = ""
+    kwh_punta: float = 0
+    kwh_valle_noc: float = 0
+    kwh_restantes: float = 0
+    kvar_reactiva: float = 0
+    drp_kw: float = 0
+    drfp_kw: float = 0
+    cap_convenida_kw: float = 0
+    cap_adquirida_kw: float = 0
+    tangente_fi: float = 0
+    importe: float = 0
+    observaciones: str = ""
+
+
+class GraficoPunto(BaseModel):
+    periodo: str
+    valor: float
+
+
+class GraficoElectricidad(BaseModel):
+    consumo_kwh: list[GraficoPunto]
+    demanda_kw: list[GraficoPunto]
+    factor_potencia: list[GraficoPunto]
+    energia_reactiva: list[GraficoPunto]
+    costo_total: list[GraficoPunto]
+
+
+# ── Historial de equipo ───────────────────────────────────────────────────────
+
+class HistorialEquipoItem(BaseModel):
+    id: int
+    tipo: str
+    descripcion: str
+    estado: str
+    fecha_apertura: str
+    fecha_cierre: str
+    tecnico_nombre: str
+    horas_trabajo: float
+    costo_mano_obra: float
+    observaciones: str
+
+
+# ── Repuestos por equipo ──────────────────────────────────────────────────────
+
+class RepuestoEquipoItem(BaseModel):
+    id: int
+    equipo_id: int
+    equipo_nombre: str
+    repuesto_id: int
+    repuesto_nombre: str
+    repuesto_descripcion: str
+    tiene_imagen: bool
+    stock_minimo: float
+    observaciones: str
+
+
+class RepuestoEquipoRequest(BaseModel):
+    repuesto_id: int
+    stock_minimo: float = 0.0
+    observaciones: str = ""
+
+
+class RepuestoEquipoUpdate(BaseModel):
+    stock_minimo: float
+    observaciones: str = ""
+
+
+class RepuestoConsolidadoEquipoUso(BaseModel):
+    equipo_id: int
+    equipo_nombre: str
+    stock_minimo: float
+
+
+class RepuestoConsolidadoItem(BaseModel):
+    repuesto_id: int
+    repuesto_nombre: str
+    repuesto_descripcion: str
+    tiene_imagen: bool
+    stock_actual: float
+    suma_minimos: float
+    en_alerta: bool
+    equipos: list[RepuestoConsolidadoEquipoUso]
+
+
+# ── Proveedores ───────────────────────────────────────────────────────────────
+
+class ProveedorItem(BaseModel):
+    id: int
+    nombre: str
+    cuit: str
+    contacto: str
+    telefono: str
+    email: str
+    direccion: str
+    notas: str
+    activo: bool
+
+
+class ProveedorRequest(BaseModel):
+    nombre: str
+    cuit: str = ""
+    contacto: str = ""
+    telefono: str = ""
+    email: str = ""
+    direccion: str = ""
+    notas: str = ""
+    activo: bool = True
+
+
+class RepuestoProveedorItem(BaseModel):
+    id: int
+    repuesto_id: int
+    repuesto_nombre: str
+    proveedor_id: int
+    proveedor_nombre: str
+    proveedor_contacto: str
+    proveedor_telefono: str
+    proveedor_email: str
+    es_principal: bool
+
+
+class RepuestoProveedorRequest(BaseModel):
+    proveedor_id: int
+    es_principal: bool = False
+
+
+class RepuestoProveedorUpdate(BaseModel):
+    es_principal: bool
 

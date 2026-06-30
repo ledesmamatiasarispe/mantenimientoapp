@@ -47,10 +47,16 @@ private sealed class BottomTab(val route: String, val label: String, val icon: I
 @Composable
 fun HomeScreen(
     onOrdenClick: (Int) -> Unit,
+    onNavigateToAdminDashboard: () -> Unit,
+    onNavigateToAdminAlertas: () -> Unit,
     onNavigateToAdminEquipos: () -> Unit,
-    onNavigateToAdminProgramas: () -> Unit,
     onNavigateToAdminRepuestos: () -> Unit,
+    onNavigateToConsolidado: () -> Unit,
+    onNavigateToProveedores: () -> Unit,
     onNavigateToAdminTecnicos: () -> Unit,
+    onNavigateToGenerarOrdenes: () -> Unit,
+    onNavigateToElectricidad: () -> Unit,
+    onNavigateToExportImportDb: () -> Unit,
     onLogout: () -> Unit,
     vm: HomeViewModel = hiltViewModel()
 ) {
@@ -101,10 +107,16 @@ fun HomeScreen(
             BottomTab.Cronograma -> CronogramaScreen(modifier = mod)
             BottomTab.Admin -> AdminScreen(
                 modifier = mod,
+                onDashboard = onNavigateToAdminDashboard,
+                onAlertas = onNavigateToAdminAlertas,
                 onEquipos = onNavigateToAdminEquipos,
-                onProgramas = onNavigateToAdminProgramas,
                 onRepuestos = onNavigateToAdminRepuestos,
-                onTecnicos = onNavigateToAdminTecnicos
+                onConsolidado = onNavigateToConsolidado,
+                onProveedores = onNavigateToProveedores,
+                onTecnicos = onNavigateToAdminTecnicos,
+                onGenerarOrdenes = onNavigateToGenerarOrdenes,
+                onElectricidad = onNavigateToElectricidad,
+                onExportImportDb = onNavigateToExportImportDb
             )
             BottomTab.Settings -> SettingsScreen(
                 modifier = mod,

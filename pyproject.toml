@@ -5,13 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gestion-mantenimiento"
 version = "0.1.0"
-description = "Aplicacion de escritorio para gestion de mantenimiento de equipos."
+description = "API de gestion de mantenimiento de equipos (web)."
 requires-python = ">=3.11"
 dependencies = [
-  "PySide6>=6.7,<6.11",
-  "certifi>=2024.7.4",
-  "openpyxl>=3.1,<4",
-  "reportlab>=4.2,<5",
   "fastapi>=0.110,<1",
   "uvicorn[standard]>=0.27,<1",
   "python-jose[cryptography]>=3.3,<4",
@@ -20,6 +16,7 @@ dependencies = [
   "python-multipart>=0.0.9,<1",
   "pdfplumber>=0.11,<1",
   "playwright>=1.40,<2",
+  "openpyxl>=3.1,<4",
   "requests>=2.31,<3",
 ]
 
@@ -30,9 +27,6 @@ dev = [
   "pytest>=8.0,<9",
   "httpx>=0.27,<1",
 ]
-
-[project.scripts]
-gestion-mantenimiento = "gestion_mantenimiento.main:main"
 
 [tool.ruff]
 line-length = 100

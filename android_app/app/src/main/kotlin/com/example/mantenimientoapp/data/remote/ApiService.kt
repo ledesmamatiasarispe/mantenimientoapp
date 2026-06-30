@@ -175,7 +175,35 @@ interface ApiService {
         @Path("pasoId") pasoId: Int
     ): Response<Unit>
 
+    // ── Admin – Proveedores ───────────────────────────────────────────────────
+    @GET("api/admin/proveedores")
+    suspend fun getProveedores(): List<ProveedorItemDto>
+
+    @POST("api/admin/proveedores")
+    suspend fun crearProveedor(@Body request: ProveedorRequestDto): ProveedorItemDto
+
+    @PUT("api/admin/proveedores/{id}")
+    suspend fun actualizarProveedor(@Path("id") id: Int, @Body request: ProveedorRequestDto): ProveedorItemDto
+
+    @DELETE("api/admin/proveedores/{id}")
+    suspend fun eliminarProveedor(@Path("id") id: Int): Response<Unit>
+
+    @GET("api/admin/repuestos/{id}/proveedores")
+    suspend fun getRepuestoProveedores(@Path("id") repuestoId: Int): List<RepuestoProveedorItemDto>
+
+    @POST("api/admin/repuestos/{id}/proveedores")
+    suspend fun vincularProveedor(@Path("id") repId: Int, @Body req: RepuestoProveedorRequestDto): RepuestoProveedorItemDto
+
+    @PUT("api/admin/repuestos/{id}/proveedores/{vid}")
+    suspend fun actualizarVinculoProveedor(@Path("id") repId: Int, @Path("vid") vid: Int, @Body req: RepuestoProveedorUpdateDto): RepuestoProveedorItemDto
+
+    @DELETE("api/admin/repuestos/{id}/proveedores/{vid}")
+    suspend fun desvincularProveedor(@Path("id") repId: Int, @Path("vid") vid: Int): Response<Unit>
+
     // ── Admin – Repuestos ─────────────────────────────────────────────────────
+    @GET("api/admin/repuestos/consolidado")
+    suspend fun getRepuestosConsolidado(): List<RepuestoConsolidadoItemDto>
+
     @GET("api/admin/repuestos")
     suspend fun getAdminRepuestos(): List<AdminRepuestoItemDto>
 
@@ -190,6 +218,39 @@ interface ApiService {
 
     @DELETE("api/admin/repuestos/{id}")
     suspend fun eliminarRepuesto(@Path("id") id: Int): Response<Unit>
+
+    @Multipart
+    @POST("api/admin/repuestos/{id}/imagen")
+    suspend fun subirImagenRepuesto(
+        @Path("id") id: Int,
+        @Part imagen: MultipartBody.Part
+    ): Response<Unit>
+
+    @DELETE("api/admin/repuestos/{id}/imagen")
+    suspend fun eliminarImagenRepuesto(@Path("id") id: Int): Response<Unit>
+
+    // ── Admin – Repuestos por equipo ──────────────────────────────────────────
+    @GET("api/admin/equipos/{equipoId}/repuestos")
+    suspend fun getRepuestosEquipo(@Path("equipoId") equipoId: Int): List<RepuestoEquipoItemDto>
+
+    @POST("api/admin/equipos/{equipoId}/repuestos")
+    suspend fun vincularRepuesto(
+        @Path("equipoId") equipoId: Int,
+        @Body request: RepuestoEquipoRequestDto
+    ): RepuestoEquipoItemDto
+
+    @PUT("api/admin/equipos/{equipoId}/repuestos/{vid}")
+    suspend fun actualizarVinculo(
+        @Path("equipoId") equipoId: Int,
+        @Path("vid") vid: Int,
+        @Body request: RepuestoEquipoUpdateDto
+    ): RepuestoEquipoItemDto
+
+    @DELETE("api/admin/equipos/{equipoId}/repuestos/{vid}")
+    suspend fun desvincularRepuesto(
+        @Path("equipoId") equipoId: Int,
+        @Path("vid") vid: Int
+    ): Response<Unit>
 
     // ── Admin – Técnicos ──────────────────────────────────────────────────────
     @GET("api/admin/tecnicos")
@@ -225,4 +286,67 @@ interface ApiService {
 
     @DELETE("api/admin/ordenes/{id}")
     suspend fun eliminarOrden(@Path("id") id: Int): Response<Unit>
+
+    // ── Admin – Dashboard ─────────────────────────────────────────────────────
+    @GET("api/admin/dashboard")
+    suspend fun getDashboard(): DashboardStatsDto
+
+    // ── Admin – Horas ─────────────────────────────────────────────────────────
+    @PATCH("api/admin/ordenes/{id}/horas")
+    suspend fun setHorasOrden(@Path("id") id: Int, @Body request: HorasOrdenRequestDto): Response<Unit>
+
+    @PATCH("api/admin/equipos/{id}/horas")
+    suspend fun setHorasEquipo(@Path("id") id: Int, @Body request: HorasEquipoRequestDto): Response<Unit>
+
+    // ── Admin – Historial equipo ──────────────────────────────────────────────
+    @GET("api/admin/equipos/{id}/historial")
+    suspend fun getHistorialEquipo(@Path("id") id: Int): List<HistorialEquipoItemDto>
+
+    // ── Admin – Generar órdenes ───────────────────────────────────────────────
+    @POST("api/admin/generar-ordenes")
+    suspend fun generarOrdenes(@Body request: GenerarOrdenesRequestDto): GenerarOrdenesResultDto
+
+    // ── Admin – DB Export/Import ──────────────────────────────────────────────
+    @Streaming
+    @GET("api/admin/db/exportar")
+    suspend fun exportarDb(): Response<ResponseBody>
+
+    @Multipart
+    @POST("api/admin/db/importar")
+    suspend fun importarDb(@Part file: MultipartBody.Part): Response<Unit>
+
+    // ── Alertas ───────────────────────────────────────────────────────────────
+    @GET("api/alertas")
+    suspend fun getAlertas(): List<AlertaItemDto>
+
+    @POST("api/alertas/{key}/snooze")
+    suspend fun snoozeAlerta(@Path("key") key: String, @Body request: SnoozeRequestDto): Response<Unit>
+
+    @POST("api/alertas/{key}/ignorar")
+    suspend fun ignorarAlerta(@Path("key") key: String, @Body body: Map<String, String> = emptyMap()): Response<Unit>
+
+    // ── Electricidad ──────────────────────────────────────────────────────────
+    @GET("api/admin/electricidad/medidores")
+    suspend fun getMedidores(): List<MedidorItemDto>
+
+    @POST("api/admin/electricidad/medidores")
+    suspend fun crearMedidor(@Body request: MedidorRequestDto): MedidorItemDto
+
+    @PUT("api/admin/electricidad/medidores/{id}")
+    suspend fun actualizarMedidor(@Path("id") id: Int, @Body request: MedidorRequestDto): MedidorItemDto
+
+    @DELETE("api/admin/electricidad/medidores/{id}")
+    suspend fun eliminarMedidor(@Path("id") id: Int): Response<Unit>
+
+    @GET("api/admin/electricidad/medidores/{id}/facturas")
+    suspend fun getFacturas(@Path("id") medidorId: Int): List<FacturaElectricaItemDto>
+
+    @POST("api/admin/electricidad/medidores/{id}/facturas")
+    suspend fun crearFactura(@Path("id") medidorId: Int, @Body request: FacturaElectricaRequestDto): FacturaElectricaItemDto
+
+    @DELETE("api/admin/electricidad/medidores/{id}/facturas/{fid}")
+    suspend fun eliminarFactura(@Path("id") medidorId: Int, @Path("fid") facturaId: Int): Response<Unit>
+
+    @GET("api/admin/electricidad/medidores/{id}/graficos")
+    suspend fun getGraficos(@Path("id") medidorId: Int): GraficoElectricidadDto
 }
