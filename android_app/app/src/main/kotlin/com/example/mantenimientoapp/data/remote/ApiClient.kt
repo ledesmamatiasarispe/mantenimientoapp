@@ -45,7 +45,7 @@ class ApiClient(private val sessionManager: SessionManager) {
         .build()
 
     val service: ApiService = Retrofit.Builder()
-        .baseUrl("http://localhost:54321/")
+        .baseUrl("http://localhost:50502/")
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()

@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-PORT = 54321
+PORT = 50502
 
 
 def _get_local_ips() -> list[dict]:
@@ -58,7 +58,9 @@ def _get_public_ip() -> str | None:
 from api.auth import router as auth_router
 from api.database import initialize_api_database
 from api.routers.admin import router as admin_router
+from api.routers.alertas import router as alertas_router
 from api.routers.biblioteca import router as biblioteca_router
+from api.routers.electricidad import router as electricidad_router
 from api.routers.ordenes import router as ordenes_router
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -84,6 +86,8 @@ def create_app() -> FastAPI:
     app.include_router(ordenes_router)
     app.include_router(biblioteca_router)
     app.include_router(admin_router)
+    app.include_router(alertas_router)
+    app.include_router(electricidad_router)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/api/health", tags=["health"])

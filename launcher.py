@@ -134,7 +134,9 @@ def auto_update():
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    os.environ["PYTHONPATH"] = str(ROOT / "src")
+    # PYTHONPATH: ROOT para que api/ sea importable, ROOT/src para gestion_mantenimiento/
+    sep = ";" if sys.platform == "win32" else ":"
+    os.environ["PYTHONPATH"] = str(ROOT) + sep + str(ROOT / "src")
 
     if not VENV_PY.exists():
         print("Buscando Python...")
@@ -166,34 +168,32 @@ def main():
         print("=" * 55)
         subprocess.run([str(VENV_PY), "-m", "pip", "install", "--upgrade", "pip"])
         print()
-        print("  [1/2] Instalando paquetes de la aplicacion...")
-        print()
         r = subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", str(ROOT)])
         if r.returncode != 0:
             abort("No se pudieron instalar las dependencias.")
-
-        print()
-        print("  [2/2] Descargando navegador para integracion EDESUR (~200 MB)...")
-        subprocess.run([str(VENV_PY), "-m", "playwright", "install", "chromium"])
 
     else:
         auto_update()
 
     # Verificacion rapida de dependencias
     check = subprocess.run(
-        [str(VENV_PY), "-c",
-         "import PySide6, certifi, openpyxl, reportlab, pdfplumber, playwright"],
+        [str(VENV_PY), "-c", "import fastapi, uvicorn, pdfplumber"],
         capture_output=True,
     )
     if check.returncode != 0:
         print("Actualizando dependencias...")
         subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", str(ROOT), "-q"])
-        subprocess.run([str(VENV_PY), "-m", "playwright", "install", "chromium"])
 
-    print("Iniciando Gestion Mantenimiento...")
-    r = subprocess.run([str(VENV_PY), "-m", "gestion_mantenimiento.main"])
+    print("Iniciando servidor en http://localhost:50502 ...")
+    print("Abri tu navegador y navega a esa direccion.")
+    print()
+    r = subprocess.run(
+        [str(VENV_PY), "-m", "uvicorn", "api.main:app",
+         "--host", "0.0.0.0", "--port", "50502", "--log-level", "info"],
+        cwd=str(ROOT),
+    )
     if r.returncode != 0:
-        print("\n La aplicacion cerro con un error.")
+        print("\n El servidor cerro con un error.")
         input(" Presiona Enter para cerrar...")
 
 

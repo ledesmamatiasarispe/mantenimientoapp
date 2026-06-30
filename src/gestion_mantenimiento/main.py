@@ -27,44 +27,35 @@ def main() -> int:
         print(__version__)
         return 0
 
-    from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication, QStyleFactory
 
-    from gestion_mantenimiento.data.paths import get_database_path, get_theme_path
+    from gestion_mantenimiento.data.paths import get_database_path
     from gestion_mantenimiento.data.schema import initialize_database
-    from gestion_mantenimiento.ui.main_window import MainWindow
-    from gestion_mantenimiento.ui.theme import (
-        build_app_palette,
-        build_app_styles,
-        get_theme,
-        load_theme_colors,
-        load_theme_mode,
-    )
 
     app = QApplication(sys.argv)
     app.setApplicationName("Gestion Mantenimiento")
     app.setOrganizationName("Mantenimiento")
     app.setStyle(QStyleFactory.create("Fusion"))
+    # No cerrar la app cuando se cierra la consola
+    app.setQuitOnLastWindowClosed(False)
 
     database_path = get_database_path()
     initialize_database(database_path, seed=False)
 
-    theme_path = get_theme_path()
-    mode = load_theme_mode(theme_path)
-    theme = load_theme_colors(theme_path, get_theme(mode))
-    app.setStyleSheet(build_app_styles(theme))
-    app.setPalette(build_app_palette(theme))
-
-    window = MainWindow(database_path, theme_mode=mode, initial_theme=theme)
-    window.show()
-
-    _start_api_server(database_path)
+    from gestion_mantenimiento.ui.server_console import ServerConsoleWindow, _launch_uvicorn
+    server_proc = _start_api_server(database_path)
+    console = ServerConsoleWindow(server_proc, database_path=database_path)
+    console.show()
+    app._server_console = console  # type: ignore[attr-defined]
 
     return app.exec()
 
 
-def _start_api_server(database_path: Path) -> None:
-    """Arranca la API REST en background en el puerto 54321."""
+def _start_api_server(database_path: Path) -> "subprocess.Popen | None":
+    """Arranca la API REST en background en el puerto 50502.
+
+    Retorna el proceso para que el llamador pueda leer su stdout.
+    """
     repo_root = Path(__file__).resolve().parents[2]
 
     if sys.platform == "win32":
@@ -80,7 +71,7 @@ def _start_api_server(database_path: Path) -> None:
 
     uvicorn_exe = next((p for p in candidates if p.exists()), None)
     if uvicorn_exe is None:
-        return
+        return None
 
     if sys.platform == "win32":
         try:
@@ -90,19 +81,31 @@ def _start_api_server(database_path: Path) -> None:
             )
         except Exception:
             pass
+    else:
+        # Linux/Mac: matar instancias previas de uvicorn para liberar el puerto
+        try:
+            subprocess.run(
+                ["pkill", "-f", "uvicorn api.main"],
+                capture_output=True, timeout=3,
+            )
+            import time; time.sleep(0.8)  # esperar que libere el puerto
+        except Exception:
+            pass
 
-    env = {**os.environ, "DB_PATH": str(database_path)}
+    # PYTHONUNBUFFERED=1 garantiza output sin buffering
+    env = {**os.environ, "DB_PATH": str(database_path), "PYTHONUNBUFFERED": "1"}
     try:
-        subprocess.Popen(
-            [str(uvicorn_exe), "api.main:app", "--host", "0.0.0.0", "--port", "54321"],
+        return subprocess.Popen(
+            [str(uvicorn_exe), "api.main:app", "--host", "0.0.0.0", "--port", "50502",
+             "--log-level", "info"],
             cwd=str(repo_root),
             env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,   # stderr va al mismo pipe que stdout
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
     except OSError:
-        pass
+        return None
 
 
 if __name__ == "__main__":

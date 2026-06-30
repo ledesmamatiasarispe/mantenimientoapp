@@ -7,6 +7,8 @@ const state = {
   adminProgramaEquipoId: null,
   adjuntoViewer: null,
   cronogramaEquipoId: null,
+  alertasCount: 0,
+  wizard: JSON.parse(localStorage.getItem("gm_wizard") || "null"),
 };
 
 function setServerBase(url) {
@@ -48,7 +50,7 @@ function serverConfigView(error = "", testing = false) {
         <div class="field">
           <label for="server-url">URL del servidor</label>
           <input id="server-url" name="server-url" type="text"
-            placeholder="http://192.168.100.228:54321"
+            placeholder="http://192.168.100.228:50502"
             value="${escapeHtml(state.serverBase)}" required />
         </div>
         ${ipButtons}
@@ -107,6 +109,7 @@ function setAuth(token, tecnico) {
   localStorage.setItem("gm_token", token);
   localStorage.setItem("gm_tecnico", JSON.stringify(tecnico));
   fetchNetworkInfo(); // cargar IPs en background tras el login
+  refreshAlertasBadge(); // badge de alertas
 }
 
 function clearAuth() {
@@ -146,10 +149,18 @@ async function apiFetch(path, options = {}) {
     const payload = await response.json().catch(() => ({ detail: "Error inesperado." }));
     const detail = payload.detail;
     const message = Array.isArray(detail)
-      ? detail.map((d) => d.msg || JSON.stringify(d)).join(", ")
+      ? detail.map((d) => {
+          const field = d.loc?.length ? String(d.loc[d.loc.length - 1]) : null;
+          const msg = d.msg || JSON.stringify(d);
+          return field && field !== "body" ? `${field}: ${msg}` : msg;
+        }).join(" · ")
       : String(detail || "Error inesperado.");
     throw new Error(message);
   }
+  // Respuestas sin cuerpo (204 No Content, 205)
+  if (response.status === 204 || response.status === 205) return null;
+  const ct = response.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) return null;
   return response.json();
 }
 
@@ -185,6 +196,62 @@ async function cargarMiniaturas() {
 function abrirAdjunto(url, nombre, backPath) {
   state.adjuntoViewer = { url, nombre, backPath };
   navigate("/adjunto");
+}
+
+async function abrirFichaRepuesto(repuestoId) {
+  // Mostrar modal superpuesto con la ficha del repuesto
+  const overlay = document.createElement("div");
+  overlay.id = "ficha-overlay";
+  overlay.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;width:min(480px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="padding:16px;text-align:center;color:#666">Cargando ficha…</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+
+  try {
+    const f = await apiFetch(`/api/repuestos/${repuestoId}/ficha`);
+    const imgHtml = f.tiene_imagen
+      ? `<img src="${state.serverBase}/api/repuestos/${f.id}/imagen"
+             style="width:100%;max-height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block" />`
+      : "";
+    const provHtml = f.proveedores.length
+      ? `<div style="margin-top:14px">
+           <div style="font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Proveedores</div>
+           ${f.proveedores.map(p => `
+             <div style="background:#f9fafb;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+               <div style="font-weight:600">${escapeHtml(p.nombre)} ${p.es_principal ? `<span style="background:#10b981;color:#fff;border-radius:4px;padding:1px 6px;font-size:11px">Principal</span>` : ""}</div>
+               ${p.contacto ? `<div style="font-size:13px;color:#555;margin-top:2px">👤 ${escapeHtml(p.contacto)}</div>` : ""}
+               ${p.telefono ? `<div style="font-size:13px;color:#555">📞 ${escapeHtml(p.telefono)}</div>` : ""}
+               ${p.email    ? `<div style="font-size:13px;color:#555">✉ ${escapeHtml(p.email)}</div>` : ""}
+             </div>`).join("")}
+         </div>`
+      : `<div style="margin-top:14px;color:#999;font-size:13px">Sin proveedores registrados.</div>`;
+
+    overlay.querySelector("div").innerHTML = `
+      ${imgHtml}
+      <div style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <h2 style="margin:0;font-size:20px">${escapeHtml(f.nombre)}</h2>
+          <button id="close-ficha" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;flex-shrink:0">✕</button>
+        </div>
+        ${f.descripcion ? `<p style="color:#555;font-size:14px;margin:6px 0 0">${escapeHtml(f.descripcion)}</p>` : ""}
+        <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin:14px 0;display:flex;align-items:center;gap:10px">
+          <span style="font-size:28px;font-weight:700;color:#15803d">${f.stock_actual}</span>
+          <span style="color:#555;font-size:13px">unidades en stock</span>
+        </div>
+        ${f.observaciones ? `<div style="font-size:13px;color:#666;background:#fffbeb;padding:8px 12px;border-radius:6px;border-left:3px solid #f59e0b">${escapeHtml(f.observaciones)}</div>` : ""}
+        ${provHtml}
+      </div>`;
+    document.getElementById("close-ficha").addEventListener("click", () => overlay.remove());
+  } catch(err) {
+    overlay.querySelector("div").innerHTML = `
+      <div style="padding:20px;text-align:center">
+        <p style="color:#ef4444">${escapeHtml(err.message)}</p>
+        <button onclick="document.getElementById('ficha-overlay').remove()" class="button secondary">Cerrar</button>
+      </div>`;
+  }
 }
 
 async function renderAdjunto() {
@@ -225,15 +292,8 @@ async function renderAdjunto() {
   }
 }
 
-function layout(content, active = "ordenes") {
-  return `
-    <div class="app-shell">${content}</div>
-    <nav class="bottom-nav">
-      <a class="nav-link ${active === "ordenes" ? "active" : ""}" href="/ordenes">Órdenes</a>
-      <a class="nav-link ${active === "cronograma" ? "active" : ""}" href="/cronograma">Cronograma</a>
-      ${state.tecnico?.es_admin ? `<a class="nav-link ${active === "admin" ? "active" : ""}" href="/admin/equipos">Admin</a>` : ""}
-    </nav>
-  `;
+function layout(content, active = "hub") {
+  return `<div class="app-shell">${content}</div>`;
 }
 
 function loginView(error = "") {
@@ -297,13 +357,10 @@ async function renderOrdenes() {
   document.querySelector("#app").innerHTML = layout(`
     <div class="topbar">
       <div>
+        <a class="back-link" href="/admin/hub">← Inicio</a>
         <h1>Órdenes</h1>
-        <div class="muted">${escapeHtml(state.tecnico.nombre)} ${escapeHtml(state.tecnico.apellido)}</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <a class="button primary" href="/nueva-orden">+ Nueva</a>
-        <button class="button secondary" id="logout-button">Salir</button>
-      </div>
+      <a class="button primary" href="/nueva-orden">+ Nueva</a>
     </div>
     <div class="tabs">
       <a class="tab ${state.tab === "pendientes"  ? "active" : ""}" href="/ordenes?tab=pendientes">Pendientes</a>
@@ -315,10 +372,6 @@ async function renderOrdenes() {
       ${ordenes.length ? ordenes.map(ordenCard).join("") : '<div class="panel empty">No hay órdenes para mostrar.</div>'}
     </div>
   `, "ordenes");
-  document.querySelector("#logout-button").addEventListener("click", () => {
-    clearAuth();
-    render();
-  });
 }
 
 function programaMarkup(programa, { ordenId = null, puedeTogglear = false } = {}) {
@@ -339,6 +392,12 @@ function programaMarkup(programa, { ordenId = null, puedeTogglear = false } = {}
           <div class="paso-detalle" id="paso-det-${paso.id}" style="display:none">
             <div class="paso-detalle-titulo">${paso.posicion}. ${escapeHtml(paso.descripcion)}</div>
             ${paso.observaciones ? `<div style="font-size:13px;margin:2px 0">${escapeHtml(paso.observaciones)}</div>` : ""}
+            ${paso.repuesto_nombre
+              ? `<a href="#" class="paso-repuesto-link" data-repuesto-id="${paso.repuesto_id}"
+                   style="display:inline-block;background:#e0f2fe;color:#0369a1;border-radius:6px;padding:3px 10px;font-size:12px;text-decoration:none;margin:4px 0">
+                   📦 ${escapeHtml(paso.repuesto_nombre)} — ver ficha
+                 </a>`
+              : ""}
             ${paso.adjunto_nombre
               ? `<a href="#" class="paso-adjunto-link" data-url="/api/pasos/${paso.id}/adjunto" data-nombre="${escapeHtml(paso.adjunto_nombre)}" data-back="/orden/${ordenId ?? ""}">📎 ${escapeHtml(paso.adjunto_nombre)}</a>`
               : `<span class="muted">Sin adjunto</span>`}
@@ -478,13 +537,28 @@ async function renderOrdenDetalle(ordenId) {
   // Cargar miniaturas de fotos con auth
   cargarMiniaturas();
 
-  // Detalle de paso (toggle)
+  // Abrir automáticamente el primer paso incompleto (o el primero si todos están hechos)
+  const firstUnchecked = document.querySelector(".paso-check:not(:checked)");
+  const autoOpen = firstUnchecked
+    ? document.querySelector(`#paso-det-${firstUnchecked.dataset.pasoId}`)
+    : document.querySelector(".paso-detalle");
+  if (autoOpen) autoOpen.style.display = "block";
+
+  // Detalle de paso (toggle manual con ℹ️)
   document.querySelectorAll(".paso-info-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const det = document.querySelector(`#paso-det-${btn.dataset.pasoId}`);
       if (det) det.style.display = det.style.display === "none" ? "block" : "none";
     });
   });
+  // Ficha de repuesto desde paso
+  document.querySelectorAll(".paso-repuesto-link").forEach(a => {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      abrirFichaRepuesto(Number(a.dataset.repuestoId));
+    });
+  });
+
   document.querySelectorAll(".paso-adjunto-link").forEach(a => {
     a.addEventListener("click", e => {
       e.preventDefault();
@@ -677,13 +751,17 @@ async function renderOrdenDetalle(ordenId) {
     checkbox.addEventListener("change", async () => {
       const pasoId = checkbox.dataset.pasoId;
       checkbox.disabled = true;
+      // Cerrar el panel del paso actual antes del refresh
+      const detActual = document.querySelector(`#paso-det-${pasoId}`);
+      if (detActual) detActual.style.display = "none";
       try {
         await apiFetch(`/api/ordenes/${ordenId}/pasos/${pasoId}/toggle`, { method: "POST" });
-        await refresh();
+        await refresh(); // el re-render abrirá automáticamente el primer incompleto
       } catch (error) {
         window.alert(error.message);
         checkbox.checked = !checkbox.checked;
         checkbox.disabled = false;
+        if (detActual) detActual.style.display = "block";
       }
     });
   });
@@ -806,7 +884,10 @@ async function renderCronograma() {
 
   document.querySelector("#app").innerHTML = layout(`
     <div class="topbar">
-      <div><h1>Cronograma</h1></div>
+      <div>
+        <a class="back-link" href="/admin/hub">← Inicio</a>
+        <h1>Cronograma</h1>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <select id="crono-equipo" style="font-size:13px;padding:4px 6px;border:1px solid var(--border);border-radius:6px">${equiposOpts}</select>
         <select id="crono-anio" class="crono-anio-select">${optsAnio.join("")}</select>
@@ -838,27 +919,99 @@ async function renderCronograma() {
 
 // ── Admin ──────────────────────────────────────────────────────────────────
 
-const ADMIN_SECTIONS = [
-  { key: "equipos",   label: "Equipos" },
-  { key: "tipos",     label: "Tipos" },
-  { key: "programas", label: "Programas" },
-  { key: "repuestos", label: "Repuestos" },
-  { key: "tecnicos",  label: "Técnicos" },
-  { key: "ordenes",   label: "Órdenes" },
-];
-
-function adminTabs(active) {
-  return `<div class="tabs" style="grid-template-columns:repeat(${ADMIN_SECTIONS.length},1fr)">
-    ${ADMIN_SECTIONS.map(s => `<a class="tab ${active === s.key ? "active" : ""}" href="/admin/${s.key}">${s.label}</a>`).join("")}
-  </div>`;
-}
+// Nombre legible por sección para el topbar
+const ADMIN_LABELS = {
+  dashboard: "Dashboard", alertas: "Alertas",
+  equipos: "Equipos", tipos: "Tipos de equipo", programas: "Programas de mantenimiento",
+  repuestos: "Repuestos", consolidado: "Stock consolidado", proveedores: "Proveedores", tecnicos: "Técnicos", ordenes: "Órdenes",
+  generar: "Generar órdenes", electricidad: "Electricidad", "base-datos": "Base de datos",
+  asistente: "Nueva máquina — Asistente",
+};
 
 function layoutAdmin(section, content) {
+  const esHub = section === "hub";
+  const titulo = esHub ? "Inicio" : (ADMIN_LABELS[section] ?? section);
+  const backLink = esHub ? "" : `<a class="back-link" href="/admin/hub" style="margin-right:10px">← Inicio</a>`;
+  const rightEl = esHub
+    ? `<button class="button secondary" id="logout-button" style="font-size:13px;padding:8px 12px">Salir</button>`
+    : "";
   return layout(`
-    <div class="topbar"><div><h1>Administración</h1></div></div>
-    ${adminTabs(section)}
+    <div class="topbar">
+      <div>${backLink}<h1>${titulo}</h1>
+        ${esHub ? `<div class="muted">${escapeHtml(state.tecnico?.nombre ?? "")} ${escapeHtml(state.tecnico?.apellido ?? "")}</div>` : ""}
+      </div>
+      ${rightEl}
+    </div>
     ${content}
-  `, "admin");
+  `, "hub");
+}
+
+function renderAdminHub() {
+  const gruposAdmin = state.tecnico?.es_admin ? [
+    {
+      titulo: "🔔 Monitoreo",
+      items: [
+        { href: "/admin/dashboard", icon: "📊", label: "Dashboard", desc: "Estadísticas globales: órdenes activas, equipos y alertas pendientes" },
+        { href: "/admin/alertas",   icon: "🔔", label: "Alertas",   desc: "Notificaciones de stock bajo, órdenes sin técnico asignado y mantenimientos vencidos" },
+      ],
+    },
+    {
+      titulo: "⚙️ Gestión",
+      items: [
+        { href: "/admin/equipos",   icon: "🏭", label: "Equipos",   desc: "Gestión de máquinas con programas preventivos, repuestos asignados e historial de órdenes" },
+        { href: "/admin/tipos",     icon: "🏷️",  label: "Tipos de equipo", desc: "Categorías para clasificar los equipos (ej: Bomba, Motor, Compresor)" },
+        { href: "/admin/repuestos", icon: "📦", label: "Repuestos", desc: "Catálogo global de repuestos con descripción, imagen y proveedores" },
+        { href: "/admin/repuestos/consolidado", icon: "📊", label: "Stock consolidado", desc: "Stock actual vs suma de mínimos requeridos por cada equipo" },
+        { href: "/admin/proveedores", icon: "🏢", label: "Proveedores", desc: "Empresas proveedoras: datos de contacto, CUIT y vínculo con repuestos" },
+        { href: "/admin/tecnicos",  icon: "👷", label: "Técnicos",  desc: "Alta y modificación de usuarios técnicos, roles y contraseñas" },
+        { href: "/admin/ordenes",   icon: "📝", label: "Órdenes",   desc: "Ver, editar y eliminar todas las órdenes de trabajo del sistema" },
+      ],
+    },
+    {
+      titulo: "🔧 Herramientas",
+      items: [
+        { href: "/admin/generar",      icon: "📅", label: "Generar órdenes", desc: "Crea automáticamente órdenes preventivas para los programas que vencen en el mes seleccionado" },
+        { href: "/admin/electricidad", icon: "⚡", label: "Electricidad",    desc: "Medidores EDESUR, carga de facturas y gráficos de consumo, demanda y factor de potencia" },
+        { href: "/admin/base-datos",   icon: "💾", label: "Base de datos",   desc: "Descargar backup, importar datos o purgar órdenes no completadas" },
+      ],
+    },
+  ] : [];
+
+  const grupos = [
+    {
+      titulo: "📋 Módulos",
+      items: [
+        { href: "/ordenes",    icon: "📝", label: "Órdenes",    desc: "Ver y gestionar órdenes de trabajo" },
+        { href: "/cronograma", icon: "📅", label: "Cronograma", desc: "Programa de mantenimiento preventivo por máquina y mes" },
+      ],
+    },
+    ...gruposAdmin,
+  ];
+
+  document.querySelector("#app").innerHTML = layoutAdmin("hub", `
+    <div style="padding:16px;display:flex;flex-direction:column;gap:20px">
+      ${grupos.map(g => `
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#888;letter-spacing:.5px;margin-bottom:8px;padding:0 2px">${g.titulo}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+            ${g.items.map(it => `
+              <a href="${it.href}" style="text-decoration:none">
+                <div class="admin-hub-card">
+                  <span style="font-size:22px">${it.icon}</span>
+                  <div>
+                    <div style="font-weight:600;font-size:14px">${it.label}</div>
+                    <div style="font-size:11px;color:#888;margin-top:2px">${it.desc}</div>
+                  </div>
+                </div>
+              </a>`).join("")}
+          </div>
+        </div>`).join("")}
+    </div>
+  `);
+  document.querySelector("#logout-button").addEventListener("click", () => {
+    clearAuth();
+    render();
+  });
 }
 
 async function renderAdminList(section) {
@@ -877,7 +1030,7 @@ async function renderAdminList(section) {
 
   let tableHead = "";
   let tableRows = "";
-  let title = ADMIN_SECTIONS.find(s => s.key === section)?.label ?? section;
+  let title = ADMIN_LABELS[section] ?? section;
   let extraHeader = "";
 
   if (section === "equipos") {
@@ -886,6 +1039,9 @@ async function renderAdminList(section) {
       <td class="muted">${r.id}</td><td>${escapeHtml(r.nombre)}</td><td>${escapeHtml(r.tipo_nombre)}</td>
       <td>${escapeHtml(r.ubicacion)}</td><td>${r.activo ? "✓" : "–"}</td>
       <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/equipos/${r.id}/programas" title="Programas de mantenimiento">🗓️</a>
+        <a class="btn-icon" href="/admin/equipos/${r.id}/repuestos" title="Repuestos del equipo">📦</a>
+        <a class="btn-icon" href="/admin/equipos/${r.id}/historial" title="Historial de órdenes">📋</a>
         <a class="btn-icon" href="/admin/equipos/${r.id}" title="Editar">✏️</a>
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
       </td></tr>`).join("");
@@ -919,12 +1075,33 @@ async function renderAdminList(section) {
         <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
       </td></tr>`).join("");
   } else if (section === "repuestos") {
-    tableHead = `<tr><th>#</th><th>Nombre</th><th>Stock</th><th>Mín.</th><th>Activo</th><th></th></tr>`;
+    tableHead = `<tr><th></th><th>Nombre</th><th>Descripción</th><th>Stock</th><th>Activo</th><th></th></tr>`;
     tableRows = items.map(r => `<tr>
-      <td class="muted">${r.id}</td><td>${escapeHtml(r.nombre)}</td>
-      <td>${r.stock_actual}</td><td>${r.stock_minimo}</td><td>${r.activo ? "✓" : "–"}</td>
-      <td><a class="btn-icon" href="/admin/repuestos/${r.id}" title="Editar">✏️</a>
-          <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button></td></tr>`).join("");
+      <td style="width:36px">${r.tiene_imagen
+        ? `<img src="${state.serverBase}/api/repuestos/${r.id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+        : `<span style="font-size:20px">📦</span>`}</td>
+      <td><strong>${escapeHtml(r.nombre)}</strong></td>
+      <td class="muted" style="font-size:12px">${escapeHtml(r.descripcion || "")}</td>
+      <td>${r.stock_actual}</td>
+      <td>${r.activo ? "✓" : "–"}</td>
+      <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/repuestos/${r.id}/proveedores" title="Proveedores">🏢</a>
+        <a class="btn-icon" href="/admin/repuestos/${r.id}" title="Editar">✏️</a>
+        <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
+      </td></tr>`).join("");
+  } else if (section === "proveedores") {
+    tableHead = `<tr><th>Nombre</th><th>CUIT</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Activo</th><th></th></tr>`;
+    tableRows = items.map(r => `<tr>
+      <td><strong>${escapeHtml(r.nombre)}</strong></td>
+      <td>${escapeHtml(r.cuit)}</td>
+      <td>${escapeHtml(r.contacto)}</td>
+      <td>${escapeHtml(r.telefono)}</td>
+      <td>${escapeHtml(r.email)}</td>
+      <td>${r.activo ? "✓" : "–"}</td>
+      <td style="white-space:nowrap">
+        <a class="btn-icon" href="/admin/proveedores/${r.id}" title="Editar">✏️</a>
+        <button class="btn-icon" data-delete="${r.id}" title="Eliminar">🗑️</button>
+      </td></tr>`).join("");
   } else if (section === "tecnicos") {
     tableHead = `<tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Legajo</th><th>Activo</th><th></th></tr>`;
     tableRows = items.map(r => `<tr>
@@ -950,7 +1127,7 @@ async function renderAdminList(section) {
   document.querySelector("#app").innerHTML = layoutAdmin(section, `
     <div class="panel" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
       <strong>${title}</strong>
-      <a class="button primary" href="/admin/${section}/nuevo" style="font-size:13px;padding:6px 14px">+ Nuevo</a>
+      <a class="button primary" href="${section === "equipos" ? "/admin/asistente" : `/admin/${section}/nuevo`}" style="font-size:13px;padding:6px 14px">+ Nuevo</a>
     </div>
     ${extraHeader}
     <div class="crono-scroll">
@@ -985,7 +1162,7 @@ async function renderAdminList(section) {
   }
 }
 
-async function renderAdminForm(section, id) {
+async function renderAdminForm(section, id, _extras = {}, equipoIdOrigen = null) {
   renderLoading("Cargando...");
   const apiSection = section === "tipos" ? "tipos-equipo" : section;
   const isNew = id === null;
@@ -1027,10 +1204,14 @@ async function renderAdminForm(section, id) {
       <div class="field"><label>Observaciones</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
       <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
   } else if (section === "programas") {
+    const equipoFijo = equipoIdOrigen ?? item?.equipo_id ?? null;
+    const equipoNombreFijo = equipoFijo ? (extras.equipos.find(e => e.id === equipoFijo)?.nombre ?? `#${equipoFijo}`) : null;
     const equipoOpts = extras.equipos.filter(e => e.activo || item?.equipo_id === e.id)
-      .map(e => `<option value="${e.id}" ${item?.equipo_id === e.id ? "selected" : ""}>${escapeHtml(e.nombre)}</option>`).join("");
+      .map(e => `<option value="${e.id}" ${(item?.equipo_id ?? equipoFijo) === e.id ? "selected" : ""}>${escapeHtml(e.nombre)}</option>`).join("");
     fields = `
-      <div class="field"><label>Equipo *</label><select name="equipo_id" required><option value="">Seleccionar...</option>${equipoOpts}</select></div>
+      ${equipoFijo
+        ? `<div class="field"><label>Equipo</label><strong>${escapeHtml(equipoNombreFijo)}</strong><input type="hidden" name="equipo_id" value="${equipoFijo}" /></div>`
+        : `<div class="field"><label>Equipo *</label><select name="equipo_id" required><option value="">Seleccionar...</option>${equipoOpts}</select></div>`}
       <div class="field"><label>Descripción *</label><input name="descripcion" value="${escapeHtml(item?.descripcion ?? "")}" required /></div>
       <div class="field"><label>Frecuencia (meses) *</label><input name="frecuencia_meses" type="number" min="1" max="120" value="${item?.frecuencia_meses ?? 1}" required /></div>
       <div class="field"><label>Última ejecución</label><input name="ultima_ejecucion" type="date" value="${escapeHtml(item?.ultima_ejecucion ?? "")}" /></div>
@@ -1038,9 +1219,24 @@ async function renderAdminForm(section, id) {
   } else if (section === "repuestos") {
     fields = `
       <div class="field"><label>Nombre *</label><input name="nombre" value="${escapeHtml(item?.nombre ?? "")}" required /></div>
-      <div class="field"><label>Observaciones</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
+      <div class="field"><label>Descripción</label><textarea name="descripcion" rows="2">${escapeHtml(item?.descripcion ?? "")}</textarea></div>
+      <div class="field"><label>Observaciones internas</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>
       <div class="field"><label>Stock actual</label><input name="stock_actual" type="number" step="0.001" value="${item?.stock_actual ?? 0}" /></div>
-      <div class="field"><label>Stock mínimo</label><input name="stock_minimo" type="number" step="0.001" value="${item?.stock_minimo ?? 0}" /></div>
+      ${item ? `<div class="field"><label>Imagen del repuesto</label>
+        ${item.tiene_imagen ? `<img src="${state.serverBase}/api/repuestos/${item.id}/imagen" style="height:80px;border-radius:6px;margin-bottom:6px;display:block" />` : ""}
+        <input type="file" id="repuesto-img-input" accept="image/*" />
+        ${item.tiene_imagen ? `<button type="button" id="repuesto-img-delete" class="button secondary" style="font-size:12px;margin-top:4px">🗑 Quitar imagen</button>` : ""}
+      </div>` : ""}
+      <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
+  } else if (section === "proveedores") {
+    fields = `
+      <div class="field"><label>Nombre *</label><input name="nombre" value="${escapeHtml(item?.nombre ?? "")}" required /></div>
+      <div class="field"><label>CUIT</label><input name="cuit" value="${escapeHtml(item?.cuit ?? "")}" /></div>
+      <div class="field"><label>Contacto</label><input name="contacto" value="${escapeHtml(item?.contacto ?? "")}" /></div>
+      <div class="field"><label>Teléfono</label><input name="telefono" value="${escapeHtml(item?.telefono ?? "")}" /></div>
+      <div class="field"><label>Email</label><input name="email" type="email" value="${escapeHtml(item?.email ?? "")}" /></div>
+      <div class="field"><label>Dirección</label><input name="direccion" value="${escapeHtml(item?.direccion ?? "")}" /></div>
+      <div class="field"><label>Notas / condiciones</label><textarea name="notas" rows="3">${escapeHtml(item?.notas ?? "")}</textarea></div>
       <div class="field"><label><input type="checkbox" name="activo" ${item?.activo !== false ? "checked" : ""}> Activo</label></div>`;
   } else if (section === "tecnicos") {
     fields = `
@@ -1070,7 +1266,7 @@ async function renderAdminForm(section, id) {
       <div class="field"><label>Observaciones</label><textarea name="observaciones">${escapeHtml(item?.observaciones ?? "")}</textarea></div>`;
   }
 
-  const title = `${isNew ? "Nuevo" : "Editar"} — ${ADMIN_SECTIONS.find(s => s.key === section)?.label ?? section}`;
+  const title = `${isNew ? "Nuevo" : "Editar"} — ${ADMIN_LABELS[section] ?? section}`;
   document.querySelector("#app").innerHTML = layoutAdmin(section, `
     <div class="panel">
       <h3 style="margin:0 0 12px">${title}</h3>
@@ -1083,6 +1279,10 @@ async function renderAdminForm(section, id) {
       </form>
     </div>
   `);
+
+  // Botón eliminar imagen de repuesto
+  const delImgBtn = document.getElementById("repuesto-img-delete");
+  if (delImgBtn) delImgBtn.addEventListener("click", () => { delImgBtn.dataset.clicked = "1"; delImgBtn.textContent = "✓ Se eliminará al guardar"; delImgBtn.disabled = true; });
 
   document.querySelector("#admin-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1106,8 +1306,13 @@ async function renderAdminForm(section, id) {
         body = { equipo_id: gNum("equipo_id"), descripcion: g("descripcion"),
                  frecuencia_meses: gNum("frecuencia_meses"), ultima_ejecucion: g("ultima_ejecucion"), activo: gBool("activo") };
       } else if (section === "repuestos") {
-        body = { nombre: g("nombre"), observaciones: g("observaciones"),
-                 stock_actual: gNum("stock_actual"), stock_minimo: gNum("stock_minimo"), activo: gBool("activo") };
+        body = { nombre: g("nombre"), descripcion: g("descripcion"),
+                 observaciones: g("observaciones"),
+                 stock_actual: gNum("stock_actual"), activo: gBool("activo") };
+      } else if (section === "proveedores") {
+        body = { nombre: g("nombre"), cuit: g("cuit"), contacto: g("contacto"),
+                 telefono: g("telefono"), email: g("email"), direccion: g("direccion"),
+                 notas: g("notas"), activo: gBool("activo") };
       } else if (section === "tecnicos") {
         if (isNew) {
           body = { nombre: g("nombre"), apellido: g("apellido"), legajo: g("legajo"),
@@ -1123,12 +1328,34 @@ async function renderAdminForm(section, id) {
       }
 
       const apiSec = section === "tipos" ? "tipos-equipo" : section;
+      let savedId = id;
       if (isNew) {
-        await apiFetch(`/api/admin/${apiSec}`, { method: "POST", body: JSON.stringify(body) });
+        const saved = await apiFetch(`/api/admin/${apiSec}`, { method: "POST", body: JSON.stringify(body) });
+        savedId = saved?.id ?? id;
       } else {
         await apiFetch(`/api/admin/${apiSec}/${id}`, { method: "PUT", body: JSON.stringify(body) });
       }
-      navigate(`/admin/${section}`);
+      // Upload imagen de repuesto si se seleccionó una
+      if (section === "repuestos" && savedId) {
+        const imgInput = document.getElementById("repuesto-img-input");
+        if (imgInput?.files?.length) {
+          const fd = new FormData();
+          fd.append("imagen", imgInput.files[0]);
+          await fetch(`${state.serverBase}/api/admin/repuestos/${savedId}/imagen`, {
+            method: "POST", headers: { Authorization: `Bearer ${state.token}` }, body: fd,
+          });
+        }
+        const delBtn = document.getElementById("repuesto-img-delete");
+        if (delBtn?.dataset?.clicked) {
+          await apiFetch(`/api/admin/repuestos/${savedId}/imagen`, { method: "DELETE" });
+        }
+      }
+      // Si viene desde un equipo, volver a sus programas
+      if (section === "programas" && equipoIdOrigen) {
+        navigate(`/admin/equipos/${equipoIdOrigen}/programas`);
+      } else {
+        navigate(`/admin/${section}`);
+      }
     } catch (err) {
       window.alert(err.message);
       btn.disabled = false;
@@ -1172,14 +1399,73 @@ async function renderAdminPasswordForm(tecnicoId) {
   });
 }
 
+// ── Programas de un equipo ────────────────────────────────────────────────────
+
+async function renderAdminProgramasEquipo(equipoId) {
+  renderLoading("Cargando programas...");
+  const [equipos, todosProgramas] = await Promise.all([
+    apiFetch("/api/admin/equipos"),
+    apiFetch("/api/admin/programas"),
+  ]);
+  const equipo = equipos.find(e => e.id === equipoId);
+  const programas = todosProgramas.filter(p => p.equipo_id === equipoId);
+  const titulo = equipo ? escapeHtml(equipo.nombre) : `Equipo #${equipoId}`;
+
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
+    <div class="topbar">
+      <div>
+        <a class="back-link" href="/admin/equipos">← Equipos</a>
+        <h1>${titulo} — Programas de mantenimiento</h1>
+      </div>
+      <a class="button primary" href="/admin/equipos/${equipoId}/programas/nuevo" style="font-size:13px;padding:6px 14px">+ Nuevo programa</a>
+    </div>
+
+    ${programas.length === 0
+      ? `<p class="muted" style="text-align:center;padding:32px">Sin programas definidos para este equipo.<br>
+         <a href="/admin/equipos/${equipoId}/programas/nuevo" class="button primary" style="display:inline-block;margin-top:12px;padding:8px 16px">+ Crear primer programa</a></p>`
+      : `<table class="admin-table"><thead><tr>
+          <th>Descripción</th><th>Frecuencia</th><th>Última ejec.</th><th>Próxima ejec.</th><th>Activo</th><th></th>
+        </tr></thead><tbody>
+        ${programas.map(p => `<tr>
+          <td><strong>${escapeHtml(p.descripcion)}</strong></td>
+          <td>Cada ${p.frecuencia_meses} mes${p.frecuencia_meses !== 1 ? "es" : ""}</td>
+          <td>${p.ultima_ejecucion ? p.ultima_ejecucion.slice(0,10) : "—"}</td>
+          <td>${p.proxima_ejecucion ? `<span style="color:${new Date(p.proxima_ejecucion) < new Date() ? "#ef4444" : "#10b981"}">${p.proxima_ejecucion.slice(0,10)}</span>` : "—"}</td>
+          <td>${p.activo ? "✓" : "–"}</td>
+          <td style="white-space:nowrap">
+            <a class="btn-icon" href="/admin/equipos/${equipoId}/programas/${p.id}/pasos" title="Pasos">🗂️</a>
+            <a class="btn-icon" href="/admin/equipos/${equipoId}/programas/${p.id}" title="Editar">✏️</a>
+            <button class="btn-icon" data-delete-prog="${p.id}" title="Eliminar">🗑️</button>
+          </td>
+        </tr>`).join("")}
+        </tbody></table>`}
+  `);
+
+  document.querySelectorAll("[data-delete-prog]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Eliminar este programa?")) return;
+      await apiFetch(`/api/admin/programas/${btn.dataset.deleteProg}`, { method: "DELETE" });
+      await renderAdminProgramasEquipo(equipoId);
+    });
+  });
+}
+
 async function renderAdminPasos(programaId) {
   renderLoading("Cargando pasos...");
-  const [programas, pasos] = await Promise.all([
+  const [programas, pasos, repuestosEquipo] = await Promise.all([
     apiFetch("/api/admin/programas"),
     apiFetch(`/api/admin/programas/${programaId}/pasos`),
+    apiFetch(`/api/admin/programas/${programaId}/repuestos-equipo`),
   ]);
   const prog = programas.find(p => p.id === programaId);
   const titulo = prog ? `${escapeHtml(prog.equipo_nombre)} — ${escapeHtml(prog.descripcion)}` : `Programa #${programaId}`;
+  const equipoId = prog?.equipo_id ?? null;
+
+  const repuestoOpts = (selectedId) =>
+    `<option value="">— Sin repuesto —</option>` +
+    repuestosEquipo.map(r =>
+      `<option value="${r.repuesto_id}" ${r.repuesto_id === selectedId ? "selected" : ""}>${escapeHtml(r.repuesto_nombre)}</option>`
+    ).join("");
 
   const pasoCard = (p) => `
     <div class="panel" style="padding:10px 14px">
@@ -1189,6 +1475,11 @@ async function renderAdminPasos(programaId) {
           <div style="flex:1">
             <div style="font-weight:600;margin-bottom:2px">${p.posicion}. ${escapeHtml(p.descripcion)}</div>
             ${p.observaciones ? `<div class="muted" style="font-size:13px;margin-bottom:4px">${escapeHtml(p.observaciones)}</div>` : ""}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+              ${p.repuesto_nombre
+                ? `<span style="background:#e0f2fe;color:#0369a1;border-radius:6px;padding:2px 8px;font-size:12px">📦 ${escapeHtml(p.repuesto_nombre)}</span>`
+                : ""}
+            </div>
             <div class="muted" style="font-size:12px">
               ${p.adjunto_nombre
                 ? `📎 <a href="#" class="ver-adjunto-paso" data-url="/api/admin/programas/${programaId}/pasos/${p.id}/adjunto" data-nombre="${escapeHtml(p.adjunto_nombre)}" data-back="/admin/programas/${programaId}/pasos">${escapeHtml(p.adjunto_nombre)}</a>`
@@ -1207,6 +1498,19 @@ async function renderAdminPasos(programaId) {
           <input class="ep-desc" value="${escapeHtml(p.descripcion)}" /></div>
         <div class="field"><label>Observaciones</label>
           <textarea class="ep-obs">${escapeHtml(p.observaciones)}</textarea></div>
+        <div class="field"><label>Repuesto requerido</label>
+          <select class="ep-repuesto">${repuestoOpts(p.repuesto_id)}</select>
+          ${repuestosEquipo.length === 0 && equipoId
+            ? `<div style="font-size:12px;margin-top:4px;color:#6b7280">
+                Sin repuestos en este equipo.
+                <a href="/admin/equipos/${equipoId}/repuestos" style="color:#3b82f6">+ Agregar repuesto al equipo</a>
+               </div>`
+            : equipoId
+              ? `<div style="font-size:12px;margin-top:4px">
+                  <a href="/admin/equipos/${equipoId}/repuestos" style="color:#3b82f6">+ Agregar otro repuesto al equipo</a>
+                 </div>`
+              : ""}
+        </div>
         <div class="field"><label>Adjunto</label>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             ${p.adjunto_nombre
@@ -1226,9 +1530,10 @@ async function renderAdminPasos(programaId) {
       </div>
     </div>`;
 
-  document.querySelector("#app").innerHTML = layoutAdmin("programas", `
+  const backToEquipo = prog ? `/admin/equipos/${prog.equipo_id}/programas` : "/admin/equipos";
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
     <div class="panel" style="padding:10px 14px">
-      <a class="back-link" href="/admin/programas/${programaId}" style="font-size:13px">← Volver al programa</a>
+      <a class="back-link" href="${backToEquipo}" style="font-size:13px">← Volver a programas de ${prog ? escapeHtml(prog.equipo_nombre) : "equipo"}</a>
       <div style="margin-top:6px"><strong>Pasos:</strong> ${titulo}</div>
     </div>
     ${pasos.length ? pasos.map(pasoCard).join("") : `<div class="muted" style="padding:12px">Sin pasos definidos.</div>`}
@@ -1239,6 +1544,10 @@ async function renderAdminPasos(programaId) {
           <input id="np-desc" type="text" required placeholder="Descripción del paso..." /></div>
         <div class="field"><label>Observaciones</label>
           <textarea id="np-obs" placeholder="Observaciones opcionales..."></textarea></div>
+        <div class="field"><label>Repuesto requerido</label>
+          <select id="np-repuesto">${repuestoOpts(null)}</select>
+          ${equipoId ? `<div style="font-size:12px;margin-top:4px"><a href="/admin/equipos/${equipoId}/repuestos" style="color:#3b82f6">+ Agregar repuesto al equipo</a></div>` : ""}
+        </div>
         <div class="field"><label>Adjunto</label>
           <input id="np-file" type="file" /></div>
         <button class="button primary" type="submit">Agregar paso</button>
@@ -1266,11 +1575,12 @@ async function renderAdminPasos(programaId) {
       const form = document.querySelector(`#form-${id}`);
       const desc = form.querySelector(".ep-desc").value.trim();
       const obs  = form.querySelector(".ep-obs").value.trim();
+      const repId = Number(form.querySelector(".ep-repuesto").value) || null;
       if (!desc) { window.alert("La descripción no puede estar vacía."); return; }
       btn.disabled = true;
       try {
         await apiFetch(`/api/admin/programas/${programaId}/pasos/${id}`, {
-          method: "PUT", body: JSON.stringify({ descripcion: desc, observaciones: obs }),
+          method: "PUT", body: JSON.stringify({ descripcion: desc, observaciones: obs, repuesto_id: repId }),
         });
         // Subir nuevo adjunto si se seleccionó
         const fileInput = form.querySelector(".ep-file");
@@ -1326,13 +1636,14 @@ async function renderAdminPasos(programaId) {
     e.preventDefault();
     const desc = document.querySelector("#np-desc").value.trim();
     const obs  = document.querySelector("#np-obs").value.trim();
+    const repId = Number(document.querySelector("#np-repuesto").value) || null;
     const file = document.querySelector("#np-file").files[0];
     if (!desc) return;
     const btn = e.currentTarget.querySelector("[type=submit]");
     btn.disabled = true;
     try {
       const nuevoPaso = await apiFetch(`/api/admin/programas/${programaId}/pasos`, {
-        method: "POST", body: JSON.stringify({ descripcion: desc, observaciones: obs }),
+        method: "POST", body: JSON.stringify({ descripcion: desc, observaciones: obs, repuesto_id: repId }),
       });
       if (file) {
         const fd = new FormData();
@@ -1357,7 +1668,7 @@ async function handleLoginSubmit(event) {
       body: JSON.stringify({ legajo: form.legajo.value.trim(), password: form.password.value }),
     });
     setAuth(payload.access_token, payload.tecnico);
-    navigate("/ordenes");
+    navigate("/admin/hub");
   } catch (error) {
     document.querySelector("#app").innerHTML = loginView(error.message);
     document.querySelector("#login-form").addEventListener("submit", handleLoginSubmit);
@@ -1367,6 +1678,1302 @@ async function handleLoginSubmit(event) {
 function parsePath() {
   const raw = location.pathname.slice(1) || "ordenes";
   return { path: raw, query: new URLSearchParams(location.search) };
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+async function renderDashboard() {
+  renderLoading("Cargando dashboard...");
+  const stats = await apiFetch("/api/admin/dashboard");
+  document.querySelector("#app").innerHTML = layoutAdmin("dashboard", `
+    <div class="topbar"><div><h1>Dashboard</h1></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:16px">
+      ${[
+        ["Pendientes", stats.ordenes_pendientes, "#f59e0b"],
+        ["En progreso", stats.ordenes_en_progreso, "#3b82f6"],
+        ["Completadas (mes)", stats.ordenes_completadas_mes, "#10b981"],
+        ["Equipos activos", stats.equipos_activos, "#6366f1"],
+        ["Alertas activas", stats.alertas_activas, "#ef4444"],
+        ["Stock bajo", stats.repuestos_bajo_stock, "#f97316"],
+        ["Mant. vencidos", stats.programas_vencidos, "#dc2626"],
+      ].map(([label, valor, color]) => `
+        <div style="background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid ${color}">
+          <div style="font-size:28px;font-weight:700;color:${color}">${valor}</div>
+          <div style="font-size:12px;color:#666;margin-top:4px">${label}</div>
+        </div>`).join("")}
+    </div>
+  `);
+}
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+
+const ALERTA_TABS = [
+  { key: "todas",       label: "Todas",        tipo: null },
+  { key: "stock",       label: "📦 Stock",     tipo: "STOCK_BAJO" },
+  { key: "ordenes",     label: "📝 Órdenes",   tipo: "ORDEN_NUEVA" },
+  { key: "mantenimiento", label: "🔧 Mantenimiento", tipo: "MANT_VENCIDO" },
+];
+
+let _alertasData = [];
+let _alertasTab = "todas";
+
+async function renderAlertas(tab = _alertasTab) {
+  if (_alertasData.length === 0) {
+    renderLoading("Cargando alertas...");
+    _alertasData = await apiFetch("/api/alertas");
+    state.alertasCount = _alertasData.length;
+  }
+  _alertasTab = tab;
+
+  const colores = { alta: "#ef4444", media: "#f59e0b", baja: "#10b981" };
+  const tipoActivo = ALERTA_TABS.find(t => t.key === tab)?.tipo ?? null;
+  const lista = tipoActivo ? _alertasData.filter(a => a.tipo === tipoActivo) : _alertasData;
+
+  const conteos = {};
+  ALERTA_TABS.forEach(t => {
+    conteos[t.key] = t.tipo ? _alertasData.filter(a => a.tipo === t.tipo).length : _alertasData.length;
+  });
+
+  const tabColors = { todas: "#6b7280", stock: "#f97316", ordenes: "#3b82f6", mantenimiento: "#10b981" };
+
+  document.querySelector("#app").innerHTML = layoutAdmin("alertas", `
+    <div class="topbar"><div><h1>Alertas (${_alertasData.length})</h1></div></div>
+
+    <div class="tabs" style="grid-template-columns:repeat(${ALERTA_TABS.length},1fr)">
+      ${ALERTA_TABS.map(t => `
+        <button class="tab ${t.key === tab ? "active" : ""}" data-alerta-tab="${t.key}"
+          style="border:none;background:none;cursor:pointer">
+          ${t.label}
+          ${conteos[t.key] > 0
+            ? `<span style="margin-left:4px;background:${tabColors[t.key]||"#999"};color:#fff;border-radius:10px;font-size:10px;padding:1px 6px">${conteos[t.key]}</span>`
+            : ""}
+        </button>`).join("")}
+    </div>
+
+    <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      ${lista.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin alertas en esta categoría</p>`
+        : lista.map(a => `
+          <div style="background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.1);border-left:4px solid ${colores[a.severidad] || "#999"}">
+            <div style="font-weight:600;margin-bottom:6px">${escapeHtml(a.mensaje)}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <span style="font-size:11px;background:${colores[a.severidad]}22;color:${colores[a.severidad]};padding:2px 8px;border-radius:12px">${a.severidad}</span>
+              <button class="button secondary" style="font-size:11px;padding:2px 10px" data-snooze="${escapeHtml(a.key)}">Posponer 7d</button>
+              <button class="button secondary" style="font-size:11px;padding:2px 10px" data-ignorar="${escapeHtml(a.key)}">Ignorar</button>
+            </div>
+          </div>`).join("")}
+    </div>
+  `);
+
+  // Tabs — event listeners (necesario porque type="module" no expone globales a onclick)
+  document.querySelectorAll("[data-alerta-tab]").forEach(btn => {
+    btn.addEventListener("click", () => renderAlertas(btn.dataset.alertaTab));
+  });
+
+  // Snooze / Ignorar — event delegation
+  document.querySelectorAll("[data-snooze]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/alertas/${encodeURIComponent(btn.dataset.snooze)}/snooze`, { method: "POST", body: JSON.stringify({ dias: 7 }) });
+      _alertasData = [];
+      await renderAlertas(_alertasTab);
+    });
+  });
+  document.querySelectorAll("[data-ignorar]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/alertas/${encodeURIComponent(btn.dataset.ignorar)}/ignorar`, { method: "POST", body: JSON.stringify({}) });
+      _alertasData = [];
+      await renderAlertas(_alertasTab);
+    });
+  });
+}
+
+// ── Generar órdenes ───────────────────────────────────────────────────────────
+
+async function renderGenerarOrdenes() {
+  const hoy = new Date();
+  document.querySelector("#app").innerHTML = layoutAdmin("generar", `
+    <div class="topbar"><div><h1>Generar órdenes preventivas</h1></div></div>
+    <div style="padding:20px;max-width:480px">
+      <p style="color:#555;margin-bottom:16px">Genera órdenes de trabajo PREVENTIVO para los programas con vencimiento en el mes seleccionado. No duplica órdenes ya existentes.</p>
+      <form id="generar-form" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field">
+          <label>Mes</label>
+          <select id="gen-mes" class="input">
+            ${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${m===hoy.getMonth()+1?"selected":""}>${m.toString().padStart(2,"0")}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Año</label>
+          <input id="gen-anio" class="input" type="number" value="${hoy.getFullYear()}" min="2020" max="2030" />
+        </div>
+        <button class="button primary" type="submit">Generar órdenes</button>
+      </form>
+      <div id="generar-resultado" style="margin-top:16px"></div>
+    </div>
+  `);
+  document.querySelector("#generar-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const mes = parseInt(document.querySelector("#gen-mes").value);
+    const anio = parseInt(document.querySelector("#gen-anio").value);
+    const div = document.querySelector("#generar-resultado");
+    div.innerHTML = `<p>Generando...</p>`;
+    try {
+      const r = await apiFetch("/api/admin/generar-ordenes", { method: "POST", body: JSON.stringify({ mes, anio }) });
+      div.innerHTML = `
+        <div style="background:#d1fae5;border-radius:8px;padding:14px">
+          <strong>${r.creadas} orden(es) creada(s)</strong>, ${r.existentes} ya existían.
+          ${r.ordenes.length > 0 ? `<br>IDs: ${r.ordenes.join(", ")}` : ""}
+        </div>`;
+    } catch(err) {
+      div.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
+    }
+  });
+}
+
+// ── Historial equipo (desde detalle de equipo en admin) ───────────────────────
+
+async function renderHistorialEquipo(equipoId) {
+  renderLoading("Cargando historial...");
+  const historial = await apiFetch(`/api/admin/equipos/${equipoId}/historial`);
+  const equipo = (await apiFetch("/api/admin/equipos")).find(e => e.id === equipoId);
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
+    <div class="topbar">
+      <div><a class="back-link" href="/admin/equipos">← Equipos</a><h1>Historial: ${escapeHtml(equipo?.nombre || `#${equipoId}`)}</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${historial.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin órdenes registradas</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th>#</th><th>Tipo</th><th>Estado</th><th>Apertura</th><th>Técnico</th><th>Horas</th><th>Costo</th>
+           </tr></thead><tbody>
+           ${historial.map(h=>`<tr>
+             <td><a href="/orden/${h.id}">#${h.id}</a></td>
+             <td><span class="badge-tipo">${h.tipo}</span></td>
+             <td><span class="badge ${h.estado.toLowerCase().replace("_","-")}">${h.estado}</span></td>
+             <td>${h.fecha_apertura.slice(0,10)}</td>
+             <td>${escapeHtml(h.tecnico_nombre)}</td>
+             <td>${h.horas_trabajo || 0}h</td>
+             <td>$${h.costo_mano_obra.toFixed(0)}</td>
+           </tr>`).join("")}
+           </tbody></table>`}
+    </div>
+  `);
+}
+
+// ── Electricidad ──────────────────────────────────────────────────────────────
+
+async function renderElectricidad(medidorId = null) {
+  renderLoading("Cargando electricidad...");
+  const medidores = await apiFetch("/api/admin/electricidad/medidores");
+  const selId = medidorId || medidores[0]?.id || null;
+
+  let facturas = [], graficos = null;
+  if (selId) {
+    [facturas, graficos] = await Promise.all([
+      apiFetch(`/api/admin/electricidad/medidores/${selId}/facturas`),
+      apiFetch(`/api/admin/electricidad/medidores/${selId}/graficos`),
+    ]);
+  }
+
+  document.querySelector("#app").innerHTML = layoutAdmin("electricidad", `
+    <div class="topbar">
+      <div><h1>Electricidad</h1></div>
+      <div><a class="button primary" href="/admin/electricidad/nuevo-medidor" style="font-size:12px;padding:4px 12px">+ Medidor</a></div>
+    </div>
+    <div style="padding:16px">
+      ${medidores.length === 0
+        ? `<p style="color:#666;text-align:center;padding:32px">Sin medidores. Agregá uno primero.</p>`
+        : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            ${medidores.map(m=>`<a href="/admin/electricidad/${m.id}" class="button ${m.id===selId?"primary":"secondary"}" style="font-size:12px;padding:4px 12px">${escapeHtml(m.nombre)}</a>`).join("")}
+           </div>
+           ${selId ? `
+             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+               <h3 style="margin:0">Facturas — ${escapeHtml(medidores.find(m=>m.id===selId)?.nombre||"")}</h3>
+               <a class="button primary" href="/admin/electricidad/${selId}/nueva-factura" style="font-size:12px;padding:4px 12px">+ Factura</a>
+             </div>
+             ${graficos && graficos.consumo_kwh.length > 0 ? renderGraficosElectricidad(graficos) : ""}
+             <table class="admin-table"><thead><tr>
+               <th>Período</th><th>kWh</th><th>DRP kW</th><th>kVAR</th><th>Importe</th><th></th>
+             </tr></thead><tbody>
+             ${facturas.map(f=>`<tr>
+               <td>${f.periodo}</td>
+               <td>${(f.kwh_punta+f.kwh_valle_noc+f.kwh_restantes).toFixed(0)}</td>
+               <td>${f.drp_kw.toFixed(1)}</td>
+               <td>${f.kvar_reactiva.toFixed(1)}</td>
+               <td>$${f.importe.toFixed(0)}</td>
+               <td><a class="btn-icon" href="/admin/electricidad/${selId}/factura/${f.id}">✏️</a></td>
+             </tr>`).join("")}
+             </tbody></table>
+           ` : ""}`}
+    </div>
+  `);
+
+  // Dibujar gráficos
+  if (graficos && graficos.consumo_kwh.length > 0) {
+    dibujarGrafico("canvas-kwh", graficos.consumo_kwh, "#3b82f6", "kWh");
+    dibujarGrafico("canvas-kw", graficos.demanda_kw, "#f59e0b", "kW");
+    const maxFp = Math.max(...graficos.factor_potencia.map(p => p.valor), 0);
+    dibujarGrafico("canvas-fp", graficos.factor_potencia, "#10b981", "cos φ", maxFp * 0.85);
+    dibujarGrafico("canvas-costo", graficos.costo_total, "#6366f1", "$");
+  }
+}
+
+function renderGraficosElectricidad(g) {
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      ${[["canvas-kwh","Consumo kWh"],["canvas-kw","Demanda kW"],["canvas-fp","Factor de potencia"],["canvas-costo","Costo $"]].map(([id,lbl])=>`
+        <div style="background:#fff;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+          <div style="font-size:12px;color:#666;margin-bottom:6px;font-weight:600">${lbl}</div>
+          <canvas id="${id}" height="100" style="width:100%"></canvas>
+        </div>`).join("")}
+    </div>`;
+}
+
+function dibujarGrafico(canvasId, puntos, color, unidad, baseline = null) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || puntos.length === 0) return;
+  const ctx = canvas.getContext("2d");
+
+  const W = canvas.offsetWidth || 300;
+  const H = 110;
+  canvas.width = W;
+  canvas.height = H;
+
+  const valores = puntos.map(p => p.valor);
+  const max = Math.max(...valores) || 1;
+  const min = baseline !== null ? baseline : 0;
+  const range = (max - min) || 1;
+  const barW = Math.max(2, (W - 20) / puntos.length - 2);
+  const esMobile = window.matchMedia("(hover: none)").matches || "ontouchstart" in window;
+  const decimales = unidad === "cos φ" ? 3 : 1;
+
+  // Aclara un color hex para resaltar la barra activa
+  function colorActivo(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgba(${Math.min(255,r+70)},${Math.min(255,g+70)},${Math.min(255,b+70)},1)`;
+  }
+
+  // Convierte coordenada X del cliente al índice de barra
+  function barIdx(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const relX = (clientX - rect.left) * scaleX;
+    const i = Math.floor((relX - 10) / (barW + 2));
+    return (i >= 0 && i < puntos.length) ? i : null;
+  }
+
+  function draw(activeIdx = null) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Barras
+    puntos.forEach((p, i) => {
+      const x = 10 + i * (barW + 2);
+      const barH = Math.max(0, ((p.valor - min) / range) * (H - 30));
+      ctx.fillStyle = i === activeIdx ? colorActivo(color) : color;
+      ctx.fillRect(x, H - barH - 18, barW, barH);
+    });
+
+    // Etiquetas de escala
+    ctx.fillStyle = "#888";
+    ctx.font = "9px sans-serif";
+    ctx.fillText(`${max.toFixed(decimales)} ${unidad}`, 2, 10);
+    if (min > 0) ctx.fillText(min.toFixed(decimales), 2, H - 6);
+
+    // Tooltip de la barra activa
+    if (activeIdx !== null) {
+      const p = puntos[activeIdx];
+      const x = 10 + activeIdx * (barW + 2);
+      const barH = Math.max(0, ((p.valor - min) / range) * (H - 30));
+      const label = `${p.periodo}  ${p.valor.toFixed(decimales)} ${unidad}`;
+
+      ctx.font = "bold 10px sans-serif";
+      const tw = ctx.measureText(label).width;
+      const pad = 5;
+      let tx = x + barW / 2 - tw / 2 - pad;
+      tx = Math.max(0, Math.min(tx, W - tw - pad * 2 - 4));
+      const ty = H - barH - 40;
+      const tooltipY = Math.max(2, ty);
+
+      ctx.fillStyle = "rgba(30,30,30,0.82)";
+      ctx.beginPath();
+      ctx.rect(tx, tooltipY, tw + pad * 2, 18);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText(label, tx + pad, tooltipY + 13);
+
+      // Línea vertical indicadora
+      ctx.strokeStyle = "rgba(30,30,30,0.35)";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x + barW / 2, tooltipY + 18);
+      ctx.lineTo(x + barW / 2, H - barH - 18);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Dibujo inicial
+  draw();
+
+  // ── Desktop: hover ────────────────────────────────────────────────────────
+  if (!esMobile) {
+    canvas.addEventListener("mousemove", e => draw(barIdx(e.clientX)));
+    canvas.addEventListener("mouseleave", () => draw());
+  }
+
+  // ── Mobile: toque persistente ─────────────────────────────────────────────
+  if (esMobile) {
+    let selected = null;
+    canvas.addEventListener("touchstart", e => {
+      e.preventDefault();
+      const i = barIdx(e.touches[0].clientX);
+      selected = (i !== null && i !== selected) ? i : null;
+      draw(selected);
+    }, { passive: false });
+    // Toque fuera del canvas deselecciona
+    document.addEventListener("touchstart", e => {
+      if (!canvas.contains(e.target) && selected !== null) {
+        selected = null;
+        draw();
+      }
+    }, { passive: true });
+  }
+}
+
+// ── Base de datos (export/import) ─────────────────────────────────────────────
+
+// ── Repuestos por equipo ──────────────────────────────────────────────────────
+
+async function renderAdminRepuestosEquipo(equipoId) {
+  renderLoading("Cargando repuestos del equipo...");
+  const [equipos, vinculos, catalogo] = await Promise.all([
+    apiFetch("/api/admin/equipos"),
+    apiFetch(`/api/admin/equipos/${equipoId}/repuestos`),
+    apiFetch("/api/admin/repuestos"),
+  ]);
+  const equipo = equipos.find(e => e.id === equipoId);
+  const titulo = equipo ? escapeHtml(equipo.nombre) : `Equipo #${equipoId}`;
+  const vinculadosIds = new Set(vinculos.map(v => v.repuesto_id));
+  const disponibles = catalogo.filter(r => r.activo && !vinculadosIds.has(r.id));
+
+  document.querySelector("#app").innerHTML = layoutAdmin("equipos", `
+    <div class="topbar">
+      <div><a class="back-link" href="/admin/equipos">← Equipos</a><h1>${titulo} — Repuestos</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${vinculos.length === 0
+        ? `<p class="muted" style="text-align:center;padding:24px">Sin repuestos vinculados a este equipo.</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th></th><th>Repuesto</th><th>Descripción</th><th>Stock global</th><th>Mínimo este equipo</th><th>Observaciones</th><th></th>
+          </tr></thead><tbody>
+          ${vinculos.map(v => `<tr>
+            <td style="width:36px">${v.tiene_imagen
+              ? `<img src="${state.serverBase}/api/repuestos/${v.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+              : `<span style="font-size:18px">📦</span>`}</td>
+            <td><strong>${escapeHtml(v.repuesto_nombre)}</strong></td>
+            <td class="muted" style="font-size:12px">${escapeHtml(v.repuesto_descripcion || "")}</td>
+            <td>${v.stock_actual ?? "—"}</td>
+            <td>
+              <input type="number" step="0.001" min="0" value="${v.stock_minimo}"
+                data-vinculo-id="${v.id}" data-field="stock_minimo"
+                style="width:70px;padding:3px 6px;border:1px solid #ccc;border-radius:4px" />
+            </td>
+            <td>
+              <input type="text" value="${escapeHtml(v.observaciones)}"
+                data-vinculo-id="${v.id}" data-field="observaciones"
+                style="width:140px;padding:3px 6px;border:1px solid #ccc;border-radius:4px" />
+            </td>
+            <td>
+              <button class="btn-icon" data-save-vinculo="${v.id}" title="Guardar">💾</button>
+              <button class="btn-icon" data-del-vinculo="${v.id}" title="Desvincular">🗑️</button>
+            </td>
+          </tr>`).join("")}
+          </tbody></table>`}
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+        <h3 style="margin-bottom:12px">Agregar repuesto</h3>
+        ${disponibles.length > 0 ? `
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="margin:0"><label>Repuesto</label>
+              <select id="new-rep-id" style="min-width:180px">
+                <option value="">Seleccionar...</option>
+                ${disponibles.map(r => `<option value="${r.id}">${escapeHtml(r.nombre)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field" style="margin:0"><label>Stock mínimo</label>
+              <input id="new-rep-min" type="number" step="0.001" min="0" value="0" style="width:80px" />
+            </div>
+            <div class="field" style="margin:0"><label>Observaciones</label>
+              <input id="new-rep-obs" type="text" style="width:140px" />
+            </div>
+            <button id="btn-add-vinculo" class="button primary">+ Vincular</button>
+          </div>` : `
+          <p style="color:#666;font-size:13px">
+            Todos los repuestos del catálogo ya están vinculados a este equipo.
+            <a href="/admin/repuestos/nuevo" style="color:#3b82f6">+ Crear nuevo repuesto</a>
+          </p>`}
+      </div>
+    </div>
+  `);
+
+  // Guardar cambios en vínculo existente
+  document.querySelectorAll("[data-save-vinculo]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const vid = btn.dataset.saveVinculo;
+      const row = btn.closest("tr");
+      const minInput = row.querySelector(`[data-vinculo-id="${vid}"][data-field="stock_minimo"]`);
+      const obsInput = row.querySelector(`[data-vinculo-id="${vid}"][data-field="observaciones"]`);
+      await apiFetch(`/api/admin/equipos/${equipoId}/repuestos/${vid}`, {
+        method: "PUT",
+        body: JSON.stringify({ stock_minimo: Number(minInput.value), observaciones: obsInput.value }),
+      });
+      btn.textContent = "✓";
+      setTimeout(() => { btn.textContent = "💾"; }, 1500);
+    });
+  });
+
+  // Desvincular
+  document.querySelectorAll("[data-del-vinculo]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Desvincular este repuesto del equipo?")) return;
+      await apiFetch(`/api/admin/equipos/${equipoId}/repuestos/${btn.dataset.delVinculo}`, { method: "DELETE" });
+      await renderAdminRepuestosEquipo(equipoId);
+    });
+  });
+
+  // Agregar nuevo vínculo
+  document.getElementById("btn-add-vinculo")?.addEventListener("click", async () => {
+    const repId = Number(document.getElementById("new-rep-id").value);
+    if (!repId) { window.alert("Seleccioná un repuesto."); return; }
+    const minimo = Number(document.getElementById("new-rep-min").value);
+    const obs = document.getElementById("new-rep-obs").value;
+    try {
+      await apiFetch(`/api/admin/equipos/${equipoId}/repuestos`, {
+        method: "POST",
+        body: JSON.stringify({ repuesto_id: repId, stock_minimo: minimo, observaciones: obs }),
+      });
+      await renderAdminRepuestosEquipo(equipoId);
+    } catch (err) { window.alert(err.message); }
+  });
+}
+
+// ── Proveedores de un repuesto ────────────────────────────────────────────────
+
+async function renderAdminRepuestosProveedor(repuestoId) {
+  renderLoading("Cargando proveedores del repuesto...");
+  const [repuestos, vinculos, catalogoProv] = await Promise.all([
+    apiFetch("/api/admin/repuestos"),
+    apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores`),
+    apiFetch("/api/admin/proveedores"),
+  ]);
+  const repuesto = repuestos.find(r => r.id === repuestoId);
+  const titulo = repuesto ? escapeHtml(repuesto.nombre) : `Repuesto #${repuestoId}`;
+  const vinculadosIds = new Set(vinculos.map(v => v.proveedor_id));
+  const disponibles = catalogoProv.filter(p => p.activo && !vinculadosIds.has(p.id));
+
+  document.querySelector("#app").innerHTML = layoutAdmin("repuestos", `
+    <div class="topbar">
+      <div><a class="back-link" href="/admin/repuestos">← Repuestos</a><h1>${titulo} — Proveedores</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${vinculos.length === 0
+        ? `<p class="muted" style="text-align:center;padding:24px">Sin proveedores vinculados.</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Principal</th><th></th>
+          </tr></thead><tbody>
+          ${vinculos.map(v => `<tr>
+            <td><strong>${escapeHtml(v.proveedor_nombre)}</strong></td>
+            <td>${escapeHtml(v.proveedor_contacto)}</td>
+            <td>${escapeHtml(v.proveedor_telefono)}</td>
+            <td>${escapeHtml(v.proveedor_email)}</td>
+            <td style="text-align:center">
+              ${v.es_principal
+                ? `<span style="background:#10b981;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px">⭐ Principal</span>`
+                : `<button class="button secondary" style="font-size:11px;padding:2px 8px" data-set-principal="${v.id}">Marcar principal</button>`}
+            </td>
+            <td><button class="btn-icon" data-del-vinculo-prov="${v.id}" title="Desvincular">🗑️</button></td>
+          </tr>`).join("")}
+          </tbody></table>`}
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+        <h3 style="margin-bottom:12px">Agregar proveedor</h3>
+        ${disponibles.length > 0 ? `
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="margin:0"><label>Proveedor</label>
+              <select id="new-prov-id" style="min-width:200px">
+                <option value="">Seleccionar...</option>
+                ${disponibles.map(p => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field" style="margin:0">
+              <label><input type="checkbox" id="new-prov-principal" /> Principal</label>
+            </div>
+            <button id="btn-add-prov" class="button primary">+ Vincular</button>
+          </div>` : `
+          <p style="color:#666;font-size:13px">
+            Todos los proveedores del catálogo ya están vinculados a este repuesto.
+            <a href="/admin/proveedores/nuevo" style="color:#3b82f6">+ Crear nuevo proveedor</a>
+          </p>`}
+      </div>
+    </div>
+  `);
+
+  // Marcar como principal
+  document.querySelectorAll("[data-set-principal]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores/${btn.dataset.setPrincipal}`, {
+        method: "PUT", body: JSON.stringify({ es_principal: true }),
+      });
+      await renderAdminRepuestosProveedor(repuestoId);
+    });
+  });
+
+  // Desvincular
+  document.querySelectorAll("[data-del-vinculo-prov]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!window.confirm("¿Desvincular este proveedor?")) return;
+      await apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores/${btn.dataset.delVinculoProv}`, { method: "DELETE" });
+      await renderAdminRepuestosProveedor(repuestoId);
+    });
+  });
+
+  // Agregar
+  document.getElementById("btn-add-prov")?.addEventListener("click", async () => {
+    const provId = Number(document.getElementById("new-prov-id").value);
+    if (!provId) { window.alert("Seleccioná un proveedor."); return; }
+    const esPrincipal = document.getElementById("new-prov-principal").checked;
+    try {
+      await apiFetch(`/api/admin/repuestos/${repuestoId}/proveedores`, {
+        method: "POST", body: JSON.stringify({ proveedor_id: provId, es_principal: esPrincipal }),
+      });
+      await renderAdminRepuestosProveedor(repuestoId);
+    } catch (err) { window.alert(err.message); }
+  });
+}
+
+// ── Vista consolidada de stock ────────────────────────────────────────────────
+
+async function renderAdminConsolidado() {
+  renderLoading("Cargando stock consolidado...");
+  const items = await apiFetch("/api/admin/repuestos/consolidado");
+  const alertas = items.filter(i => i.en_alerta).length;
+
+  document.querySelector("#app").innerHTML = layoutAdmin("consolidado", `
+    <div class="topbar">
+      <div><h1>Stock consolidado ${alertas > 0 ? `<span style="background:#ef4444;color:#fff;border-radius:10px;font-size:13px;padding:2px 10px;margin-left:8px">${alertas} con alerta</span>` : ""}</h1></div>
+    </div>
+    <div style="padding:16px">
+      ${items.length === 0
+        ? `<p class="muted" style="text-align:center;padding:32px">Sin repuestos en el sistema.</p>`
+        : `<table class="admin-table"><thead><tr>
+            <th></th><th>Repuesto</th><th>Descripción</th><th>Stock actual</th><th>Suma mínimos</th><th>Estado</th><th>Equipos</th>
+          </tr></thead><tbody>
+          ${items.map((it, idx) => `
+            <tr style="${it.en_alerta ? "background:#fff5f5" : ""}">
+              <td style="width:36px">${it.tiene_imagen
+                ? `<img src="${state.serverBase}/api/repuestos/${it.repuesto_id}/imagen" style="width:32px;height:32px;object-fit:cover;border-radius:4px" />`
+                : `<span style="font-size:18px">📦</span>`}</td>
+              <td><strong>${escapeHtml(it.repuesto_nombre)}</strong></td>
+              <td class="muted" style="font-size:12px">${escapeHtml(it.repuesto_descripcion || "")}</td>
+              <td><strong>${it.stock_actual}</strong></td>
+              <td>${it.suma_minimos}</td>
+              <td>${it.en_alerta
+                ? `<span style="background:#ef4444;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px">⚠ BAJO STOCK</span>`
+                : `<span style="background:#10b981;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px">✓ OK</span>`}</td>
+              <td>
+                ${it.equipos.length === 0
+                  ? `<span class="muted">—</span>`
+                  : `<button class="button secondary" style="font-size:11px;padding:2px 8px" data-expand="${idx}">Ver (${it.equipos.length})</button>
+                     <div id="equipos-${idx}" style="display:none;margin-top:6px;font-size:12px">
+                       ${it.equipos.map(e => `<div>• ${escapeHtml(e.equipo_nombre)}: mín. <strong>${e.stock_minimo}</strong></div>`).join("")}
+                     </div>`}
+              </td>
+            </tr>`).join("")}
+          </tbody></table>`}
+    </div>
+  `);
+
+  // Expandir/colapsar equipos
+  document.querySelectorAll("[data-expand]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const div = document.getElementById(`equipos-${btn.dataset.expand}`);
+      if (div.style.display === "none") { div.style.display = "block"; btn.textContent = "Ocultar"; }
+      else { div.style.display = "none"; btn.textContent = `Ver (${div.querySelectorAll("div").length})`; }
+    });
+  });
+}
+
+function renderBaseDatos() {
+  document.querySelector("#app").innerHTML = layoutAdmin("base-datos", `
+    <div class="topbar"><div><h1>Base de datos</h1></div></div>
+    <div style="padding:20px;max-width:480px;display:flex;flex-direction:column;gap:16px">
+
+      <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+        <h3 style="margin:0 0 8px">Exportar</h3>
+        <p style="color:#555;font-size:13px;margin-bottom:12px">Descargá una copia de la base de datos completa (archivo .sqlite).</p>
+        <a class="button primary" href="${state.serverBase}/api/admin/db/exportar" download>⬇ Descargar backup</a>
+      </div>
+
+      <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+        <h3 style="margin:0 0 8px">Importar</h3>
+        <p style="color:#555;font-size:13px;margin-bottom:4px">⚠️ Reemplaza la base de datos actual. Se genera un backup automático antes.</p>
+        <form id="import-form" style="margin-top:10px">
+          <input id="import-file" type="file" accept=".sqlite,.db" style="margin-bottom:8px;display:block" />
+          <button class="button primary" type="submit">⬆ Importar</button>
+        </form>
+        <div id="import-resultado" style="margin-top:8px"></div>
+      </div>
+
+      <div style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);border:1px solid #fca5a5">
+        <h3 style="margin:0 0 8px;color:#b91c1c">🗑 Purgar órdenes no completadas</h3>
+        <p style="color:#555;font-size:13px;margin-bottom:12px">
+          Elimina <strong>permanentemente</strong> todas las órdenes en estado
+          PENDIENTE, EN PROGRESO o CANCELADA. Las órdenes COMPLETADAS se conservan.
+          Esta acción no se puede deshacer.
+        </p>
+        <button id="btn-purgar" class="button danger">Purgar órdenes…</button>
+        <div id="purgar-resultado" style="margin-top:10px"></div>
+      </div>
+
+    </div>
+  `);
+
+  // Importar
+  document.querySelector("#import-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const file = document.querySelector("#import-file").files[0];
+    if (!file) return;
+    const div = document.querySelector("#import-resultado");
+    div.innerHTML = `<p>Importando...</p>`;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const resp = await fetch(`${state.serverBase}/api/admin/db/importar`, {
+        method: "POST", headers: { Authorization: `Bearer ${state.token}` }, body: formData,
+      });
+      if (!resp.ok) throw new Error(`Error ${resp.status}`);
+      div.innerHTML = `<p style="color:#10b981">✅ Importado correctamente. Recargá la app para ver los cambios.</p>`;
+    } catch(err) {
+      div.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
+    }
+  });
+
+  // Purgar órdenes
+  document.querySelector("#btn-purgar").addEventListener("click", () => {
+    const div = document.querySelector("#purgar-resultado");
+    div.innerHTML = `
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px;margin-top:4px">
+        <p style="font-size:13px;color:#7f1d1d;margin:0 0 10px">
+          Ingresá tu contraseña para confirmar la purga:
+        </p>
+        <input id="purgar-pwd" type="password" placeholder="Contraseña"
+          style="width:100%;padding:8px;border:1px solid #fca5a5;border-radius:6px;margin-bottom:8px" />
+        <div style="display:flex;gap:8px">
+          <button id="btn-purgar-confirmar" class="button danger" style="flex:1">Confirmar y purgar</button>
+          <button id="btn-purgar-cancelar" class="button secondary" style="flex:1">Cancelar</button>
+        </div>
+        <div id="purgar-msg" style="margin-top:8px"></div>
+      </div>`;
+
+    document.querySelector("#btn-purgar-cancelar").addEventListener("click", () => {
+      div.innerHTML = "";
+    });
+
+    document.querySelector("#btn-purgar-confirmar").addEventListener("click", async () => {
+      const pwd = document.querySelector("#purgar-pwd").value;
+      const msg = document.querySelector("#purgar-msg");
+      if (!pwd) { msg.innerHTML = `<p style="color:#ef4444">Ingresá tu contraseña.</p>`; return; }
+      msg.innerHTML = `<p style="color:#666">Purgando...</p>`;
+      try {
+        const r = await apiFetch("/api/admin/ordenes/purgar", {
+          method: "POST", body: JSON.stringify({ password: pwd }),
+        });
+        div.innerHTML = `<p style="color:#10b981;margin-top:8px">
+          ✅ Se eliminaron ${r.eliminadas} orden(es) no completadas.
+        </p>`;
+      } catch(err) {
+        msg.innerHTML = `<p style="color:#ef4444">${escapeHtml(err.message)}</p>`;
+      }
+    });
+  });
+}
+
+// ── Asistente: Nueva Máquina Completa ────────────────────────────────────────
+
+function _saveWizard(data) {
+  state.wizard = Object.assign(state.wizard || { paso: 1 }, data);
+  localStorage.setItem("gm_wizard", JSON.stringify(state.wizard));
+}
+
+function _clearWizard() {
+  state.wizard = null;
+  _wizardProgramaSelId = null;
+  localStorage.removeItem("gm_wizard");
+}
+
+function _wizardShell(paso, content) {
+  const pasos = ["Equipo", "Repuestos", "Programas", "Pasos", "¡Listo!"];
+  const stepsHtml = pasos.map((label, i) => {
+    const n = i + 1;
+    const isDone = n < paso;
+    const isActive = n === paso;
+    return `${i > 0 ? '<div class="wiz-line"></div>' : ""}
+      <div class="wiz-step${isActive ? " wiz-active" : ""}${isDone ? " wiz-done" : ""}">
+        <div class="wiz-circle">${isDone ? "✓" : n}</div>
+        <div class="wiz-label">${label}</div>
+      </div>`;
+  }).join("");
+  return layoutAdmin("asistente", `
+    <div style="max-width:600px;margin:0 auto;padding-bottom:32px">
+      <div class="wiz-steps">${stepsHtml}</div>
+      <div class="wiz-body">${content}</div>
+    </div>
+  `);
+}
+
+async function _wizardPasoEquipo() {
+  const tipos = await apiFetch("/api/admin/tipos-equipo");
+  const tipoOpts = tipos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join("");
+  const nombrePrefill = state.wizard.equipoNombre ?? "";
+  document.querySelector("#app").innerHTML = _wizardShell(1, `
+    <div class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 4px">Paso 1 — Datos del equipo</h3>
+      <p class="muted" style="margin:0 0 16px;font-size:13px">Cargá los datos básicos de la máquina. Solo el nombre es obligatorio.</p>
+      <form id="wiz-form-equipo">
+        <div class="field"><label>Nombre *</label><input name="nombre" value="${escapeHtml(nombrePrefill)}" required autofocus /></div>
+        <div class="field"><label>Tipo</label><select name="tipo_id"><option value="">Sin tipo</option>${tipoOpts}</select></div>
+        <div class="field"><label>Nº Serie</label><input name="numero_serie" /></div>
+        <div class="field"><label>Marca</label><input name="marca" /></div>
+        <div class="field"><label>Modelo</label><input name="modelo" /></div>
+        <div class="field"><label>Ubicación</label><input name="ubicacion" /></div>
+        <div class="field"><label>Fecha adquisición</label><input name="fecha_adquisicion" type="date" /></div>
+        <div class="field"><label>Observaciones</label><textarea name="observaciones" rows="2"></textarea></div>
+        <div class="field"><label><input type="checkbox" name="activo" checked> Activo</label></div>
+        <div id="wiz-error" class="error" style="display:none"></div>
+        <div class="button-row" style="margin-top:16px;justify-content:flex-end">
+          <button class="button primary" type="submit">Siguiente →</button>
+        </div>
+      </form>
+    </div>
+  `);
+  document.querySelector("#wiz-form-equipo").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const errEl = document.querySelector("#wiz-error");
+    errEl.style.display = "none";
+    const body = {
+      nombre: fd.get("nombre").trim(),
+      tipo_id: fd.get("tipo_id") ? Number(fd.get("tipo_id")) : null,
+      numero_serie: fd.get("numero_serie").trim(),
+      marca: fd.get("marca").trim(),
+      modelo: fd.get("modelo").trim(),
+      ubicacion: fd.get("ubicacion").trim(),
+      fecha_adquisicion: fd.get("fecha_adquisicion") || "",
+      observaciones: fd.get("observaciones").trim(),
+      activo: fd.has("activo"),
+    };
+    if (!body.nombre) {
+      errEl.textContent = "El nombre es obligatorio.";
+      errEl.style.display = "block";
+      return;
+    }
+    const btn = e.target.querySelector("[type=submit]");
+    btn.disabled = true;
+    btn.textContent = "Guardando…";
+    try {
+      const equipo = await apiFetch("/api/admin/equipos", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      _saveWizard({ paso: 2, equipoId: equipo.id, equipoNombre: equipo.nombre });
+      await renderAsistenteMaquina();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Siguiente →";
+    }
+  });
+}
+
+async function _wizardPasoProgramas() {
+  const equipoId = state.wizard.equipoId;
+  const equipoNombre = state.wizard.equipoNombre;
+  let programas = [];
+  try {
+    const todos = await apiFetch("/api/admin/programas");
+    programas = todos.filter(p => p.equipo_id === equipoId);
+  } catch (_) {}
+  const listHtml = programas.length === 0
+    ? `<p class="muted empty" style="padding:16px 0">Todavía no hay programas. Podés agregar uno o continuar y agregarlos después.</p>`
+    : `<table class="admin-table"><thead><tr><th>Descripción</th><th>Frecuencia</th><th>Última ejec.</th><th></th></tr></thead><tbody>
+        ${programas.map(p => `<tr>
+          <td>${escapeHtml(p.descripcion)}</td>
+          <td>Cada ${p.frecuencia_meses} mes${p.frecuencia_meses !== 1 ? "es" : ""}</td>
+          <td>${escapeHtml(p.ultima_ejecucion || "—")}</td>
+          <td><button class="btn-icon" data-del-prog="${p.id}" title="Eliminar">🗑️</button></td>
+        </tr>`).join("")}
+      </tbody></table>`;
+  document.querySelector("#app").innerHTML = _wizardShell(3, `
+    <div class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 4px">Paso 3 — Programas de mantenimiento</h3>
+      <p class="muted" style="margin:0 0 12px;font-size:13px">Máquina: <strong>${escapeHtml(equipoNombre)}</strong></p>
+      <div id="wiz-prog-list">${listHtml}</div>
+      <details style="margin-top:16px;border:1px dashed #d1d5db;border-radius:8px;padding:12px">
+        <summary style="cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">+</span> Agregar programa
+        </summary>
+        <form id="wiz-form-prog" style="margin-top:12px">
+          <div class="field"><label>Descripción *</label><input name="descripcion" required /></div>
+          <div class="field"><label>Frecuencia (meses) *</label><input name="frecuencia_meses" type="number" min="1" max="120" value="1" required /></div>
+          <div class="field"><label>Última ejecución</label><input name="ultima_ejecucion" type="date" /></div>
+          <div id="wiz-prog-error" class="error" style="display:none"></div>
+          <button class="button primary" type="submit" style="width:100%">Agregar programa</button>
+        </form>
+      </details>
+      <div class="button-row" style="margin-top:20px;justify-content:space-between">
+        <button class="button secondary" id="wiz-back-1">← Anterior</button>
+        <button class="button primary" id="wiz-next-3">Siguiente →</button>
+      </div>
+    </div>
+  `);
+  document.querySelectorAll("[data-del-prog]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar este programa?")) return;
+      try {
+        await apiFetch(`/api/admin/programas/${btn.dataset.delProg}`, { method: "DELETE" });
+        await _wizardPasoProgramas();
+      } catch (err) { alert(err.message); }
+    });
+  });
+  document.querySelector("#wiz-form-prog").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const errEl = document.querySelector("#wiz-prog-error");
+    errEl.style.display = "none";
+    const body = {
+      equipo_id: equipoId,
+      descripcion: fd.get("descripcion").trim(),
+      frecuencia_meses: Number(fd.get("frecuencia_meses")),
+      ultima_ejecucion: fd.get("ultima_ejecucion") || null,
+      activo: true,
+    };
+    const btn = e.target.querySelector("[type=submit]");
+    btn.disabled = true;
+    btn.textContent = "Guardando…";
+    try {
+      await apiFetch("/api/admin/programas", { method: "POST", body: JSON.stringify(body) });
+      await _wizardPasoProgramas();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Agregar programa";
+    }
+  });
+  document.querySelector("#wiz-back-1").addEventListener("click", () => {
+    _saveWizard({ paso: 2 });
+    renderAsistenteMaquina();
+  });
+  document.querySelector("#wiz-next-3").addEventListener("click", () => {
+    _saveWizard({ paso: 4 });
+    renderAsistenteMaquina();
+  });
+}
+
+async function _wizardPasoRepuestos() {
+  const equipoId = state.wizard.equipoId;
+  const equipoNombre = state.wizard.equipoNombre;
+  const [vinculos, catalogo] = await Promise.all([
+    apiFetch(`/api/admin/equipos/${equipoId}/repuestos`),
+    apiFetch("/api/admin/repuestos"),
+  ]);
+  const vinculadosIds = new Set(vinculos.map(v => v.repuesto_id));
+  const disponibles = catalogo.filter(r => r.activo && !vinculadosIds.has(r.id));
+  const vinculosHtml = vinculos.length === 0
+    ? `<p class="muted empty" style="padding:12px 0">Sin repuestos vinculados todavía. Podés vincularlos ahora o más tarde desde el equipo.</p>`
+    : `<table class="admin-table"><thead><tr>
+        <th>Repuesto</th><th>Stock</th><th>Mínimo</th><th></th>
+      </tr></thead><tbody>
+      ${vinculos.map(v => `<tr>
+        <td><strong>${escapeHtml(v.repuesto_nombre)}</strong></td>
+        <td>${v.stock_actual ?? "—"}</td>
+        <td>
+          <input type="number" step="0.001" min="0" value="${v.stock_minimo}"
+            data-vinculo-id="${v.id}"
+            style="width:60px;padding:3px 6px;border:1px solid #ccc;border-radius:4px" />
+        </td>
+        <td>
+          <button class="btn-icon" data-save-v="${v.id}" title="Guardar mínimo">💾</button>
+          <button class="btn-icon" data-del-v="${v.id}" title="Desvincular">🗑️</button>
+        </td>
+      </tr>`).join("")}
+      </tbody></table>`;
+  const addHtml = disponibles.length > 0 ? `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
+      <div class="field" style="margin:0;flex:1;min-width:160px"><label>Repuesto</label>
+        <select id="new-v-rep" style="width:100%">
+          <option value="">Seleccionar...</option>
+          ${disponibles.map(r => `<option value="${r.id}">${escapeHtml(r.nombre)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field" style="margin:0"><label>Mínimo</label>
+        <input id="new-v-min" type="number" step="0.001" min="0" value="0" style="width:70px" />
+      </div>
+      <button id="btn-wiz-vincular" class="button primary">+ Vincular</button>
+    </div>` : `<p style="color:#666;font-size:13px;margin-top:8px">
+      Todos los repuestos del catálogo ya están vinculados.
+      <a href="/admin/repuestos/nuevo" style="color:#3b82f6">+ Crear repuesto</a></p>`;
+  document.querySelector("#app").innerHTML = _wizardShell(2, `
+    <div class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 4px">Paso 2 — Repuestos</h3>
+      <p class="muted" style="margin:0 0 12px;font-size:13px">Máquina: <strong>${escapeHtml(equipoNombre)}</strong></p>
+      <div>${vinculosHtml}</div>
+      ${addHtml}
+      <div class="button-row" style="margin-top:20px;justify-content:space-between">
+        <button class="button secondary" id="wiz-back-2">← Anterior</button>
+        <button class="button primary" id="wiz-next-4">Siguiente →</button>
+      </div>
+    </div>
+  `);
+  document.querySelectorAll("[data-save-v]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const vid = btn.dataset.saveV;
+      const minInput = btn.closest("tr").querySelector(`[data-vinculo-id="${vid}"]`);
+      try {
+        await apiFetch(`/api/admin/equipos/${equipoId}/repuestos/${vid}`, {
+          method: "PUT",
+          body: JSON.stringify({ stock_minimo: Number(minInput.value), observaciones: "" }),
+        });
+        btn.textContent = "✓";
+        setTimeout(() => { btn.textContent = "💾"; }, 1500);
+      } catch (err) { alert(err.message); }
+    });
+  });
+  document.querySelectorAll("[data-del-v]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Desvincular este repuesto?")) return;
+      try {
+        await apiFetch(`/api/admin/equipos/${equipoId}/repuestos/${btn.dataset.delV}`, { method: "DELETE" });
+        await _wizardPasoRepuestos();
+      } catch (err) { alert(err.message); }
+    });
+  });
+  const btnVincular = document.querySelector("#btn-wiz-vincular");
+  if (btnVincular) {
+    btnVincular.addEventListener("click", async () => {
+      const repId = document.querySelector("#new-v-rep").value;
+      const min = document.querySelector("#new-v-min").value;
+      if (!repId) { alert("Seleccioná un repuesto."); return; }
+      try {
+        await apiFetch(`/api/admin/equipos/${equipoId}/repuestos`, {
+          method: "POST",
+          body: JSON.stringify({ repuesto_id: Number(repId), stock_minimo: Number(min), observaciones: "" }),
+        });
+        await _wizardPasoRepuestos();
+      } catch (err) { alert(err.message); }
+    });
+  }
+  document.querySelector("#wiz-back-2").addEventListener("click", () => {
+    _saveWizard({ paso: 1 });
+    renderAsistenteMaquina();
+  });
+  document.querySelector("#wiz-next-4").addEventListener("click", () => {
+    _saveWizard({ paso: 3 });
+    renderAsistenteMaquina();
+  });
+}
+
+let _wizardProgramaSelId = null;
+
+async function _wizardPasosDePrograma() {
+  const equipoId = state.wizard.equipoId;
+  const equipoNombre = state.wizard.equipoNombre;
+
+  const [todosProgramas, repuestosEquipo] = await Promise.all([
+    apiFetch("/api/admin/programas"),
+    apiFetch(`/api/admin/equipos/${equipoId}/repuestos`),
+  ]);
+  const programas = todosProgramas.filter(p => p.equipo_id === equipoId);
+
+  if (!programas.find(p => p.id === _wizardProgramaSelId)) {
+    _wizardProgramaSelId = programas.length > 0 ? programas[0].id : null;
+  }
+  const progActual = programas.find(p => p.id === _wizardProgramaSelId) ?? null;
+
+  let pasosHtml = "";
+  if (progActual) {
+    const pasos = await apiFetch(`/api/admin/programas/${progActual.id}/pasos`);
+
+    const repOpts = (selId) =>
+      `<option value="">— Sin repuesto —</option>` +
+      repuestosEquipo.map(r =>
+        `<option value="${r.repuesto_id}" ${r.repuesto_id === selId ? "selected" : ""}>${escapeHtml(r.repuesto_nombre)}</option>`
+      ).join("");
+
+    const pasoCard = (p) => `
+      <div class="panel" style="padding:10px 14px;margin-bottom:8px">
+        <div class="paso-vista" id="wvista-${p.id}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1">
+              <div style="font-weight:600;margin-bottom:2px">${p.posicion}. ${escapeHtml(p.descripcion)}</div>
+              ${p.observaciones ? `<div class="muted" style="font-size:13px">${escapeHtml(p.observaciones)}</div>` : ""}
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+                ${p.repuesto_nombre ? `<span style="background:#e0f2fe;color:#0369a1;border-radius:6px;padding:2px 8px;font-size:12px">📦 ${escapeHtml(p.repuesto_nombre)}</span>` : ""}
+                ${p.adjunto_nombre ? `<span class="muted" style="font-size:12px">📎 ${escapeHtml(p.adjunto_nombre)}</span>` : `<span class="muted" style="font-size:12px">Sin imagen</span>`}
+              </div>
+            </div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button class="btn-icon wiz-toggle-paso" data-pid="${p.id}" title="Editar">✏️</button>
+              <button class="btn-icon wiz-del-paso" data-pid="${p.id}" title="Eliminar" style="color:#dc2626">🗑️</button>
+            </div>
+          </div>
+        </div>
+        <div class="paso-form" id="wform-${p.id}" style="display:none">
+          <div class="field"><label>Descripción *</label><input class="wep-desc" value="${escapeHtml(p.descripcion)}" /></div>
+          <div class="field"><label>Observaciones</label><textarea class="wep-obs">${escapeHtml(p.observaciones)}</textarea></div>
+          <div class="field"><label>Repuesto requerido</label><select class="wep-rep">${repOpts(p.repuesto_id)}</select></div>
+          <div class="field"><label>Imagen adjunta</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              ${p.adjunto_nombre
+                ? `<span class="muted" style="font-size:13px">${escapeHtml(p.adjunto_nombre)}</span>
+                   <button type="button" class="button secondary wep-del-adj" style="padding:4px 10px;font-size:12px">Quitar imagen</button>`
+                : `<span class="muted" style="font-size:13px">Sin imagen</span>`}
+              <label class="button secondary" style="padding:4px 10px;font-size:12px;cursor:pointer">
+                📎 Subir imagen<input type="file" class="wep-file" accept="image/*,application/pdf" style="display:none" />
+              </label>
+            </div>
+          </div>
+          <div class="button-row" style="margin-top:8px">
+            <button class="button secondary wiz-toggle-paso" data-pid="${p.id}">Cancelar</button>
+            <button class="button primary wep-save" data-pid="${p.id}">Guardar</button>
+          </div>
+        </div>
+      </div>`;
+
+    pasosHtml = `
+      <div style="margin-top:12px">
+        ${pasos.length
+          ? pasos.map(pasoCard).join("")
+          : `<p class="muted empty" style="padding:8px 0">Sin pasos todavía.</p>`}
+        <details style="margin-top:12px;border:1px dashed #d1d5db;border-radius:8px;padding:12px">
+          <summary style="cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">+</span> Agregar paso
+          </summary>
+          <form id="wiz-form-paso-nuevo" style="margin-top:12px">
+            <div class="field"><label>Descripción *</label><input id="wnp-desc" required placeholder="Ej: Verificar nivel de aceite" /></div>
+            <div class="field"><label>Observaciones</label><textarea id="wnp-obs" rows="2" placeholder="Detalle opcional..."></textarea></div>
+            <div class="field"><label>Repuesto requerido</label><select id="wnp-rep">${repOpts(null)}</select></div>
+            <div class="field"><label>Imagen adjunta</label><input id="wnp-file" type="file" accept="image/*,application/pdf" /></div>
+            <div id="wiz-paso-error" class="error" style="display:none"></div>
+            <button class="button primary" type="submit" style="width:100%">Agregar paso</button>
+          </form>
+        </details>
+      </div>`;
+  }
+
+  const progOpts = programas.map(p =>
+    `<option value="${p.id}" ${p.id === _wizardProgramaSelId ? "selected" : ""}>${escapeHtml(p.descripcion)}</option>`
+  ).join("");
+
+  document.querySelector("#app").innerHTML = _wizardShell(4, `
+    <div class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 4px">Paso 4 — Pasos de cada programa</h3>
+      <p class="muted" style="margin:0 0 12px;font-size:13px">Máquina: <strong>${escapeHtml(equipoNombre)}</strong></p>
+
+      ${programas.length === 0
+        ? `<p class="muted empty" style="padding:16px 0">No hay programas. Podés continuar y agregar pasos después.</p>`
+        : `<div class="field" style="margin-bottom:4px"><label>Programa</label>
+            <select id="wiz-prog-sel" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px">
+              ${progOpts}
+            </select>
+           </div>
+           <div id="wiz-pasos-body">${pasosHtml}</div>`}
+
+      <div class="button-row" style="margin-top:20px;justify-content:space-between">
+        <button class="button secondary" id="wiz-back-3">← Anterior</button>
+        <button class="button success" id="wiz-next-5">Finalizar ✓</button>
+      </div>
+    </div>
+  `);
+
+  // Selector de programa
+  document.querySelector("#wiz-prog-sel")?.addEventListener("change", async (e) => {
+    _wizardProgramaSelId = Number(e.target.value);
+    await _wizardPasosDePrograma();
+  });
+
+  // Toggle editar / ver paso
+  document.querySelectorAll(".wiz-toggle-paso").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const pid = btn.dataset.pid;
+      const vista = document.querySelector(`#wvista-${pid}`);
+      const form  = document.querySelector(`#wform-${pid}`);
+      vista.style.display = vista.style.display === "none" ? "" : "none";
+      form.style.display  = form.style.display  === "none" ? "" : "none";
+    });
+  });
+
+  // Guardar edición de paso
+  document.querySelectorAll(".wep-save").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const pid = btn.dataset.pid;
+      const form = document.querySelector(`#wform-${pid}`);
+      const desc = form.querySelector(".wep-desc").value.trim();
+      const obs  = form.querySelector(".wep-obs").value.trim();
+      const repId = Number(form.querySelector(".wep-rep").value) || null;
+      if (!desc) { alert("La descripción no puede estar vacía."); return; }
+      btn.disabled = true;
+      try {
+        await apiFetch(`/api/admin/programas/${progActual.id}/pasos/${pid}`, {
+          method: "PUT",
+          body: JSON.stringify({ descripcion: desc, observaciones: obs, repuesto_id: repId }),
+        });
+        const fileInput = form.querySelector(".wep-file");
+        if (fileInput?.files[0]) {
+          const fd = new FormData();
+          fd.append("archivo", fileInput.files[0]);
+          await fetch(`${state.serverBase}/api/admin/programas/${progActual.id}/pasos/${pid}/adjunto`, {
+            method: "POST",
+            headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+            body: fd,
+          });
+        }
+        await _wizardPasosDePrograma();
+      } catch (err) { alert(err.message); btn.disabled = false; }
+    });
+  });
+
+  // Quitar imagen de paso
+  document.querySelectorAll(".wep-del-adj").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const pid = btn.closest(".paso-form").id.replace("wform-", "");
+      btn.disabled = true;
+      try {
+        await apiFetch(`/api/admin/programas/${progActual.id}/pasos/${pid}/adjunto`, { method: "DELETE" });
+        await _wizardPasosDePrograma();
+      } catch (err) { alert(err.message); btn.disabled = false; }
+    });
+  });
+
+  // Eliminar paso
+  document.querySelectorAll(".wiz-del-paso").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar este paso?")) return;
+      btn.disabled = true;
+      try {
+        await apiFetch(`/api/admin/programas/${progActual.id}/pasos/${btn.dataset.pid}`, { method: "DELETE" });
+        await _wizardPasosDePrograma();
+      } catch (err) { alert(err.message); btn.disabled = false; }
+    });
+  });
+
+  // Agregar paso nuevo
+  document.querySelector("#wiz-form-paso-nuevo")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errEl = document.querySelector("#wiz-paso-error");
+    errEl.style.display = "none";
+    const desc  = document.querySelector("#wnp-desc").value.trim();
+    const obs   = document.querySelector("#wnp-obs").value.trim();
+    const repId = Number(document.querySelector("#wnp-rep").value) || null;
+    const file  = document.querySelector("#wnp-file").files[0];
+    if (!desc) { errEl.textContent = "La descripción es obligatoria."; errEl.style.display = "block"; return; }
+    const btn = e.currentTarget.querySelector("[type=submit]");
+    btn.disabled = true;
+    btn.textContent = "Guardando…";
+    try {
+      const nuevoPaso = await apiFetch(`/api/admin/programas/${progActual.id}/pasos`, {
+        method: "POST",
+        body: JSON.stringify({ descripcion: desc, observaciones: obs, repuesto_id: repId }),
+      });
+      if (file) {
+        const fd = new FormData();
+        fd.append("archivo", file);
+        await fetch(`${state.serverBase}/api/admin/programas/${progActual.id}/pasos/${nuevoPaso.id}/adjunto`, {
+          method: "POST",
+          headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+          body: fd,
+        });
+      }
+      await _wizardPasosDePrograma();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Agregar paso";
+    }
+  });
+
+  document.querySelector("#wiz-back-3").addEventListener("click", () => {
+    _saveWizard({ paso: 3 });
+    renderAsistenteMaquina();
+  });
+  document.querySelector("#wiz-next-5").addEventListener("click", () => {
+    _saveWizard({ paso: 5 });
+    renderAsistenteMaquina();
+  });
+}
+
+async function _wizardPasoListo() {
+  const equipoId = state.wizard.equipoId;
+  const equipoNombre = state.wizard.equipoNombre;
+  let progCount = 0;
+  try {
+    const todos = await apiFetch("/api/admin/programas");
+    progCount = todos.filter(p => p.equipo_id === equipoId).length;
+  } catch (_) {}
+  document.querySelector("#app").innerHTML = _wizardShell(5, `
+    <div class="panel" style="margin-top:16px;text-align:center;padding:28px 20px">
+      <div style="font-size:52px;margin-bottom:12px">🎉</div>
+      <h3 style="margin:0 0 8px;font-size:20px">¡Máquina cargada con éxito!</h3>
+      <p style="color:#444;margin:0 0 24px">
+        <strong>${escapeHtml(equipoNombre)}</strong> fue creada
+        con ${progCount} programa${progCount !== 1 ? "s" : ""} de mantenimiento.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:24px">
+        <a class="button primary" href="/admin/equipos/${equipoId}/programas">🗓️ Ver programas</a>
+        <a class="button secondary" href="/admin/equipos/${equipoId}/repuestos">📦 Ver repuestos</a>
+        <a class="button secondary" href="/admin/equipos/${equipoId}">✏️ Editar equipo</a>
+      </div>
+      <div style="padding-top:20px;border-top:1px solid #eee;display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
+        <button class="button success" id="wiz-nueva">+ Cargar otra máquina</button>
+        <a class="button secondary" href="/admin/hub">Volver al inicio</a>
+      </div>
+    </div>
+  `);
+  document.querySelector("#wiz-nueva").addEventListener("click", () => {
+    _clearWizard();
+    navigate("/admin/asistente");
+  });
+}
+
+async function renderAsistenteMaquina() {
+  if (!state.wizard) {
+    _saveWizard({ paso: 1, equipoId: null, equipoNombre: null });
+  }
+  renderLoading("Cargando asistente...");
+  const { paso } = state.wizard;
+  if (paso === 2) {
+    await _wizardPasoRepuestos();
+  } else if (paso === 3) {
+    await _wizardPasoProgramas();
+  } else if (paso === 4) {
+    await _wizardPasosDePrograma();
+  } else if (paso === 5) {
+    await _wizardPasoListo();
+  } else {
+    await _wizardPasoEquipo();
+  }
+}
+
+// ── Refresh alertas badge ─────────────────────────────────────────────────────
+
+async function refreshAlertasBadge() {
+  if (!state.token || !state.tecnico?.es_admin) return;
+  try {
+    const alertas = await apiFetch("/api/alertas");
+    state.alertasCount = alertas.length;
+  } catch (_) {}
 }
 
 function navigate(path) {
@@ -1402,15 +3009,62 @@ async function render() {
     await renderAdjunto();
     return;
   }
+  if (path === "admin" || path === "admin/hub") {
+    renderAdminHub();
+    return;
+  }
   if (path.startsWith("admin/")) {
     const parts = path.split("/");
     const section = parts[1];
     const subId = parts[2];
     const subAction = parts[3];
-    if (section === "tecnicos" && subId && subAction === "password") {
+    if (section === "hub") {
+      renderAdminHub();
+    } else if (section === "dashboard") {
+      await renderDashboard();
+    } else if (section === "alertas") {
+      await renderAlertas();
+    } else if (section === "generar") {
+      await renderGenerarOrdenes();
+    } else if (section === "base-datos") {
+      renderBaseDatos();
+    } else if (section === "electricidad") {
+      if (subId === "nuevo-medidor") {
+        await renderAdminForm("medidor", null);
+      } else if (subId && subAction === "nueva-factura") {
+        await renderAdminForm("factura-nueva", Number(subId));
+      } else if (subId && subAction === "factura" && parts[4]) {
+        await renderAdminForm("factura", Number(parts[4]), Number(subId));
+      } else if (subId && !isNaN(Number(subId))) {
+        await renderElectricidad(Number(subId));
+      } else {
+        await renderElectricidad();
+      }
+    } else if (section === "repuestos" && subId === "consolidado") {
+      await renderAdminConsolidado();
+    } else if (section === "repuestos" && subId && !isNaN(Number(subId)) && subAction === "proveedores") {
+      await renderAdminRepuestosProveedor(Number(subId));
+    } else if (section === "equipos" && subId && !isNaN(Number(subId)) && subAction === "programas") {
+      const subSubId = parts[4];  // /admin/equipos/{id}/programas/{progId}
+      if (subSubId === "nuevo") {
+        await renderAdminForm("programas", null, {}, Number(subId));
+      } else if (subSubId && !isNaN(Number(subSubId)) && parts[5] === "pasos") {
+        await renderAdminPasos(Number(subSubId));
+      } else if (subSubId && !isNaN(Number(subSubId))) {
+        await renderAdminForm("programas", Number(subSubId), {}, Number(subId));
+      } else {
+        await renderAdminProgramasEquipo(Number(subId));
+      }
+    } else if (section === "equipos" && subId && !isNaN(Number(subId)) && subAction === "repuestos") {
+      await renderAdminRepuestosEquipo(Number(subId));
+    } else if (section === "equipos" && subId && subAction === "historial") {
+      await renderHistorialEquipo(Number(subId));
+    } else if (section === "tecnicos" && subId && subAction === "password") {
       await renderAdminPasswordForm(Number(subId));
     } else if (section === "programas" && subId && !isNaN(Number(subId)) && subAction === "pasos") {
       await renderAdminPasos(Number(subId));
+    } else if (section === "asistente") {
+      await renderAsistenteMaquina();
     } else if (subId === "nuevo") {
       await renderAdminForm(section, null);
     } else if (subId && !isNaN(Number(subId))) {
@@ -1420,7 +3074,7 @@ async function render() {
     }
     return;
   }
-  navigate("/ordenes");
+  navigate("/admin/hub");
 }
 
 window.addEventListener("popstate", () => {

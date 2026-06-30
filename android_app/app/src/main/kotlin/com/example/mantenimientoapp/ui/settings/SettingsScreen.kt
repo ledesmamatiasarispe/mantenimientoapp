@@ -85,7 +85,7 @@ fun SettingsScreen(
                     value = urlInput,
                     onValueChange = { urlInput = it; urlSaved = false },
                     label = { Text("URL del servidor") },
-                    placeholder = { Text("http://192.168.x.x:54321") },
+                    placeholder = { Text("http://192.168.x.x:50502") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )

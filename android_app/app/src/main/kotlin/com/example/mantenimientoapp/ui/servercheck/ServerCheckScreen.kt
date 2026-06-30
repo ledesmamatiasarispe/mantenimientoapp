@@ -130,7 +130,7 @@ private fun FailedView(
                 value = urlInput,
                 onValueChange = { urlInput = it },
                 label = { Text("URL del servidor") },
-                placeholder = { Text("http://192.168.x.x:54321") },
+                placeholder = { Text("http://192.168.x.x:50502") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Dns, null) }

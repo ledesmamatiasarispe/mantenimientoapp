@@ -49,6 +49,8 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QWizard,
+    QWizardPage,
 )
 
 from gestion_mantenimiento import __version__
@@ -346,7 +348,7 @@ class MainWindow(QMainWindow):
         api_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(api_label)
 
-        api_url_label = QLabel("mantenimiento:54321", sidebar)
+        api_url_label = QLabel("mantenimiento:50502", sidebar)
         api_url_label.setObjectName("muted")
         api_url_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         api_url_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -826,8 +828,12 @@ class MainWindow(QMainWindow):
         btn_nuevo = _primary_button("+ Nuevo equipo")
         btn_nuevo.clicked.connect(lambda: self._open_equipo_dialog())
 
+        btn_asistente = QPushButton("🧙 Asistente")
+        btn_asistente.clicked.connect(lambda: self._open_nueva_maquina_wizard())
+
         tb_layout.addWidget(self._eq_search, 1)
         tb_layout.addWidget(self._eq_show_inactive)
+        tb_layout.addWidget(btn_asistente)
         tb_layout.addWidget(btn_nuevo)
         layout.addWidget(topbar)
 
@@ -895,6 +901,11 @@ class MainWindow(QMainWindow):
         dlg = EquipoDialog(self._db, equipo_id, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._refresh_equipos()
+
+    def _open_nueva_maquina_wizard(self) -> None:
+        wizard = NuevaMaquinaWizard(self._db, parent=self)
+        wizard.exec()
+        self._refresh_equipos()
 
     def _edit_selected_equipo(self) -> None:
         equipo_id = self._selected_id(self._eq_table)
@@ -984,9 +995,8 @@ class MainWindow(QMainWindow):
             tabla.setItem(row, 0, QTableWidgetItem(str(r.id)))
             tabla.setItem(row, 1, QTableWidgetItem(r.nombre))
             tabla.setItem(row, 2, QTableWidgetItem(f"{r.stock_actual:g}"))
-            tabla.setItem(row, 3, QTableWidgetItem(f"{r.stock_minimo:g}"))
-            estado_stock = "BAJO STOCK" if r.bajo_stock else "OK"
-            tabla.setItem(row, 4, QTableWidgetItem(estado_stock))
+            tabla.setItem(row, 3, QTableWidgetItem("—"))  # mínimo ahora es por equipo
+            tabla.setItem(row, 4, QTableWidgetItem("OK"))
             tabla.setItem(row, 5, QTableWidgetItem(r.observaciones))
             tabla.setItem(row, 6, QTableWidgetItem("Activo" if r.activo else "Inactivo"))
             item_id = tabla.item(row, 0)
@@ -3697,18 +3707,12 @@ class RepuestoCatalogDialog(QDialog):
         self._stock_actual.setDecimals(3)
         self._stock_actual.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
-        self._stock_minimo = QDoubleSpinBox()
-        self._stock_minimo.setRange(0, 999_999)
-        self._stock_minimo.setDecimals(3)
-        self._stock_minimo.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-
         self._activo = QCheckBox("Activo")
         self._activo.setChecked(True)
 
         form.addRow("Nombre *", self._nombre)
         form.addRow("Observaciones", self._observaciones)
         form.addRow("Cantidad en stock", self._stock_actual)
-        form.addRow("Stock mínimo", self._stock_minimo)
         form.addRow("", self._activo)
 
         layout.addLayout(form)
@@ -3727,7 +3731,6 @@ class RepuestoCatalogDialog(QDialog):
         self._nombre.setText(rep.nombre)
         self._observaciones.setPlainText(rep.observaciones)
         self._stock_actual.setValue(rep.stock_actual)
-        self._stock_minimo.setValue(rep.stock_minimo)
         self._activo.setChecked(rep.activo)
 
     def _save(self) -> None:
@@ -3741,7 +3744,6 @@ class RepuestoCatalogDialog(QDialog):
                     nombre,
                     self._observaciones.toPlainText().strip(),
                     self._stock_actual.value(),
-                    self._stock_minimo.value(),
                 )
             else:
                 self._repo.update(
@@ -3749,8 +3751,7 @@ class RepuestoCatalogDialog(QDialog):
                     nombre,
                     self._observaciones.toPlainText().strip(),
                     self._stock_actual.value(),
-                    self._stock_minimo.value(),
-                    self._activo.isChecked(),
+                    activo=self._activo.isChecked(),
                 )
             self.accept()
         except Exception as exc:
@@ -5906,3 +5907,287 @@ class EdesurCredencialesDialog(QDialog):
             return
         guardar_credenciales(usuario, clave)
         self.accept()
+
+
+# ── Asistente de carga de máquina ──────────────────────────────────────────────
+
+class _WelcomePage(QWizardPage):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setTitle("Bienvenido al asistente")
+        self.setSubTitle("Te vamos a guiar para cargar todos los datos de una máquina nueva.")
+        layout = QVBoxLayout(self)
+        layout.setSpacing(16)
+
+        pasos = QLabel(
+            "<b>El asistente tiene 3 pasos:</b><br><br>"
+            "① &nbsp;<b>Datos básicos</b> — nombre, tipo, marca, modelo, ubicación y más.<br><br>"
+            "② &nbsp;<b>Programas de mantenimiento</b> — los mantenimientos preventivos que necesita la máquina "
+            "(cambio de aceite, revisión general, etc.) con su frecuencia en meses.<br><br>"
+            "③ &nbsp;<b>Resumen</b> — un recordatorio de los pasos que quedan fuera del asistente."
+        )
+        pasos.setWordWrap(True)
+        pasos.setTextFormat(Qt.TextFormat.RichText)
+        pasos.setStyleSheet("font-size: 13px; line-height: 1.6;")
+        layout.addWidget(pasos)
+        layout.addStretch()
+
+
+class _DatosEquipoPage(QWizardPage):
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._equipo_id: int | None = None
+        self.setTitle("Datos básicos del equipo")
+        self.setSubTitle("Completá la información principal. Solo el nombre es obligatorio.")
+        self._build()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+
+        self._nombre = QLineEdit()
+        self._nombre.setPlaceholderText("Nombre de la máquina *")
+        self.registerField("nombre*", self._nombre)
+
+        self._tipo = QComboBox()
+        self._tipo.addItem("(sin tipo)", None)
+        for t in TipoEquipoRepository(self._db).list_all():
+            self._tipo.addItem(t.nombre, t.id)
+
+        self._numero_serie = QLineEdit()
+        self._marca = QLineEdit()
+        self._modelo = QLineEdit()
+        self._ubicacion = QLineEdit()
+
+        self._fecha_adq = QDateEdit()
+        self._fecha_adq.setCalendarPopup(True)
+        self._fecha_adq.setDate(QDate.currentDate())
+
+        self._observaciones = QTextEdit()
+        self._observaciones.setFixedHeight(70)
+
+        self._activo = QCheckBox("Activo")
+        self._activo.setChecked(True)
+
+        self._horas_check = QCheckBox("Controlar horas de trabajo")
+        self._horas_actual = QDoubleSpinBox()
+        self._horas_actual.setRange(0, 9_999_999)
+        self._horas_actual.setDecimals(1)
+        self._horas_actual.setSuffix(" hs")
+        self._horas_actual.setVisible(False)
+        self._horas_check.toggled.connect(self._horas_actual.setVisible)
+
+        form.addRow("Nombre *", self._nombre)
+        form.addRow("Tipo", self._tipo)
+        form.addRow("N° Serie", self._numero_serie)
+        form.addRow("Marca", self._marca)
+        form.addRow("Modelo", self._modelo)
+        form.addRow("Ubicación", self._ubicacion)
+        form.addRow("Fecha adquisición", self._fecha_adq)
+        form.addRow("Observaciones", self._observaciones)
+        form.addRow("", self._activo)
+        form.addRow("", self._horas_check)
+        form.addRow("Horas actuales", self._horas_actual)
+        layout.addLayout(form)
+
+    def validatePage(self) -> bool:
+        nombre = self._nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Validación", "El nombre es requerido.")
+            return False
+        if self._equipo_id is not None:
+            return True
+        try:
+            repo = EquipoRepository(self._db)
+            self._equipo_id = repo.create(
+                nombre,
+                self._tipo.currentData(),
+                self._numero_serie.text().strip(),
+                self._marca.text().strip(),
+                self._modelo.text().strip(),
+                self._ubicacion.text().strip(),
+                self._fecha_adq.date().toString("yyyy-MM-dd"),
+                self._observaciones.toPlainText().strip(),
+                self._horas_check.isChecked(),
+                self._horas_actual.value(),
+            )
+            return True
+        except Exception as exc:
+            QMessageBox.critical(self, "Error al guardar", str(exc))
+            return False
+
+    def equipo_id(self) -> int | None:
+        return self._equipo_id
+
+    def equipo_nombre(self) -> str:
+        return self._nombre.text().strip()
+
+
+class _ProgramasPage(QWizardPage):
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._repo = ProgramaMantenimientoRepository(database_path)
+        self.setTitle("Programas de mantenimiento")
+        self.setSubTitle(
+            "Agregá los mantenimientos preventivos de esta máquina. "
+            "Podés saltear este paso y cargarlos después desde 'Programa Mantenimiento'."
+        )
+        self._build()
+
+    def _build(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        self._tabla = _make_table(["#", "Descripción", "Frecuencia (meses)", "Próxima ejecución"])
+        self._tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self._tabla)
+
+        btn_bar = QHBoxLayout()
+        btn_nuevo  = _primary_button("+ Agregar programa")
+        btn_editar = QPushButton("Editar")
+        btn_elim   = _danger_button("Eliminar")
+        btn_pasos  = QPushButton("Pasos del programa")
+
+        btn_nuevo.clicked.connect(self._agregar)
+        btn_editar.clicked.connect(self._editar)
+        btn_elim.clicked.connect(self._eliminar)
+        btn_pasos.clicked.connect(self._abrir_pasos)
+
+        btn_bar.addWidget(btn_nuevo)
+        btn_bar.addWidget(btn_editar)
+        btn_bar.addWidget(btn_elim)
+        btn_bar.addWidget(btn_pasos)
+        btn_bar.addStretch()
+        layout.addLayout(btn_bar)
+
+    def initializePage(self) -> None:
+        self._refresh()
+
+    def _equipo_id(self) -> int | None:
+        datos: _DatosEquipoPage = self.wizard().page(1)  # type: ignore[attr-defined]
+        return datos.equipo_id()
+
+    def _refresh(self) -> None:
+        eq_id = self._equipo_id()
+        self._tabla.setRowCount(0)
+        if eq_id is None:
+            return
+        programas = [p for p in self._repo.list_all() if p.equipo_id == eq_id]
+        for p in programas:
+            row = self._tabla.rowCount()
+            self._tabla.insertRow(row)
+            self._tabla.setItem(row, 0, QTableWidgetItem(str(p.id)))
+            self._tabla.setItem(row, 1, QTableWidgetItem(p.descripcion))
+            self._tabla.setItem(row, 2, QTableWidgetItem(str(p.frecuencia_meses)))
+            self._tabla.setItem(row, 3, QTableWidgetItem(p.proxima_ejecucion))
+            item = self._tabla.item(row, 0)
+            if item:
+                item.setData(Qt.ItemDataRole.UserRole, p.id)
+
+    def _selected_programa_id(self) -> int | None:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return None
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 0)
+        return int(item.data(Qt.ItemDataRole.UserRole)) if item else None
+
+    def _selected_programa_desc(self) -> str:
+        selected = self._tabla.selectedItems()
+        if not selected:
+            return ""
+        row = self._tabla.row(selected[0])
+        item = self._tabla.item(row, 1)
+        return item.text() if item else ""
+
+    def _agregar(self) -> None:
+        eq_id = self._equipo_id()
+        if eq_id is None:
+            return
+        dlg = ProgramaDialog(self._db, equipo_id_fijo=eq_id, parent=self)
+        dlg.exec()
+        self._refresh()
+
+    def _editar(self) -> None:
+        prog_id = self._selected_programa_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccioná un programa.")
+            return
+        eq_id = self._equipo_id()
+        dlg = ProgramaDialog(self._db, programa_id=prog_id, equipo_id_fijo=eq_id, parent=self)
+        dlg.exec()
+        self._refresh()
+
+    def _eliminar(self) -> None:
+        prog_id = self._selected_programa_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccioná un programa.")
+            return
+        reply = QMessageBox.question(
+            self, "Confirmar", "¿Eliminar este programa de mantenimiento?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._repo.delete(prog_id)
+            self._refresh()
+
+    def _abrir_pasos(self) -> None:
+        prog_id = self._selected_programa_id()
+        if prog_id is None:
+            QMessageBox.information(self, "Sin selección", "Seleccioná un programa para editar sus pasos.")
+            return
+        desc = self._selected_programa_desc()
+        dlg = PasosDialog(self._db, prog_id, desc, parent=self)
+        dlg.exec()
+
+
+class _ResumenPage(QWizardPage):
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self._repo = ProgramaMantenimientoRepository(database_path)
+        self.setTitle("¡Máquina cargada!")
+        self.setSubTitle("Resumen de lo que se creó en este asistente.")
+        self._layout = QVBoxLayout(self)
+        self._label = QLabel()
+        self._label.setWordWrap(True)
+        self._label.setTextFormat(Qt.TextFormat.RichText)
+        self._label.setStyleSheet("font-size: 13px; line-height: 1.6;")
+        self._layout.addWidget(self._label)
+        self._layout.addStretch()
+
+    def initializePage(self) -> None:
+        datos: _DatosEquipoPage = self.wizard().page(1)  # type: ignore[attr-defined]
+        eq_id = datos.equipo_id()
+        nombre = datos.equipo_nombre()
+
+        n_programas = 0
+        if eq_id is not None:
+            n_programas = sum(1 for p in self._repo.list_all() if p.equipo_id == eq_id)
+
+        self._label.setText(
+            f"<b>✅ Máquina creada:</b> {nombre}<br><br>"
+            f"<b>📋 Programas de mantenimiento:</b> {n_programas}<br><br>"
+            "<hr>"
+            "<b>📦 Siguiente paso fuera del asistente:</b><br>"
+            "Asignar los repuestos que usa esta máquina desde la sección <b>Equipos</b> "
+            "en la <b>app web</b> → hacé click en el ícono 📦 que aparece junto a la máquina.<br><br>"
+            "Esto permite controlar el stock mínimo por máquina y recibir alertas cuando el stock esté bajo."
+        )
+
+
+class NuevaMaquinaWizard(QWizard):
+    def __init__(self, database_path: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._db = database_path
+        self.setWindowTitle("Asistente — Nueva Máquina")
+        self.setMinimumSize(620, 520)
+        self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
+
+        self.addPage(_WelcomePage())
+        self.addPage(_DatosEquipoPage(database_path))
+        self.addPage(_ProgramasPage(database_path))
+        self.addPage(_ResumenPage(database_path))

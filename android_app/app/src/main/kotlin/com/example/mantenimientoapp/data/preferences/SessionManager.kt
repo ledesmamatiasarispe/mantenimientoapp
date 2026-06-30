@@ -41,7 +41,7 @@ class SessionManager @Inject constructor(
         "$n $a".trim()
     }
     val baseUrl: Flow<String> = context.dataStore.data.map {
-        it[KEY_BASE_URL] ?: "http://192.168.100.228:54321"
+        it[KEY_BASE_URL] ?: "http://192.168.100.228:50502"
     }
     val serverIps: Flow<List<ServerIpInfo>> = context.dataStore.data.map { prefs ->
         val json = prefs[KEY_SERVER_IPS] ?: return@map emptyList()

@@ -16,20 +16,29 @@
 html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
   font-family: Arial, Helvetica, sans-serif;
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
-body { min-height: 100vh; }
+/* #app es un flex-column: contenido arriba scrolleable + nav abajo fija */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 a { color: inherit; text-decoration: none; }
 button, input, textarea { font: inherit; }
 
 .login-shell {
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
 }
 
 .card, .panel, .login-card {
@@ -71,7 +80,15 @@ button, input, textarea { font: inherit; }
 
 .error { color: var(--danger); font-size: 14px; margin-top: 12px; }
 
-.app-shell { padding: 16px 16px 88px; }
+/* Zona de contenido: ocupa todo el espacio disponible y scrollea */
+.app-shell {
+  flex: 1;
+  min-height: 0;           /* necesario para que flex child scrollee */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 16px;
+}
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -119,13 +136,11 @@ button, input, textarea { font: inherit; }
 .badge.completada { background: rgba(21, 128, 61, 0.14); color: var(--success); }
 .badge.cancelada { background: rgba(185, 28, 28, 0.14); color: var(--danger); }
 .back-link { display: inline-block; margin-bottom: 12px; color: var(--primary); font-weight: 700; }
+/* Barra inferior: ocupa su altura natural, siempre visible al fondo */
 .bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 10px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.96);
@@ -307,4 +322,108 @@ button, input, textarea { font: inherit; }
     width: min(100%, 880px);
     margin: 0 auto;
   }
+}
+
+/* Badge de alertas */
+.nav-link .badge {
+  display: inline-block;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* Badge de tipo de orden */
+.badge-tipo {
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+/* Admin hub cards */
+.admin-hub-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: box-shadow .15s, transform .1s;
+  height: 100%;
+  border: 1px solid #eee;
+}
+.admin-hub-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  transform: translateY(-1px);
+}
+
+/* Asistente wizard — indicador de pasos */
+.wiz-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 12px 0 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wiz-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.wiz-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  margin: 0 6px;
+  margin-bottom: 18px;
+}
+.wiz-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-soft);
+  color: var(--muted);
+  border: 2px solid var(--border);
+  transition: background .2s, border-color .2s, color .2s;
+}
+.wiz-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.wiz-step.wiz-active .wiz-circle {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.wiz-step.wiz-active .wiz-label {
+  color: var(--primary);
+  font-weight: 700;
+}
+.wiz-step.wiz-done .wiz-circle {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+.wiz-step.wiz-done .wiz-label {
+  color: var(--success);
 }
